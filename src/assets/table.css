@@ -1,0 +1,270 @@
+/* ============================================================
+   TABLE.CSS — Data Tables & Grid
+   ============================================================ */
+
+/* ── TABLE WRAPPER ──────────────────────────────────────── */
+.table-wrap {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+
+/* ── TABLE ──────────────────────────────────────────────── */
+.g-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+
+.g-table thead {
+  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+  border-bottom: 2px solid #bfdbfe;
+}
+
+.g-table th {
+  text-align: left;
+  padding: .85rem 1rem;
+  font-weight: 700;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
+.g-table td {
+  padding: .85rem 1rem;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.g-table tbody tr {
+  transition: background .12s;
+}
+
+.g-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.g-row--active {
+  background: #eff6ff !important;
+  box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+.g-row--lowstok {
+  background: #fef2f2;
+}
+
+.g-row--lowstok:hover {
+  background: #fee2e2;
+}
+
+/* ── TABLE COLUMNS ──────────────────────────────────────── */
+.col-no {
+  width: 50px;
+  color: #94a3b8;
+  font-weight: 600;
+  text-align: center;
+}
+
+.col-kode {
+  width: 120px;
+}
+
+.col-nama {
+  min-width: 200px;
+}
+
+.col-stok {
+  width: 110px;
+  text-align: center;
+}
+
+.col-supplier {
+  width: 150px;
+}
+
+.col-harga {
+  width: 130px;
+  text-align: right;
+}
+
+.col-aksi {
+  width: 100px;
+  text-align: center;
+}
+
+/* ── TABLE CELLS ────────────────────────────────────────── */
+.kode-badge {
+  display: inline-block;
+  background: #dbeafe;
+  color: #1e40af;
+  padding: .25rem .65rem;
+  border-radius: 6px;
+  font-size: .78rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  border: 1px solid #bfdbfe;
+}
+
+.stok-val {
+  display: inline-block;
+  padding: .25rem .65rem;
+  border-radius: 6px;
+  font-weight: 600;
+  background: #d1fae5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.stok-low {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.supplier-chip {
+  display: inline-block;
+  background: #f3f4f6;
+  color: #374151;
+  padding: .25rem .65rem;
+  border-radius: 6px;
+  font-size: .8rem;
+  border: 1px solid #e5e7eb;
+}
+
+.harga-val {
+  font-weight: 600;
+  color: #059669;
+  font-family: 'Courier New', monospace;
+}
+
+.aksi-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+}
+
+.aksi-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: .35rem;
+  border-radius: 5px;
+  font-size: .85rem;
+  transition: background .15s, color .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aksi-edit {
+  color: #3b82f6;
+}
+
+.aksi-edit:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.aksi-del {
+  color: #f87171;
+}
+
+.aksi-del:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* ── TABLE META BAR ─────────────────────────────────────── */
+.result-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .85rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: .85rem;
+}
+
+.result-count {
+  color: #64748b;
+}
+
+.result-count b {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.meta-customer {
+  color: #64748b;
+}
+
+.meta-customer b {
+  color: #3b82f6;
+}
+
+.result-meta-right {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.page-info {
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* ── SKELETON LOADING ───────────────────────────────────── */
+.skeleton {
+  height: 40px;
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 0%,
+    #e2e8f0 50%,
+    #f1f5f9 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.empty-cell {
+  text-align: center;
+  padding: 3rem 1rem !important;
+  color: #94a3b8;
+  font-size: .85rem;
+}
+
+.empty-cell .pi {
+  font-size: 1.4rem;
+  display: block;
+  margin-bottom: .5rem;
+  color: #cbd5e1;
+}
+
+/* ── RESPONSIVE ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .col-kode { 
+    display: none; 
+  }
+
+  .g-table th, 
+  .g-table td { 
+    padding: .65rem .75rem; 
+    font-size: .85rem; 
+  }
+
+  .result-meta { 
+    font-size: .8rem; 
+  }
+}

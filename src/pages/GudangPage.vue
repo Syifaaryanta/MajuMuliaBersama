@@ -124,6 +124,50 @@
       </div>
     </div>
 
+    <!-- ── FOTO PRODUK (jika ada barang dipilih) ────────── -->
+    <div v-if="selectedRowData && selectedRowData.foto_urls?.length > 0" class="product-photos">
+      <div class="photos-header">
+        <i class="pi pi-images"></i>
+        <span class="photos-title">Foto Produk</span>
+        <span class="photos-count">{{ selectedRowData.foto_urls.length }} foto</span>
+      </div>
+      <div class="photos-grid">
+        <div 
+          v-for="(url, idx) in selectedRowData.foto_urls" 
+          :key="url"
+          class="photo-item"
+          @click="openPhotoLightbox(idx)"
+        >
+          <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-img" />
+          <div class="photo-overlay">
+            <i class="pi pi-search-plus"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FOTO PRODUK (jika ada barang dipilih) ────────── -->
+    <div v-if="selectedRowData && selectedRowData.foto_urls?.length > 0" class="product-photos">
+      <div class="photos-header">
+        <i class="pi pi-images"></i>
+        <span class="photos-title">Foto Produk</span>
+        <span class="photos-count">{{ selectedRowData.foto_urls.length }} foto</span>
+      </div>
+      <div class="photos-grid">
+        <div 
+          v-for="(url, idx) in selectedRowData.foto_urls" 
+          :key="url"
+          class="photo-item"
+          @click="openPhotoLightbox(idx)"
+        >
+          <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-img" />
+          <div class="photo-overlay">
+            <i class="pi pi-search-plus"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── HASIL PENCARIAN ───────────────────────────────── -->
     <div v-if="!hasSearched" class="empty-hint">
       <i class="pi pi-search empty-search-icon"></i>
@@ -284,6 +328,54 @@
                     class="mfield-input"
                     placeholder="pcs"
                   />
+                </div>
+              </div>
+
+              <!-- Foto Barang -->
+              <div class="photo-section">
+                <div class="photo-section-header">
+                  <span class="photo-section-title">Foto Barang</span>
+                  <span class="photo-limit">Maksimal 3 foto</span>
+                </div>
+                
+                <!-- Preview foto yang sudah ada -->
+                <div v-if="form.foto_urls.length > 0" class="photo-preview-grid">
+                  <div v-for="(url, idx) in form.foto_urls" :key="url" class="photo-preview-item">
+                    <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-preview-img" />
+                    <button
+                      type="button"
+                      class="photo-remove-btn"
+                      @click="removeFoto(idx)"
+                      title="Hapus foto"
+                    >
+                      <i class="pi pi-times"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Upload foto baru -->
+                <div v-if="form.foto_urls.length < 3" class="photo-upload-area">
+                  <input
+                    ref="fileInput"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    class="photo-file-input"
+                    @change="handleFileSelect"
+                    :disabled="photoUpload.uploading"
+                  />
+                  <div class="photo-upload-label">
+                    <i class="pi pi-cloud-upload"></i>
+                    <span v-if="!photoUpload.uploading">Pilih atau seret foto disini</span>
+                    <span v-else class="uploading-text">
+                      <i class="pi pi-spin pi-spinner"></i>
+                      Mengupload... {{ photoUpload.progress }}%
+                    </span>
+                  </div>
+                  <div v-if="photoUpload.error" class="photo-upload-error">
+                    <i class="pi pi-exclamation-circle"></i>
+                    {{ photoUpload.error }}
+                  </div>
                 </div>
               </div>
 
@@ -488,12 +580,59 @@
       </Transition>
     </Teleport>
 
+    <!-- ═══════════════════════════════════════════════════
+         LIGHTBOX FOTO
+    ════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="lightbox.show" class="lightbox-overlay" @click="closeLightbox">
+          <div class="lightbox-content" @click.stop>
+            <button class="lightbox-close" @click="closeLightbox">
+              <i class="pi pi-times"></i>
+            </button>
+            <button 
+              v-if="lightbox.currentIndex > 0"
+              class="lightbox-prev" 
+              @click="prevPhoto"
+            >
+              <i class="pi pi-chevron-left"></i>
+            </button>
+            <div class="lightbox-image-wrap">
+              <img 
+                :src="lightbox.photos[lightbox.currentIndex]" 
+                :alt="`Foto ${lightbox.currentIndex + 1}`"
+                class="lightbox-image"
+              />
+            </div>
+            <button 
+              v-if="lightbox.currentIndex < lightbox.photos.length - 1"
+              class="lightbox-next" 
+              @click="nextPhoto"
+            >
+              <i class="pi pi-chevron-right"></i>
+            </button>
+            <div class="lightbox-counter">
+              {{ lightbox.currentIndex + 1 }} / {{ lightbox.photos.length }}
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Toast notification -->
+    <Toast position="top-right" />
+
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { useToast } from 'primevue/usetoast'
+import Toast from 'primevue/toast'
+
+// ── Composables ────────────────────────────────────────────
+const toast = useToast()
 
 // ── Constants ──────────────────────────────────────────────
 const PAGE_SIZE = 15
@@ -551,6 +690,14 @@ const pagedRows  = computed(() => {
   return allRows.value.slice(start, start + PAGE_SIZE)
 })
 
+// Data barang yang dipilih (untuk tampilan foto)
+const selectedRowData = computed(() => {
+  if (selectedRowIndex.value >= 0 && pagedRows.value[selectedRowIndex.value]) {
+    return pagedRows.value[selectedRowIndex.value]
+  }
+  return null
+})
+
 // ── State: info cards ──────────────────────────────────────
 const infoCards = reactive({
   lastUnitPrice : null,
@@ -573,6 +720,21 @@ const modal = reactive({
 const form = reactive({
   id: null, kode: '', nama: '', deskripsi: '', stok: 0, satuan: 'pcs',
   prices: [{ supplier_id: '', harga_beli: 0 }],
+  foto_urls: [], // Array URL foto dari Cloudinary (max 3)
+})
+
+// State untuk foto upload
+const photoUpload = reactive({
+  uploading: false,
+  progress: 0,
+  error: '',
+})
+
+// State untuk lightbox
+const lightbox = reactive({
+  show: false,
+  photos: [],
+  currentIndex: 0,
 })
 const deleteModal = reactive({ show: false, row: null, saving: false })
 
@@ -854,7 +1016,7 @@ async function doSearch(productId = null) {
     let query = supabase
       .from('products')
       .select(`
-        id, kode, nama, deskripsi, stok, satuan,
+        id, kode, nama, deskripsi, stok, satuan, foto_urls,
         product_prices (
           id, harga_beli, aktif, stok,
           suppliers ( id, nama )
@@ -891,6 +1053,7 @@ async function doSearch(productId = null) {
         deskripsi: p.deskripsi,
         stok: p.stok,
         satuan: p.satuan,
+        foto_urls: p.foto_urls ?? [],
         prices: prices,  // array of supplier prices
       })
     }
@@ -979,6 +1142,10 @@ function resetForm() {
   form.id = null; form.kode = ''; form.nama = ''; form.deskripsi = ''
   form.stok = 0; form.satuan = 'pcs'
   form.prices = [{ supplier_id: '', stok: 0, harga_beli: 0 }]
+  form.foto_urls = []
+  photoUpload.uploading = false
+  photoUpload.progress = 0
+  photoUpload.error = ''
 }
 
 function openAdd() {
@@ -999,6 +1166,7 @@ function openEdit(row) {
   form.deskripsi = row.deskripsi ?? ''
   form.stok      = row.stok
   form.satuan    = row.satuan
+  form.foto_urls = row.foto_urls ?? []
   
   // Populate prices dari row.prices array
   form.prices = row.prices?.length
@@ -1021,6 +1189,200 @@ function closeModal()      { modal.show = false }
 function addPriceRow()     { form.prices.push({ supplier_id: '', stok: 0, harga_beli: 0 }) }
 function removePriceRow(i) { if (form.prices.length > 1) form.prices.splice(i, 1) }
 
+// ───────────────────────────────────────────────────────────
+// FOTO UPLOAD - CLOUDINARY
+// ───────────────────────────────────────────────────────────
+const fileInput = ref(null)
+
+// Fungsi kompresi gambar
+async function compressImage(file, maxSizeKB = 300, maxWidth = 1200) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    
+    reader.onload = (e) => {
+      const img = new Image()
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        
+        // Resize jika lebih besar dari maxWidth
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        
+        // Mulai dengan quality 0.9 dan turunkan sampai ukuran sesuai
+        let quality = 0.9
+        const tryCompress = () => {
+          canvas.toBlob((blob) => {
+            const sizeKB = blob.size / 1024
+            
+            if (sizeKB <= maxSizeKB || quality <= 0.3) {
+              // Buat File baru dari blob
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              })
+              
+              console.log(`Compressed: ${file.name} from ${(file.size/1024).toFixed(0)}KB to ${sizeKB.toFixed(0)}KB`)
+              resolve(compressedFile)
+            } else {
+              // Turunkan quality dan coba lagi
+              quality -= 0.1
+              tryCompress()
+            }
+          }, 'image/jpeg', quality)
+        }
+        
+        tryCompress()
+      }
+      
+      img.onerror = () => reject(new Error('Gagal memproses gambar'))
+      img.src = e.target.result
+    }
+    
+    reader.onerror = () => reject(new Error('Gagal membaca file'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function removeFoto(index) {
+  form.foto_urls.splice(index, 1)
+  // Reset file input jika ada
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+async function handleFileSelect(event) {
+  const files = Array.from(event.target.files || [])
+  
+  if (files.length === 0) return
+  
+  // Validasi jumlah foto
+  const remainingSlots = 3 - form.foto_urls.length
+  if (files.length > remainingSlots) {
+    photoUpload.error = `Maksimal 3 foto. Anda hanya bisa menambah ${remainingSlots} foto lagi.`
+    toast.add({ 
+      severity: 'warn', 
+      summary: 'Terlalu Banyak Foto', 
+      detail: `Maksimal 3 foto per barang. Anda hanya bisa menambah ${remainingSlots} foto lagi.`,
+      life: 4000 
+    })
+    setTimeout(() => { photoUpload.error = '' }, 4000)
+    return
+  }
+  
+  // Validasi tipe file
+  const invalidFiles = files.filter(f => !f.type.startsWith('image/'))
+  if (invalidFiles.length > 0) {
+    photoUpload.error = 'Hanya file gambar yang diperbolehkan.'
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Format File Salah', 
+      detail: 'Hanya file gambar (JPG, PNG, dsb) yang diperbolehkan.',
+      life: 4000 
+    })
+    setTimeout(() => { photoUpload.error = '' }, 4000)
+    return
+  }
+  
+  // Validasi ukuran file (max 5MB per file)
+  const MAX_SIZE = 5 * 1024 * 1024 // 5MB
+  const oversizedFiles = files.filter(f => f.size > MAX_SIZE)
+  if (oversizedFiles.length > 0) {
+    photoUpload.error = 'Ukuran file maksimal 5MB.'
+    toast.add({ 
+      severity: 'error', 
+      summary: 'File Terlalu Besar', 
+      detail: 'Ukuran setiap foto maksimal 5MB.',
+      life: 4000 
+    })
+    setTimeout(() => { photoUpload.error = '' }, 4000)
+    return
+  }
+  
+  // Upload semua file
+  photoUpload.error = ''
+  photoUpload.uploading = true
+  
+  try {
+    // Compress dan upload semua file
+    const uploadPromises = files.map(async (file, index) => {
+      const compressedFile = await compressImage(file)
+      return uploadToCloudinary(compressedFile, index, files.length)
+    })
+    const urls = await Promise.all(uploadPromises)
+    
+    // Tambahkan URL yang berhasil ke form
+    form.foto_urls.push(...urls.filter(url => url))
+    
+    // Reset input
+    if (fileInput.value) {
+      fileInput.value.value = ''
+    }
+    
+    toast.add({ 
+      severity: 'success', 
+      summary: 'Upload Berhasil', 
+      detail: `${urls.length} foto berhasil diupload.`,
+      life: 3000 
+    })
+  } catch (error) {
+    photoUpload.error = error.message || 'Gagal mengupload foto.'
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Upload Gagal', 
+      detail: error.message || 'Terjadi kesalahan saat mengupload foto.',
+      life: 5000 
+    })
+  } finally {
+    photoUpload.uploading = false
+    photoUpload.progress = 0
+  }
+}
+
+async function uploadToCloudinary(file, index, total) {
+  const CLOUD_NAME = 'dtueroxgq'
+  const UPLOAD_PRESET = 'mmb_preset'
+  const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`
+  
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', UPLOAD_PRESET)
+  formData.append('folder', 'mmb-spareparts') // Optional: organize by folder
+  
+  try {
+    const response = await fetch(CLOUDINARY_URL, {
+      method: 'POST',
+      body: formData,
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error?.message || 'Upload gagal')
+    }
+    
+    const data = await response.json()
+    
+    // Update progress
+    photoUpload.progress = Math.round(((index + 1) / total) * 100)
+    
+    return data.secure_url
+  } catch (error) {
+    console.error('Upload error:', error)
+    throw new Error(`Gagal upload foto ${file.name}: ${error.message}`)
+  }
+}
+
 async function submitModal() {
   modal.saving = true; modal.error = ''
   try {
@@ -1035,6 +1397,7 @@ async function submitModal() {
       deskripsi: form.deskripsi.trim() || null,
       stok: totalStok, 
       satuan: form.satuan.trim() || 'pcs', 
+      foto_urls: form.foto_urls.length > 0 ? form.foto_urls : null,
       aktif: true,
     }
     let productId = form.id
@@ -1062,10 +1425,45 @@ async function submitModal() {
 
     closeModal()
     if (hasSearched.value) await doSearch()
+    
+    toast.add({ 
+      severity: 'success', 
+      summary: 'Berhasil', 
+      detail: modal.mode === 'add' ? 'Barang berhasil ditambahkan' : 'Barang berhasil diupdate',
+      life: 3000 
+    })
   } catch (err) {
     modal.error = err.message
   } finally {
     modal.saving = false
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// LIGHTBOX FOTO
+// ───────────────────────────────────────────────────────────
+function openPhotoLightbox(index) {
+  if (!selectedRowData.value?.foto_urls?.length) return
+  lightbox.photos = selectedRowData.value.foto_urls
+  lightbox.currentIndex = index
+  lightbox.show = true
+}
+
+function closeLightbox() {
+  lightbox.show = false
+  lightbox.photos = []
+  lightbox.currentIndex = 0
+}
+
+function prevPhoto() {
+  if (lightbox.currentIndex > 0) {
+    lightbox.currentIndex--
+  }
+}
+
+function nextPhoto() {
+  if (lightbox.currentIndex < lightbox.photos.length - 1) {
+    lightbox.currentIndex++
   }
 }
 
@@ -1095,9 +1493,21 @@ async function doDelete() {
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
+function onLightboxKey(e) {
+  if (!lightbox.show) return
+  if (e.key === 'Escape') {
+    closeLightbox()
+  } else if (e.key === 'ArrowLeft') {
+    prevPhoto()
+  } else if (e.key === 'ArrowRight') {
+    nextPhoto()
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', onGlobalKey)
   window.addEventListener('keydown', onModalEscKey)
+  window.addEventListener('keydown', onLightboxKey)
   loadSuppliers()
   nextTick(() => inputBarang.value?.focus())
 })
@@ -1105,6 +1515,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('keydown', onModalEscKey)
+  window.removeEventListener('keydown', onLightboxKey)
   clearTimeout(barangTimer)
 })
 
@@ -1123,693 +1534,10 @@ watch([selectedRowIndex, pagedRows], ([idx]) => {
 </script>
 
 <style scoped>
-/* ── PAGE ─────────────────────────────────────────────────── */
-.gudang-page {
-  outline: none;
-  display: flex;
-  flex-direction: column;
-  gap: 1.4rem;
-  padding-bottom: 2.5rem;
-}
+/* Import modular CSS files */
+@import '@/assets/gudang-page.css';
+@import '@/assets/modal.css';
+@import '@/assets/form.css';
+@import '@/assets/table.css';
 
-/* ── HEADER ──────────────────────────────────────────────── */
-.g-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.g-title {
-  font-size: 1.55rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 .2rem 0;
-}
-.g-subtitle {
-  font-size: .88rem;
-  color: #64748b;
-  margin: 0;
-}
-.btn-primary {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .75rem 1.4rem;
-  background: linear-gradient(90deg,#1d4ed8,#3b82f6);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: .92rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: 0 2px 10px rgba(59,130,246,.35);
-  transition: opacity .15s, transform .1s;
-  font-family: 'Inter', sans-serif;
-}
-.btn-primary:hover { opacity: .9; transform: translateY(-1px); }
-
-/* ── SEARCH ──────────────────────────────────────────────── */
-.search-section {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.2rem;
-  align-items: start;
-}
-.search-field {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
-.search-label {
-  font-size: .82rem;
-  font-weight: 600;
-  color: #374151;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-}
-.label-kbd {
-  background: #dbeafe;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-  border-radius: 4px;
-  padding: 1px 5px;
-  font-size: .68rem;
-  font-family: monospace;
-}
-.optional-tag {
-  font-size: .68rem;
-  color: #94a3b8;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.search-input-wrap {
-  display: flex;
-  align-items: center;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
-  background: #f8fafc;
-  transition: border-color .2s, box-shadow .2s, background .2s;
-}
-.search-input-wrap.focused {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 4px rgba(59,130,246,.1);
-  background: #fff;
-}
-.si-icon {
-  padding: 0 1rem;
-  color: #94a3b8;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-.search-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 1rem;
-  color: #0f172a;
-  padding: .9rem .5rem .9rem 0;
-  font-family: 'Inter', sans-serif;
-}
-.search-input::placeholder { color: #cbd5e1; font-size: .95rem; }
-.clear-btn {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 0 .9rem;
-  font-size: .85rem;
-  display: flex;
-  align-items: center;
-  transition: color .15s;
-}
-.clear-btn:hover { color: #ef4444; }
-
-/* Customer dropdown */
-.customer-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0; right: 0;
-  background: #fff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.12);
-  z-index: 50;
-  overflow: hidden;
-}
-.cd-item {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  padding: .65rem .9rem;
-  cursor: pointer;
-  transition: background .12s;
-}
-.cd-item:hover, .cd-item--active { background: #eff6ff; }
-.cd-icon { color: #3b82f6; font-size: .8rem; }
-.cd-info { display: flex; flex-direction: column; }
-.cd-nama { font-size: .85rem; font-weight: 600; color: #1e293b; }
-.cd-kode { font-size: .72rem; color: #94a3b8; }
-
-/* ── INFO CARDS ──────────────────────────────────────────── */
-.info-cards {
-  display: grid;
-  grid-template-columns: repeat(5,1fr);
-  gap: .85rem;
-}
-.info-card {
-  background: #fff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 1rem 1.1rem;
-  display: flex;
-  align-items: center;
-  gap: .85rem;
-  transition: border-color .2s, box-shadow .2s;
-}
-.info-card--filled {
-  border-color: #bfdbfe;
-  box-shadow: 0 2px 14px rgba(59,130,246,.1);
-}
-.info-card--accent.info-card--filled {
-  border-color: #a7f3d0;
-  box-shadow: 0 2px 14px rgba(16,185,129,.12);
-}
-.info-card--accent .ic-icon { background: #ecfdf5; color: #059669; }
-.info-card--accent.info-card--filled .ic-icon { background: #059669; color: #fff; }
-.ic-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: #eff6ff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #3b82f6;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-.info-card--filled .ic-icon { background: #3b82f6; color: #fff; }
-.ic-body { display: flex; flex-direction: column; gap: .18rem; min-width: 0; }
-.ic-label {
-  font-size: .72rem;
-  font-weight: 600;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  white-space: nowrap;
-}
-.ic-value {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── EMPTY HINT ──────────────────────────────────────────── */
-.empty-hint {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .65rem;
-  padding: 3.5rem 1rem;
-  color: #94a3b8;
-  font-size: .95rem;
-  text-align: center;
-}
-.empty-search-icon {
-  font-size: 2.5rem;
-  color: #cbd5e1;
-  margin-bottom: .25rem;
-}
-.empty-hint-sub {
-  font-size: .8rem;
-  color: #cbd5e1;
-}
-.empty-hint kbd {
-  background: #e2e8f0;
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-size: .8rem;
-  color: #475569;
-}
-
-/* ── RESULT META ─────────────────────────────────────────── */
-.result-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: .85rem;
-  color: #64748b;
-  flex-wrap: wrap;
-  gap: .5rem;
-}
-.result-count b { color: #0f172a; }
-.meta-customer { color: #3b82f6; }
-.result-meta-right { display: flex; align-items: center; gap: .5rem; }
-.page-info { font-size: .82rem; color: #94a3b8; }
-.icon-btn {
-  background: none;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: .25rem .5rem;
-  cursor: pointer;
-  color: #64748b;
-  font-size: .75rem;
-  transition: background .12s, color .12s;
-}
-.icon-btn:hover:not(:disabled) { background: #eff6ff; color: #3b82f6; }
-.icon-btn:disabled { opacity: .4; cursor: not-allowed; }
-
-/* ── TABLE ───────────────────────────────────────────────── */
-.table-wrap {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-  overflow-x: auto;
-}
-.g-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .93rem;
-}
-.g-table thead tr {
-  background: #f8fafc;
-  border-bottom: 1.5px solid #e2e8f0;
-}
-.g-table th {
-  padding: .85rem 1rem;
-  text-align: left;
-  font-size: .76rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  white-space: nowrap;
-}
-.g-row {
-  border-bottom: 1px solid #f1f5f9;
-  cursor: pointer;
-  transition: background .1s;
-}
-.g-row:hover             { background: #f8fafc; }
-.g-row--active           { background: #eff6ff !important; }
-.g-row--lowstok          { border-left: 3px solid #f97316; }
-.g-table td {
-  padding: .8rem 1rem;
-  color: #374151;
-  vertical-align: middle;
-}
-.col-no       { width: 44px; color: #94a3b8; font-size: .8rem; }
-.col-kode     { width: 120px; }
-.col-nama     { width: auto; min-width: 220px; }
-.col-stok     { width: 100px; text-align: center; }
-.col-supplier { width: 160px; }
-.col-harga    { width: 140px; text-align: right; }
-.col-aksi     { width: 90px; }
-.kode-badge {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
-  padding: 2px 7px;
-  font-size: .75rem;
-  font-weight: 600;
-  color: #475569;
-  font-family: monospace;
-}
-.stok-val { font-weight: 700; color: #0f172a; }
-.stok-low { color: #f97316; }
-
-.supplier-chip {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #166534;
-  border-radius: 5px;
-  padding: 2px 8px;
-  font-size: .78rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.harga-val {
-  font-weight: 600;
-  color: #1d4ed8;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.text-muted { color: #cbd5e1; }
-.aksi-wrap { display: flex; gap: .35rem; }
-.aksi-btn {
-  width: 34px; height: 34px;
-  border: none; border-radius: 8px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .85rem;
-  transition: background .12s, transform .1s;
-}
-.aksi-btn:active      { transform: scale(.92); }
-.aksi-edit            { background: #eff6ff; color: #3b82f6; }
-.aksi-edit:hover      { background: #dbeafe; }
-.aksi-del             { background: #fef2f2; color: #ef4444; }
-.aksi-del:hover       { background: #fee2e2; }
-.skeleton {
-  height: 18px;
-  border-radius: 4px;
-  background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-}
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-.empty-cell {
-  text-align: center;
-  padding: 3rem 1rem !important;
-  color: #94a3b8;
-  font-size: .85rem;
-}
-.empty-cell .pi { font-size: 1.4rem; display: block; margin-bottom: .5rem; color: #cbd5e1; }
-
-/* ── MODAL ───────────────────────────────────────────────── */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 300;
-  padding: 1rem;
-}
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.45);
-  backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 300;
-  padding: 1rem;
-}
-.modal-box {
-  background: #fff;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 560px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.2);
-  overflow: hidden;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-.modal-box--sm { max-width: 400px; }
-.modal-lg { max-width: 680px; }
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.1rem 1.4rem;
-  border-bottom: 1px solid #f1f5f9;
-  background: #f8fafc;
-  flex-shrink: 0;
-}
-.modal-header--danger { background: #fef2f2; border-bottom-color: #fecaca; }
-.modal-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0; }
-.modal-close {
-  background: none; border: none; color: #94a3b8;
-  cursor: pointer; font-size: .9rem; padding: .25rem; border-radius: 5px;
-  transition: color .12s;
-}
-.modal-close:hover { color: #ef4444; }
-.modal-body {
-  padding: 1.4rem;
-  overflow-y: auto;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.mfield-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
-.mfield      { display: flex; flex-direction: column; gap: .35rem; }
-.mfield--full { grid-column: 1 / -1; }
-.mfield-label {
-  font-size: .75rem; font-weight: 600; color: #374151;
-  text-transform: uppercase; letter-spacing: .4px;
-}
-.mfield-input {
-  border: 1.5px solid #e2e8f0;
-  border-radius: 8px;
-  padding: .65rem .85rem;
-  font-size: .9rem; color: #0f172a;
-  background: #f8fafc; outline: none;
-  font-family: 'Inter', sans-serif;
-  transition: border-color .2s, background .2s;
-  width: 100%;
-}
-.mfield-input:focus {
-  border-color: #3b82f6; background: #fff;
-  box-shadow: 0 0 0 3px rgba(59,130,246,.1);
-}
-.price-section {
-  border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;
-}
-.price-section-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: .65rem .9rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-}
-.price-section-title {
-  font-size: .75rem; font-weight: 700; color: #374151;
-  text-transform: uppercase; letter-spacing: .4px;
-}
-.btn-add-supplier {
-  background: none; border: 1px solid #3b82f6; color: #3b82f6;
-  border-radius: 6px; padding: .25rem .65rem; font-size: .75rem;
-  cursor: pointer; display: flex; align-items: center; gap: .3rem;
-  transition: background .12s; font-family: 'Inter', sans-serif;
-}
-.btn-add-supplier:hover { background: #eff6ff; }
-.price-row {
-  display: grid; grid-template-columns: 1fr auto 1fr auto;
-  gap: .5rem; padding: .65rem .9rem;
-  border-bottom: 1px solid #f1f5f9; align-items: center;
-}
-.price-row:last-child { border-bottom: none; }
-.price-select {
-  border: 1.5px solid #e2e8f0; border-radius: 7px; padding: .5rem .65rem;
-  font-size: .85rem; color: #0f172a; background: #f8fafc;
-  outline: none; font-family: 'Inter', sans-serif; width: 100%;
-}
-.price-select:focus { border-color: #3b82f6; background: #fff; }
-.price-input-wrap {
-  display: flex; align-items: center;
-  border: 1.5px solid #e2e8f0; border-radius: 7px; background: #f8fafc;
-  overflow: hidden; transition: border-color .2s;
-}
-.price-input-wrap:focus-within { border-color: #3b82f6; background: #fff; }
-.price-input-wrap--stok {
-  max-width: 140px;
-}
-.price-prefix, .price-suffix {
-  padding: 0 .5rem; font-size: .78rem; color: #94a3b8;
-  flex-shrink: 0;
-}
-.price-prefix {
-  border-right: 1px solid #e2e8f0;
-}
-.price-suffix {
-  border-left: 1px solid #e2e8f0;
-}
-.price-input {
-  flex: 1; border: none; outline: none; background: transparent;
-  padding: .5rem .6rem; font-size: .88rem;
-  font-family: 'Inter', sans-serif; color: #0f172a; min-width: 0;
-}
-.btn-rm-supplier {
-  background: #fef2f2; color: #ef4444; border: none; border-radius: 7px;
-  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: .75rem; transition: background .12s; flex-shrink: 0;
-}
-.btn-rm-supplier:hover:not(:disabled) { background: #fee2e2; }
-.btn-rm-supplier:disabled { opacity: .4; cursor: not-allowed; }
-.modal-error {
-  background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
-  border-radius: 8px; padding: .65rem .9rem; font-size: .82rem;
-  display: flex; align-items: center; gap: .5rem;
-}
-.modal-footer {
-  display: flex; align-items: center; justify-content: flex-end; gap: .65rem;
-  padding: 1rem 1.4rem; border-top: 1px solid #f1f5f9;
-  background: #f8fafc; flex-shrink: 0;
-}
-.btn-cancel {
-  background: none; border: 1.5px solid #e2e8f0; color: #64748b;
-  border-radius: 8px; padding: .6rem 1rem; font-size: .85rem;
-  cursor: pointer; display: flex; align-items: center; gap: .4rem;
-  transition: background .12s; font-family: 'Inter', sans-serif;
-}
-.btn-cancel:hover { background: #f1f5f9; }
-.btn-cancel kbd {
-  background: #e2e8f0; border-radius: 3px; padding: 0 4px; font-size: .7rem;
-}
-.btn-save {
-  background: linear-gradient(90deg,#1d4ed8,#3b82f6); color: #fff;
-  border: none; border-radius: 8px; padding: .6rem 1.25rem;
-  font-size: .85rem; font-weight: 600; cursor: pointer;
-  display: flex; align-items: center; gap: .4rem;
-  box-shadow: 0 2px 10px rgba(59,130,246,.3); transition: opacity .15s;
-  font-family: 'Inter', sans-serif;
-}
-.btn-save:hover:not(:disabled) { opacity: .9; }
-.btn-save:disabled { opacity: .6; cursor: not-allowed; }
-.btn-danger {
-  background: linear-gradient(90deg,#dc2626,#ef4444); color: #fff;
-  border: none; border-radius: 8px; padding: .6rem 1.25rem;
-  font-size: .85rem; font-weight: 600; cursor: pointer;
-  display: flex; align-items: center; gap: .4rem;
-  box-shadow: 0 2px 10px rgba(239,68,68,.3); font-family: 'Inter', sans-serif;
-}
-.btn-danger:disabled { opacity: .6; cursor: not-allowed; }
-.delete-body {
-  text-align: center; padding: 2rem 1.5rem; gap: .5rem;
-}
-.del-icon { font-size: 2.5rem; color: #f97316; margin-bottom: .5rem; }
-.delete-body p { font-size: .9rem; color: #374151; }
-.del-warn { font-size: .78rem; color: #94a3b8; margin-top: .25rem; }
-
-/* Modal transition */
-.modal-enter-active, .modal-leave-active { transition: opacity .2s ease; }
-.modal-enter-active .modal-box, .modal-leave-active .modal-box {
-  transition: transform .2s ease, opacity .2s ease;
-}
-.modal-enter-from, .modal-leave-to { opacity: 0; }
-.modal-enter-from .modal-box, .modal-leave-to .modal-box {
-  transform: scale(.95) translateY(8px); opacity: 0;
-}
-
-/* Modal fade transition (untuk barang & customer modal) */
-.modal-fade-enter-active, .modal-fade-leave-active { 
-  transition: opacity .25s ease; 
-}
-.modal-fade-enter-active .modal-box, .modal-fade-leave-active .modal-box {
-  transition: transform .25s cubic-bezier(0.4, 0, 0.2, 1), opacity .25s ease;
-}
-.modal-fade-enter-from, .modal-fade-leave-to { 
-  opacity: 0; 
-}
-.modal-fade-enter-from .modal-box, .modal-fade-leave-to .modal-box {
-  transform: scale(0.92) translateY(20px); 
-  opacity: 0;
-}
-
-/* ── RESPONSIVE ──────────────────────────────────────────── */
-@media (max-width: 1100px) {
-  .info-cards { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 820px) {
-  .search-section        { grid-template-columns: 1fr; gap: .9rem; }
-  .info-cards            { grid-template-columns: repeat(2, 1fr); }
-  .g-header              { flex-direction: column; align-items: stretch; }
-  .g-header .btn-primary { justify-content: center; }
-  .g-title               { font-size: 1.3rem; }
-}
-@media (max-width: 600px) {
-  .gudang-page           { gap: 1rem; }
-  .info-cards            { grid-template-columns: 1fr 1fr; }
-  .col-kode              { display: none; }
-  .g-table th, .g-table td { padding: .65rem .75rem; font-size: .85rem; }
-  .result-meta           { font-size: .8rem; }
-  .search-input          { font-size: .92rem; }
-  .search-input-wrap     { border-radius: 10px; }
-}
-@media (max-width: 480px) {
-  .info-cards            { grid-template-columns: 1fr 1fr; }
-  .ic-value              { font-size: .88rem; }
-  .mfield-grid           { grid-template-columns: 1fr; }
-  .mfield--full          { grid-column: 1; }
-  .price-row             { grid-template-columns: 1fr auto; }
-  .price-select          { grid-column: 1 / -1; }
-  .modal-footer          { flex-direction: column-reverse; }
-  .btn-cancel, .btn-save, .btn-danger { width: 100%; justify-content: center; }
-  .modal-box             { border-radius: 12px; }
-  .g-header .btn-primary { padding: .7rem 1rem; font-size: .88rem; }
-}
-
-/* ──────────────────────────────────────────────────────────
-   MODAL LIST (untuk barang & customer modal)
-   ────────────────────────────────────────────────────────── */
-.modal-list {
-  max-height: 450px;
-  overflow-y: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-.modal-item {
-  display: flex;
-  align-items: center;
-  gap: .85rem;
-  padding: .9rem 1rem;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
-  cursor: pointer;
-  transition: background .15s, box-shadow .15s;
-}
-.modal-item:last-child {
-  border-bottom: none;
-}
-.modal-item:hover {
-  background: #f1f5f9;
-}
-.modal-item--active {
-  background: linear-gradient(90deg, #dbeafe, #e0f2fe);
-  box-shadow: inset 3px 0 0 #3b82f6;
-}
-.modal-item i {
-  font-size: 1.3rem;
-  color: #3b82f6;
-  flex-shrink: 0;
-}
-.modal-item-detail {
-  display: flex;
-  flex-direction: column;
-  gap: .2rem;
-  flex: 1;
-  min-width: 0;
-}
-.modal-item-nama {
-  font-size: .95rem;
-  font-weight: 600;
-  color: #0f172a;
-}
-.modal-item-meta {
-  font-size: .8rem;
-  color: #64748b;
-}
-.empty-state {
-  padding: 3rem 1.5rem;
-  text-align: center;
-  color: #94a3b8;
-}
-.empty-state i {
-  font-size: 2.5rem;
-  margin-bottom: .75rem;
-  display: block;
-}
-.empty-state p {
-  margin: 0;
-  font-size: .9rem;
-}
 </style>
