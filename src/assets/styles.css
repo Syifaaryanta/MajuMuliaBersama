@@ -1,0 +1,117 @@
+/* ============================================================
+   GLOBAL STYLES — MMB Inventory & POS
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  color: #1e293b;
+  background: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ============================================================
+   SHARED PLACEHOLDER PAGE STYLE
+   ============================================================ */
+.page-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 55vh;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.placeholder-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+}
+
+.placeholder-icon .pi {
+  font-size: 1.75rem;
+  color: #ffffff;
+}
+
+.placeholder-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.placeholder-desc {
+  font-size: 0.88rem;
+  color: #64748b;
+  max-width: 380px;
+  line-height: 1.6;
+}
+
+.placeholder-badge {
+  display: inline-flex;
+  padding: 0.3rem 0.9rem;
+  background: #eff6ff;
+  color: #3b82f6;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  border: 1px solid #bfdbfe;
+  margin-top: 0.25rem;
+}
+
+/* ============================================================
+   RESPONSIVE PLACEHOLDER
+   ============================================================ */
+@media (max-width: 640px) {
+  .page-placeholder {
+    min-height: 40vh;
+    gap: 0.6rem;
+  }
+
+  .placeholder-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+
+  .placeholder-icon .pi {
+    font-size: 1.4rem;
+  }
+
+  .placeholder-title {
+    font-size: 1.2rem;
+  }
+
+  .placeholder-desc {
+    font-size: 0.82rem;
+  }
+}
