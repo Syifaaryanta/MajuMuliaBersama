@@ -1535,9 +1535,9 @@ watch([selectedRowIndex, pagedRows], ([idx]) => {
 
 <style scoped>
 /* Import modular CSS files */
-@import '@/assets/gudang-page.css';
-@import '@/assets/modal.css';
-@import '@/assets/form.css';
-@import '@/assets/table.css';
+@import '@/assets/pages/gudang/gudang-page.css';
+@import '@/assets/components/modal.css';
+@import '@/assets/components/form.css';
+@import '@/assets/components/table.css';
 
 </style>

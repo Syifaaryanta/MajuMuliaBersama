@@ -1,0 +1,18 @@
+/* ============================================================
+   CUSTOMER PAGE CUSTOM STYLES
+   ============================================================ */
+
+.col-alamat {
+  min-width: 200px;
+  max-width: 250px;
+}
+
+.col-telp {
+  min-width: 120px;
+}
+
+.col-kredit,
+.col-piutang {
+  min-width: 130px;
+  text-align: right;
+}

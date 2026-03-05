@@ -4,10 +4,10 @@ import { useAuthStore } from '@/stores/auth'
 // Role → halaman yang boleh diakses
 // staff_kantor boleh akses semua tapi read-only (ditandai meta.readOnly)
 const ROLE_ROUTES = {
-  admin         : ['Dashboard','Gudang','Pembelian','Penjualan','Penagihan','Laporan'],
-  staff_gudang  : ['Dashboard','Gudang'],
-  sales         : ['Dashboard','Pembelian','Penjualan','Penagihan'],
-  staff_kantor  : ['Dashboard','Gudang','Pembelian','Penjualan','Penagihan','Laporan'],
+  admin         : ['Dashboard','Gudang','Pembelian','Penjualan','Penagihan','Laporan','MasterData'],
+  staff_gudang  : ['Dashboard','Gudang','MasterData'],
+  sales         : ['Dashboard','Pembelian','Penjualan','Penagihan','MasterData'],
+  staff_kantor  : ['Dashboard','Gudang','Pembelian','Penjualan','Penagihan','Laporan','MasterData'],
 }
 
 const router = createRouter({
@@ -33,27 +33,56 @@ const router = createRouter({
         {
           path: 'gudang',
           name: 'Gudang',
-          component: () => import('@/pages/GudangPage.vue')
+          component: () => import('@/pages/gudang/GudangPage.vue')
         },
         {
           path: 'pembelian',
           name: 'Pembelian',
-          component: () => import('@/pages/PembelianPage.vue')
+          component: () => import('@/pages/pembelian/PembelianPage.vue')
         },
         {
           path: 'penjualan',
           name: 'Penjualan',
-          component: () => import('@/pages/PenjualanPage.vue')
+          component: () => import('@/pages/penjualan/PenjualanMenuPage.vue')
+        },
+        {
+          path: 'penjualan/buat',
+          name: 'PenjualanBuat',
+          component: () => import('@/pages/penjualan/PenjualanBuatPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penjualan' }
+        },
+        {
+          path: 'penjualan/edit',
+          name: 'PenjualanEdit',
+          component: () => import('@/pages/penjualan/PenjualanEditPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penjualan' }
+        },
+        {
+          path: 'penjualan/input',
+          name: 'PenjualanInput',
+          component: () => import('@/pages/penjualan/PenjualanInputPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penjualan' }
+        },
+        {
+          path: 'penjualan/list',
+          name: 'PenjualanList',
+          component: () => import('@/pages/penjualan/PenjualanListPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penjualan' }
         },
         {
           path: 'penagihan',
           name: 'Penagihan',
-          component: () => import('@/pages/PenagihanPage.vue')
+          component: () => import('@/pages/penagihan/PenagihanPage.vue')
         },
         {
           path: 'laporan',
           name: 'Laporan',
-          component: () => import('@/pages/LaporanPage.vue')
+          component: () => import('@/pages/laporan/LaporanPage.vue')
+        },
+        {
+          path: 'master-data',
+          name: 'MasterData',
+          component: () => import('@/pages/master-data/MasterDataPage.vue')
         }
       ]
     },
@@ -99,7 +128,9 @@ router.beforeEach(async (to) => {
     // biarkan lewat dulu — jangan hard-block supaya tidak stuck di 403
     if (role) {
       const allowed = ROLE_ROUTES[role] ?? []
-      if (!allowed.includes(to.name)) {
+      // Check parentRoute first for nested routes (e.g., /penjualan/input uses Penjualan permission)
+      const routeToCheck = to.meta.parentRoute || to.name
+      if (!allowed.includes(routeToCheck)) {
         return { name: 'Forbidden' }
       }
     }

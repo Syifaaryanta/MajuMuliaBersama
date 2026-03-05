@@ -157,12 +157,13 @@ function handleNavClick() {
 }
 
 const ALL_NAV = [
-  { to: '/dashboard',  icon: 'pi pi-th-large',       label: 'Dashboard',  name: 'Dashboard'  },
-  { to: '/gudang',     icon: 'pi pi-warehouse',       label: 'Gudang',     name: 'Gudang'     },
-  { to: '/pembelian',  icon: 'pi pi-shopping-cart',   label: 'Pembelian',  name: 'Pembelian'  },
-  { to: '/penjualan',  icon: 'pi pi-receipt',         label: 'Penjualan',  name: 'Penjualan'  },
-  { to: '/penagihan',  icon: 'pi pi-wallet',          label: 'Penagihan',  name: 'Penagihan'  },
-  { to: '/laporan',    icon: 'pi pi-chart-bar',       label: 'Laporan',    name: 'Laporan'    },
+  { to: '/dashboard',    icon: 'pi pi-th-large',       label: 'Dashboard',   name: 'Dashboard'   },
+  { to: '/gudang',       icon: 'pi pi-warehouse',      label: 'Gudang',      name: 'Gudang'      },
+  { to: '/pembelian',    icon: 'pi pi-shopping-cart',  label: 'Pembelian',   name: 'Pembelian'   },
+  { to: '/penjualan',    icon: 'pi pi-receipt',        label: 'Penjualan',   name: 'Penjualan'   },
+  { to: '/penagihan',    icon: 'pi pi-wallet',         label: 'Penagihan',   name: 'Penagihan'   },
+  { to: '/master-data',  icon: 'pi pi-database',       label: 'Data Master', name: 'MasterData'  },
+  { to: '/laporan',      icon: 'pi pi-chart-bar',      label: 'Laporan',     name: 'Laporan'     },
 ]
 
 const navItems = computed(() => {
