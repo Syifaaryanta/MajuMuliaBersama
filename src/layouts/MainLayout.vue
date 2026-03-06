@@ -32,10 +32,13 @@
       <!-- Navigation -->
       <nav class="sidebar-nav">
         <RouterLink
-          v-for="item in navItems"
+          v-for="(item, index) in navItems"
           :key="item.to"
           :to="item.to"
           class="nav-item"
+          :class="{
+            'nav-item--keyboard-selected': index === selectedNavIndex
+          }"
           active-class="nav-item--active"
           @click="handleNavClick"
         >
@@ -126,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ROLE_ROUTES } from '@/router'
@@ -137,6 +140,7 @@ const authStore = useAuthStore()
 
 const isSidebarCollapsed  = ref(false)
 const isMobileDrawerOpen  = ref(false)
+const selectedNavIndex = ref(0)
 
 const MOBILE_BP = 768
 
@@ -146,8 +150,40 @@ function onResize() {
     isMobileDrawerOpen.value = false
   }
 }
-onMounted(()  => window.addEventListener('resize', onResize))
-onUnmounted(() => window.removeEventListener('resize', onResize))
+
+// Keyboard navigation for sidebar
+function handleGlobalKeydown(e) {
+  // Only handle arrow keys when not in an input/textarea
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+  
+  // Let child pages that have their own arrow key handlers take priority
+  // Only handle arrows on dashboard (no sub-page active)
+  const isOnDashboard = route.path === '/dashboard'
+  
+  const items = navItems.value
+  if (items.length === 0) return
+  
+  if (e.key === 'ArrowDown' && isOnDashboard) {
+    e.preventDefault()
+    selectedNavIndex.value = (selectedNavIndex.value + 1) % items.length
+  } else if (e.key === 'ArrowUp' && isOnDashboard) {
+    e.preventDefault()
+    selectedNavIndex.value = (selectedNavIndex.value - 1 + items.length) % items.length
+  } else if (e.key === 'Enter' && isOnDashboard && items[selectedNavIndex.value]) {
+    e.preventDefault()
+    router.push(items[selectedNavIndex.value].to)
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('resize', onResize)
+  window.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
+  window.removeEventListener('keydown', handleGlobalKeydown)
+})
 
 // Tutup drawer saat nav diklik di mobile
 function handleNavClick() {
@@ -205,6 +241,15 @@ const currentDate = computed(() => {
     year: 'numeric'
   })
 })
+
+// Sync selectedNavIndex with current route
+watch(() => route.path, (newPath) => {
+  const items = navItems.value
+  const index = items.findIndex(item => newPath.startsWith(item.to))
+  if (index !== -1) {
+    selectedNavIndex.value = index
+  }
+}, { immediate: true })
 
 async function handleLogout() {
   await authStore.logout()

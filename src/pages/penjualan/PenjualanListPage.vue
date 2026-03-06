@@ -1,35 +1,35 @@
 <template>
   <div class="penjualan-list-page" ref="pageEl" tabindex="-1">
 
-    <!-- ── PAGE HEADER ──────────────────────────────────── -->
-    <div class="g-header">
-      <div class="g-header-left">
-        <h1 class="g-title">Daftar Order Penjualan</h1>
-        <p class="g-subtitle">
-          <kbd>↑</kbd><kbd>↓</kbd> Navigasi • <kbd>Enter</kbd> Detail • <kbd>F10</kbd> Print • <kbd>Esc</kbd> Kembali
-        </p>
+    <!-- ── PAGE HEADER CARD ──────────────────────────────────── -->
+    <div class="page-header-card">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-header-title">Daftar Order Penjualan</h1>
+        </div>
+        <button class="btn-secondary" @click="$router.push('/penjualan')" title="Kembali ke Menu (Esc)">
+          <i class="pi pi-arrow-left"></i>
+          <span>Menu</span>
+        </button>
       </div>
-      <button class="btn-secondary" @click="$router.push('/penjualan')" title="Kembali ke Menu (Esc)">
-        <i class="pi pi-arrow-left"></i>
-        <span>Menu</span>
-      </button>
     </div>
 
     <!-- ── SEARCH & FILTER BAR ──────────────────────────── -->
-    <div class="search-bar">
-      <div class="search-dual-input">
+    <div class="search-bar" v-if="formVisible">
+      <div class="search-sequential">
         <div class="search-field">
           <label class="search-label">
             <i class="pi pi-hashtag"></i>
             No. Order
           </label>
           <input
-            ref="searchInput"
+            ref="inputNoOrder"
             v-model="searchOrderNo"
             type="text"
             class="search-input"
-            placeholder="Contoh: 2600001"
-            @input="onOrderNoInput"
+            placeholder="Kosongkan untuk filter tanggal"
+            @keydown.enter="onNoOrderEnter"
+            @keydown.esc="clearSearch"
             autocomplete="off"
           />
         </div>
@@ -37,19 +37,39 @@
         <div class="search-field">
           <label class="search-label">
             <i class="pi pi-calendar"></i>
-            Tanggal (DD/MM/YY)
+            Tanggal Awal (DD/MM/YY)
           </label>
           <input
-            v-model="searchDate"
+            ref="inputTglAwal"
+            v-model="searchDateStart"
             type="text"
             class="search-input"
-            placeholder="Contoh: 04/03/26"
-            @input="onDateInput"
+            placeholder="05/03/26"
+            @keydown.enter="onDateStartEnter"
+            @keydown.esc="focusNoOrder"
             autocomplete="off"
+            :disabled="!!searchOrderNo"
+          />
+        </div>
+        <div class="search-field">
+          <label class="search-label">
+            <i class="pi pi-calendar"></i>
+            Tanggal Akhir (DD/MM/YY)
+          </label>
+          <input
+            ref="inputTglAkhir"
+            v-model="searchDateEnd"
+            type="text"
+            class="search-input"
+            placeholder="06/03/26"
+            @keydown.enter="onDateEndEnter"
+            @keydown.esc="focusDateStart"
+            autocomplete="off"
+            :disabled="!!searchOrderNo"
           />
         </div>
         <button 
-          v-if="searchOrderNo || searchDate" 
+          v-if="searchOrderNo || searchDateStart || searchDateEnd" 
           class="clear-btn" 
           @click="clearSearch" 
           title="Clear (Esc)"
@@ -58,60 +78,31 @@
           Clear
         </button>
       </div>
-
-      <div class="filter-group">
-        <button 
-          class="filter-period-btn"
-          :class="{ active: filterPeriod === 'all' }"
-          @click="applyPeriodFilter('all')"
-        >
-          Semua
-        </button>
-        <button 
-          class="filter-period-btn"
-          :class="{ active: filterPeriod === 'today' }"
-          @click="applyPeriodFilter('today')"
-        >
-          Hari Ini
-        </button>
-        <button 
-          class="filter-period-btn"
-          :class="{ active: filterPeriod === 'week' }"
-          @click="applyPeriodFilter('week')"
-        >
-          Minggu Ini
-        </button>
-        <button 
-          class="filter-period-btn"
-          :class="{ active: filterPeriod === 'month' }"
-          @click="applyPeriodFilter('month')"
-        >
-          Bulan Ini
-        </button>
-      </div>
     </div>
 
-    <!-- ── RESULT META ──────────────────────────────────── -->
-    <div class="result-meta">
-      <span class="result-count">
-        <b>{{ filteredOrders.length }}</b> order
-        <span v-if="searchOrderNo || searchDate || filterPeriod !== 'all'" class="meta-filter">
-          (dari {{ orders.length }} total)
+    <!-- ── TABLE CONTAINER ─────────────────────────────────── -->
+    <div class="table-container" v-if="showResults">
+      <!-- ── RESULT META ──────────────────────────────────── -->
+      <div class="result-meta">
+        <span class="result-count">
+          <b>{{ filteredOrders.length }}</b> order
+          <span v-if="searchOrderNo || searchDateStart || searchDateEnd" class="meta-filter">
+            (dari {{ orders.length }} total)
+          </span>
         </span>
-      </span>
-      <div class="result-meta-right">
-        <span class="page-info">Hal {{ currentPage }} / {{ totalPages }}</span>
-        <button class="icon-btn" :disabled="currentPage <= 1" @click="prevPage" title="PgUp">
-          <i class="pi pi-chevron-left"></i>
-        </button>
-        <button class="icon-btn" :disabled="currentPage >= totalPages" @click="nextPage" title="PgDn">
-          <i class="pi pi-chevron-right"></i>
-        </button>
+        <div class="result-meta-right">
+          <span class="page-info">Hal {{ currentPage }} / {{ totalPages }}</span>
+          <button class="icon-btn" :disabled="currentPage <= 1" @click="prevPage" title="PgUp">
+            <i class="pi pi-chevron-left"></i>
+          </button>
+          <button class="icon-btn" :disabled="currentPage >= totalPages" @click="nextPage" title="PgDn">
+            <i class="pi pi-chevron-right"></i>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <!-- ── ORDERS TABLE ─────────────────────────────────── -->
-    <div class="table-wrap">
+      <!-- ── ORDERS TABLE ─────────────────────────────────── -->
+      <div class="table-wrap">
       <table class="g-table">
         <thead>
           <tr>
@@ -194,6 +185,7 @@
         </tbody>
       </table>
     </div>
+    </div><!-- End table-container -->
 
     <!-- ═══════════════════════════════════════════════════
          MODAL VIEW ORDER DETAIL
@@ -201,15 +193,17 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="detailModal.show" class="modal-overlay" @click.self="detailModal.show = false">
-          <div class="modal-box modal-box--lg" role="dialog">
-            <div class="modal-header">
-              <i class="pi pi-file-edit"></i>
+          <div class="modal-box modal-box--detail" role="dialog">
+            <div class="modal-header modal-header--blue">
+              <div class="modal-header-icon">
+                <i class="pi pi-file-edit"></i>
+              </div>
               <h3 class="modal-title">Detail Order: {{ detailModal.order?.no_order }}</h3>
               <button class="modal-close" @click="detailModal.show = false" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
-            <div class="modal-body" v-if="detailModal.order">
+            <div class="modal-body modal-body--detail" v-if="detailModal.order">
               <!-- Order Header Info -->
               <div class="detail-section">
                 <h4 class="detail-section-title">Informasi Order</h4>
@@ -354,6 +348,67 @@
       </Transition>
     </Teleport>
 
+    <!-- ═══════════════════════════════════════════════════
+         MODAL DELETE CONFIRMATION
+    ════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="deleteModal.show" class="modal-overlay" @click.self="cancelDelete">
+          <div class="modal-box modal-box--confirm" role="dialog">
+            <div class="modal-header modal-header--danger">
+              <div class="modal-header-icon">
+                <i class="pi pi-exclamation-triangle"></i>
+              </div>
+              <h3 class="modal-title">Konfirmasi Hapus Order</h3>
+            </div>
+            <div class="modal-body modal-body--confirm" v-if="deleteModal.order">
+              <p class="confirm-message">Yakin hapus order ini?</p>
+              <div class="delete-info">
+                <div class="info-row">
+                  <span class="info-label">No. Order:</span>
+                  <span class="info-value">{{ deleteModal.order.no_order }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Customer:</span>
+                  <span class="info-value">{{ deleteModal.order.customer_nama }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Total:</span>
+                  <span class="info-value">{{ formatRp(deleteModal.order.subtotal) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Status:</span>
+                  <span class="status-badge" :class="`status-${deleteModal.order.status}`">
+                    {{ deleteModal.order.status === 'completed' ? 'Selesai' : 'Draft' }}
+                  </span>
+                </div>
+              </div>
+              <div class="delete-warning" v-if="deleteModal.order.status === 'completed'">
+                <i class="pi pi-info-circle"></i>
+                <span>Stok barang akan dikembalikan ke gudang.</span>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button 
+                class="btn-secondary" 
+                @click="cancelDelete"
+                ref="btnCancelDelete"
+              >
+                Batal
+              </button>
+              <button 
+                class="btn-danger" 
+                @click="confirmDelete"
+                ref="btnConfirmDelete"
+              >
+                Hapus Order
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </div>
 </template>
 
@@ -368,7 +423,11 @@ const router = useRouter()
 // REFS
 // ───────────────────────────────────────────────────────────
 const pageEl = ref(null)
-const searchInput = ref(null)
+const inputNoOrder = ref(null)
+const inputTglAwal = ref(null)
+const inputTglAkhir = ref(null)
+const btnCancelDelete = ref(null)
+const btnConfirmDelete = ref(null)
 
 // ───────────────────────────────────────────────────────────
 // STATE
@@ -376,9 +435,10 @@ const searchInput = ref(null)
 const loading = ref(false)
 const orders = ref([])
 const searchOrderNo = ref('')
-const searchDate = ref('')
-const filterStatus = ref('')
-const filterPeriod = ref('all')
+const searchDateStart = ref('')
+const searchDateEnd = ref('')
+const showResults = ref(false)
+const formVisible = ref(true)
 const selectedRowIndex = ref(0)
 const rowRefs = new Map()
 
@@ -389,6 +449,11 @@ const detailModal = reactive({
   show: false,
   order: null,
   items: [],
+})
+
+const deleteModal = reactive({
+  show: false,
+  order: null,
 })
 
 const printModal = reactive({
@@ -409,41 +474,25 @@ const filteredOrders = computed(() => {
       order.no_order.toLowerCase().includes(q)
     )
   }
-  // Filter by date (DD/MM/YY format)
-  else if (searchDate.value) {
-    const dateInput = searchDate.value.trim()
-    // Parse DD/MM/YY to YYYY-MM-DD for comparison
-    const parsedDate = parseDateInput(dateInput)
-    if (parsedDate) {
+  // Filter by date range (DD/MM/YY format)
+  else if (searchDateStart.value || searchDateEnd.value) {
+    const startDate = parseDateInput(searchDateStart.value)
+    const endDate = parseDateInput(searchDateEnd.value)
+    
+    if (startDate && endDate) {
       result = result.filter(order => {
         const orderDate = order.order_date.split('T')[0] // Get YYYY-MM-DD part
-        return orderDate === parsedDate
+        return orderDate >= startDate && orderDate <= endDate
       })
-    }
-  }
-
-  // Filter by period
-  if (filterPeriod.value !== 'all') {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    
-    if (filterPeriod.value === 'today') {
+    } else if (startDate) {
       result = result.filter(order => {
-        const orderDate = new Date(order.order_date)
-        return orderDate >= today
+        const orderDate = order.order_date.split('T')[0]
+        return orderDate >= startDate
       })
-    } else if (filterPeriod.value === 'week') {
-      const startOfWeek = new Date(today)
-      startOfWeek.setDate(today.getDate() - today.getDay())
+    } else if (endDate) {
       result = result.filter(order => {
-        const orderDate = new Date(order.order_date)
-        return orderDate >= startOfWeek
-      })
-    } else if (filterPeriod.value === 'month') {
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-      result = result.filter(order => {
-        const orderDate = new Date(order.order_date)
-        return orderDate >= startOfMonth
+        const orderDate = order.order_date.split('T')[0]
+        return orderDate <= endDate
       })
     }
   }
@@ -464,7 +513,10 @@ const pagedOrders = computed(() => {
 onMounted(() => {
   window.addEventListener('keydown', onGlobalKey)
   pageEl.value?.focus()
-  loadOrders()
+  // Auto-focus to No. Order input
+  nextTick(() => {
+    inputNoOrder.value?.focus()
+  })
 })
 
 onUnmounted(() => {
@@ -517,34 +569,168 @@ async function loadOrders() {
   }
 }
 
-function applyPeriodFilter(period) {
-  filterPeriod.value = period
-  currentPage.value = 1
+// ───────────────────────────────────────────────────────────────
+// SEARCH FUNCTIONS - SEQUENTIAL FLOW
+// ───────────────────────────────────────────────────────────────
+async function onNoOrderEnter() {
+  if (searchOrderNo.value.trim()) {
+    // Search by order number
+    await searchByOrderNo()
+  } else {
+    // Move to date range input
+    focusDateStart()
+  }
 }
 
-// ───────────────────────────────────────────────────────────────
-// SEARCH FUNCTIONS
-// ───────────────────────────────────────────────────────────────
-function onOrderNoInput() {
-  // When order number is typed, clear date
-  if (searchOrderNo.value) {
-    searchDate.value = ''
+async function searchByOrderNo() {
+  loading.value = true
+  showResults.value = false
+  try {
+    const { data: ordersData, error: ordersError } = await supabase
+      .from('sales')
+      .select('*')
+      .ilike('no_order', `%${searchOrderNo.value}%`)
+      .order('order_date', { ascending: false })
+
+    if (ordersError) throw ordersError
+
+    const ordersWithItems = await Promise.all(
+      (ordersData || []).map(async (order) => {
+        const { data: items } = await supabase
+          .from('sale_items')
+          .select('product_nama, qty')
+          .eq('sale_id', order.id)
+          .order('created_at')
+          .limit(3)
+
+        return {
+          ...order,
+          items: items || [],
+          total_items: items?.length || 0
+        }
+      })
+    )
+
+    orders.value = ordersWithItems
+    showResults.value = true
+    formVisible.value = false
+    currentPage.value = 1
+    selectedRowIndex.value = 0
+    
+    // Auto-focus to first row after data loaded
+    await nextTick()
+    setTimeout(() => {
+      pageEl.value?.focus()
+    }, 100)
+  } catch (err) {
+    console.error('[searchByOrderNo]', err)
+    alert('Gagal mencari order: ' + err.message)
+  } finally {
+    loading.value = false
   }
-  currentPage.value = 1
 }
 
-function onDateInput() {
-  // When date is typed, clear order number
-  if (searchDate.value) {
-    searchOrderNo.value = ''
+function onDateStartEnter() {
+  focusDateEnd()
+}
+
+async function onDateEndEnter() {
+  if (searchDateStart.value || searchDateEnd.value) {
+    await searchByDateRange()
   }
-  currentPage.value = 1
+}
+
+async function searchByDateRange() {
+  loading.value = true
+  showResults.value = false
+  try {
+    const startDate = parseDateInput(searchDateStart.value)
+    const endDate = parseDateInput(searchDateEnd.value)
+
+    let query = supabase
+      .from('sales')
+      .select('*')
+      .order('order_date', { ascending: false })
+
+    if (startDate) {
+      query = query.gte('order_date', startDate)
+    }
+    if (endDate) {
+      // Add 1 day to make it inclusive
+      const endDateObj = new Date(endDate)
+      endDateObj.setDate(endDateObj.getDate() + 1)
+      const endDateInclusive = endDateObj.toISOString().split('T')[0]
+      query = query.lt('order_date', endDateInclusive)
+    }
+
+    const { data: ordersData, error: ordersError } = await query
+
+    if (ordersError) throw ordersError
+
+    const ordersWithItems = await Promise.all(
+      (ordersData || []).map(async (order) => {
+        const { data: items } = await supabase
+          .from('sale_items')
+          .select('product_nama, qty')
+          .eq('sale_id', order.id)
+          .order('created_at')
+          .limit(3)
+
+        return {
+          ...order,
+          items: items || [],
+          total_items: items?.length || 0
+        }
+      })
+    )
+
+    orders.value = ordersWithItems
+    showResults.value = true
+    formVisible.value = false
+    currentPage.value = 1
+    selectedRowIndex.value = 0
+    
+    // Auto-focus to first row after data loaded
+    await nextTick()
+    setTimeout(() => {
+      pageEl.value?.focus()
+    }, 100)
+  } catch (err) {
+    console.error('[searchByDateRange]', err)
+    alert('Gagal mencari order: ' + err.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+function focusNoOrder() {
+  nextTick(() => {
+    inputNoOrder.value?.focus()
+  })
+}
+
+function focusDateStart() {
+  nextTick(() => {
+    inputTglAwal.value?.focus()
+  })
+}
+
+function focusDateEnd() {
+  nextTick(() => {
+    inputTglAkhir.value?.focus()
+  })
 }
 
 function clearSearch() {
   searchOrderNo.value = ''
-  searchDate.value = ''
+  searchDateStart.value = ''
+  searchDateEnd.value = ''
+  orders.value = []
+  showResults.value = false
+  formVisible.value = true
   currentPage.value = 1
+  selectedRowIndex.value = 0
+  focusNoOrder()
 }
 
 // Parse DD/MM/YY to YYYY-MM-DD
@@ -568,6 +754,22 @@ function parseDateInput(dateStr) {
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
+  // Handle delete modal
+  if (deleteModal.show) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      confirmDelete()
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelDelete()
+      return
+    }
+    return
+  }
+
+  // Handle detail modal
   if (detailModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -576,6 +778,7 @@ function onGlobalKey(e) {
     return
   }
 
+  // Handle print modal
   if (printModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -584,10 +787,24 @@ function onGlobalKey(e) {
     return
   }
 
-  // Escape: Back to menu
+  // If no results shown, let input fields handle their own keys
+  if (!showResults.value) {
+    // ESC when form is visible: go back to menu
+    if (e.key === 'Escape' && formVisible.value && !searchOrderNo.value && !searchDateStart.value && !searchDateEnd.value) {
+      e.preventDefault()
+      router.push('/penjualan')
+    }
+    return
+  }
+
+  // Escape: Hide results and show form again
   if (e.key === 'Escape') {
     e.preventDefault()
-    router.push('/penjualan')
+    showResults.value = false
+    formVisible.value = true
+    nextTick(() => {
+      inputNoOrder.value?.focus()
+    })
     return
   }
 
@@ -596,6 +813,15 @@ function onGlobalKey(e) {
     e.preventDefault()
     if (pagedOrders.value[selectedRowIndex.value]) {
       viewOrder(pagedOrders.value[selectedRowIndex.value])
+    }
+    return
+  }
+
+  // Delete: Delete order
+  if (e.key === 'Delete') {
+    e.preventDefault()
+    if (pagedOrders.value[selectedRowIndex.value]) {
+      initiateDelete(pagedOrders.value[selectedRowIndex.value])
     }
     return
   }
@@ -632,15 +858,6 @@ function onGlobalKey(e) {
     e.preventDefault()
     prevPage()
   }
-
-  // Esc: Clear search
-  // Escape handled earlier in function - back to menu
-
-  // Ctrl+F: Focus search
-  if (e.ctrlKey && e.key === 'f') {
-    e.preventDefault()
-    searchInput.value?.focus()
-  }
 }
 
 // ───────────────────────────────────────────────────────────
@@ -666,29 +883,107 @@ async function viewOrder(order) {
   }
 }
 
-async function deleteOrder(order) {
-  const confirm = window.confirm(
-    `Hapus order ${order.no_order}?\n\n` +
-    `Customer: ${order.customer_nama}\n` +
-    `Total: ${formatRp(order.subtotal)}\n\n` +
-    `Data yang dihapus tidak dapat dikembalikan.`
-  )
+function initiateDelete(order) {
+  deleteModal.order = order
+  deleteModal.show = true
+  
+  // Auto-focus to confirm button
+  nextTick(() => {
+    btnConfirmDelete.value?.focus()
+  })
+}
 
-  if (!confirm) return
+function cancelDelete() {
+  deleteModal.show = false
+  deleteModal.order = null
+  // Return focus to table
+  nextTick(() => {
+    pageEl.value?.focus()
+  })
+}
+
+async function confirmDelete() {
+  const order = deleteModal.order
+  if (!order) return
+
+  deleteModal.show = false
+  loading.value = true
 
   try {
-    const { error } = await supabase
+    // 1. If order status is 'completed', return stock to warehouse
+    if (order.status === 'completed') {
+      // Get all items from this order
+      const { data: items, error: itemsError } = await supabase
+        .from('sale_items')
+        .select('product_id, qty')
+        .eq('sale_id', order.id)
+
+      if (itemsError) throw itemsError
+
+      // Return stock for each item
+      for (const item of items || []) {
+        const { error: stockError } = await supabase.rpc('increment_product_stock', {
+          p_product_id: item.product_id,
+          p_qty: item.qty
+        })
+
+        // If RPC doesn't exist, fallback to manual update
+        if (stockError && stockError.code === '42883') {
+          const { data: product, error: getError } = await supabase
+            .from('products')
+            .select('stok')
+            .eq('id', item.product_id)
+            .single()
+
+          if (getError) throw getError
+
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ stok: (product.stok || 0) + item.qty })
+            .eq('id', item.product_id)
+
+          if (updateError) throw updateError
+        } else if (stockError) {
+          throw stockError
+        }
+      }
+    }
+
+    // 2. Delete order items first (foreign key constraint)
+    const { error: itemsDeleteError } = await supabase
+      .from('sale_items')
+      .delete()
+      .eq('sale_id', order.id)
+
+    if (itemsDeleteError) throw itemsDeleteError
+
+    // 3. Delete order
+    const { error: orderDeleteError } = await supabase
       .from('sales')
       .delete()
       .eq('id', order.id)
 
-    if (error) throw error
+    if (orderDeleteError) throw orderDeleteError
 
-    alert(`Order ${order.no_order} berhasil dihapus`)
-    loadOrders() // Reload
+    // Reload current search
+    if (searchOrderNo.value) {
+      await searchByOrderNo()
+    } else if (searchDateStart.value || searchDateEnd.value) {
+      await searchByDateRange()
+    } else {
+      // Clear everything
+      clearSearch()
+    }
   } catch (err) {
-    console.error('[deleteOrder]', err)
+    console.error('[confirmDelete]', err)
     alert('Gagal menghapus order: ' + err.message)
+  } finally {
+    loading.value = false
+    deleteModal.order = null
+    // Return focus to table
+    nextTick(() => {
+      pageEl.value?.focus()
+    })
   }
 }
 

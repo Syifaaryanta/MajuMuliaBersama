@@ -4,13 +4,9 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Gudang</h1>
-        <p class="g-subtitle">Cek stok & harga barang</p>
+        <h1 class="g-title">Cek Harga Barang</h1>
+        <p class="g-subtitle">Cek stok & harga barang per customer</p>
       </div>
-      <button class="btn-primary" @click="openAdd" title="Tambah Barang (Alt+N)">
-        <i class="pi pi-plus"></i>
-        <span>Tambah Barang</span>
-      </button>
     </div>
 
     <!-- ── SEARCH SECTION ───────────────────────────────── -->
@@ -124,50 +120,6 @@
       </div>
     </div>
 
-    <!-- ── FOTO PRODUK (jika ada barang dipilih) ────────── -->
-    <div v-if="selectedRowData && selectedRowData.foto_urls?.length > 0" class="product-photos">
-      <div class="photos-header">
-        <i class="pi pi-images"></i>
-        <span class="photos-title">Foto Produk</span>
-        <span class="photos-count">{{ selectedRowData.foto_urls.length }} foto</span>
-      </div>
-      <div class="photos-grid">
-        <div 
-          v-for="(url, idx) in selectedRowData.foto_urls" 
-          :key="url"
-          class="photo-item"
-          @click="openPhotoLightbox(idx)"
-        >
-          <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-img" />
-          <div class="photo-overlay">
-            <i class="pi pi-search-plus"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── FOTO PRODUK (jika ada barang dipilih) ────────── -->
-    <div v-if="selectedRowData && selectedRowData.foto_urls?.length > 0" class="product-photos">
-      <div class="photos-header">
-        <i class="pi pi-images"></i>
-        <span class="photos-title">Foto Produk</span>
-        <span class="photos-count">{{ selectedRowData.foto_urls.length }} foto</span>
-      </div>
-      <div class="photos-grid">
-        <div 
-          v-for="(url, idx) in selectedRowData.foto_urls" 
-          :key="url"
-          class="photo-item"
-          @click="openPhotoLightbox(idx)"
-        >
-          <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-img" />
-          <div class="photo-overlay">
-            <i class="pi pi-search-plus"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- ── HASIL PENCARIAN ───────────────────────────────── -->
     <div v-if="!hasSearched" class="empty-hint">
       <i class="pi pi-search empty-search-icon"></i>
@@ -206,7 +158,6 @@
               <th class="col-stok">Stok</th>
               <th class="col-supplier">Supplier</th>
               <th class="col-harga">Harga Beli</th>
-              <th class="col-aksi">Aksi</th>
             </tr>
           </thead>
           <tbody v-if="loading">
@@ -257,24 +208,35 @@
                 <td class="col-harga">
                   <span class="harga-val">{{ formatRp(price.harga_beli) }}</span>
                 </td>
-                <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-aksi">
-                  <div class="aksi-wrap">
-                    <button
-                      class="aksi-btn aksi-edit"
-                      @click.stop="openEdit(row)"
-                      title="Edit (F4)"
-                    ><i class="pi pi-pencil"></i></button>
-                    <button
-                      class="aksi-btn aksi-del"
-                      @click.stop="openDelete(row)"
-                      title="Hapus (Del)"
-                    ><i class="pi pi-trash"></i></button>
-                  </div>
-                </td>
               </tr>
             </template>
           </tbody>
         </table>
+      </div>
+
+      <!-- ── FOTO PRODUK (di bawah tabel) ──────────────── -->
+      <div
+        v-if="selectedRowData?.foto_urls?.length > 0"
+        class="product-photos"
+        tabindex="0"
+        ref="photoViewRef"
+        @keydown.f1.prevent="openPhotoLightbox(0)"
+      >
+        <div class="photos-header">
+          <span class="photos-title"><i class="pi pi-images"></i> Foto Produk</span>
+          <span class="photos-count">{{ selectedRowData.foto_urls.length }} foto · <kbd>F1</kbd> fullscreen</span>
+        </div>
+        <div class="photos-grid" :class="`photos-grid--${selectedRowData.foto_urls.length}`">
+          <div
+            v-for="(url, idx) in selectedRowData.foto_urls"
+            :key="url"
+            class="photo-item"
+            @click="openPhotoLightbox(idx)"
+          >
+            <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-img" />
+            <div class="photo-overlay"><i class="pi pi-search-plus"></i></div>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -283,50 +245,40 @@
     ════════════════════════════════════════════════════ -->
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="modal.show" class="modal-overlay" @click.self="closeModal">
-          <div class="modal-box" role="dialog" :aria-label="modal.title">
-            <div class="modal-header">
+        <div v-if="modal.show" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal">
+          <div class="modal-box modal-box--edit" role="dialog" :aria-label="modal.title">
+            <!-- Blue header -->
+            <div class="modal-header modal-header--blue">
               <h3 class="modal-title">{{ modal.title }}</h3>
               <button class="modal-close" @click="closeModal" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
 
-            <form @submit.prevent="submitModal" class="modal-body">
-              <div class="mfield-grid">
+            <form @submit.prevent="submitModal" class="modal-body modal-body--compact">
+
+              <!-- Kode + Nama in one row -->
+              <div class="mfield-row">
                 <div class="mfield">
                   <label class="mfield-label">Kode Barang</label>
                   <input
                     v-model="form.kode"
-                    ref="firstInput"
+                    ref="inputKode"
                     class="mfield-input"
-                    placeholder="Mis. CDX-001"
+                    placeholder="CDX-001"
+                    @keydown.enter.prevent="focusField('inputNama')"
                     required
                   />
                 </div>
-                <div class="mfield mfield--full">
+                <div class="mfield mfield--grow">
                   <label class="mfield-label">Nama Barang</label>
                   <input
                     v-model="form.nama"
+                    ref="inputNama"
                     class="mfield-input"
-                    placeholder="Mis. Condensor Xenia Std"
+                    placeholder="Nama barang"
+                    @keydown.enter.prevent="focusField('photoAreaRef')"
                     required
-                  />
-                </div>
-                <div class="mfield mfield--full">
-                  <label class="mfield-label">Deskripsi</label>
-                  <input
-                    v-model="form.deskripsi"
-                    class="mfield-input"
-                    placeholder="Opsional"
-                  />
-                </div>
-                <div class="mfield">
-                  <label class="mfield-label">Satuan</label>
-                  <input
-                    v-model="form.satuan"
-                    class="mfield-input"
-                    placeholder="pcs"
                   />
                 </div>
               </div>
@@ -334,97 +286,132 @@
               <!-- Foto Barang -->
               <div class="photo-section">
                 <div class="photo-section-header">
-                  <span class="photo-section-title">Foto Barang</span>
-                  <span class="photo-limit">Maksimal 3 foto</span>
-                </div>
-                
-                <!-- Preview foto yang sudah ada -->
-                <div v-if="form.foto_urls.length > 0" class="photo-preview-grid">
-                  <div v-for="(url, idx) in form.foto_urls" :key="url" class="photo-preview-item">
-                    <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-preview-img" />
-                    <button
-                      type="button"
-                      class="photo-remove-btn"
-                      @click="removeFoto(idx)"
-                      title="Hapus foto"
-                    >
-                      <i class="pi pi-times"></i>
-                    </button>
-                  </div>
+                  <span class="photo-section-title"><i class="pi pi-images"></i> Foto Barang</span>
+                  <span class="photo-limit">Maks 3 foto · <kbd>F1</kbd> tambah</span>
                 </div>
 
-                <!-- Upload foto baru -->
-                <div v-if="form.foto_urls.length < 3" class="photo-upload-area">
-                  <input
-                    ref="fileInput"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    class="photo-file-input"
-                    @change="handleFileSelect"
-                    :disabled="photoUpload.uploading"
-                  />
-                  <div class="photo-upload-label">
-                    <i class="pi pi-cloud-upload"></i>
-                    <span v-if="!photoUpload.uploading">Pilih atau seret foto disini</span>
-                    <span v-else class="uploading-text">
-                      <i class="pi pi-spin pi-spinner"></i>
-                      Mengupload... {{ photoUpload.progress }}%
-                    </span>
+                <div class="photo-area" ref="photoAreaRef" tabindex="0"
+                  @keydown.enter.prevent="focusFirstSupplier"
+                  @keydown.f1.prevent="triggerFileInput"
+                  @keydown.backspace.prevent="removeLastFoto"
+                  @keydown.tab.prevent="focusFirstSupplier"
+                >
+                  <!-- Previews -->
+                  <div v-if="form.foto_urls.length > 0" class="photo-preview-grid">
+                    <div v-for="(url, idx) in form.foto_urls" :key="url" class="photo-preview-item">
+                      <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-preview-img" />
+                      <button type="button" class="photo-remove-btn" @click="removeFoto(idx)" title="Hapus foto">
+                        <i class="pi pi-times"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Upload trigger -->
+                  <div v-if="form.foto_urls.length < 3" class="photo-upload-area" @click="triggerFileInput">
+                    <input
+                      ref="fileInput"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      class="photo-file-input"
+                      @change="handleFileSelect"
+                      :disabled="photoUpload.uploading"
+                    />
+                    <div class="photo-upload-label">
+                      <i class="pi pi-cloud-upload"></i>
+                      <span v-if="!photoUpload.uploading">Klik atau tekan Enter / F1</span>
+                      <span v-else class="uploading-text">
+                        <i class="pi pi-spin pi-spinner"></i> Mengupload... {{ photoUpload.progress }}%
+                      </span>
+                    </div>
                   </div>
                   <div v-if="photoUpload.error" class="photo-upload-error">
-                    <i class="pi pi-exclamation-circle"></i>
-                    {{ photoUpload.error }}
+                    <i class="pi pi-exclamation-circle"></i> {{ photoUpload.error }}
                   </div>
                 </div>
               </div>
 
-              <!-- Harga per Supplier -->
+              <!-- Stok & Harga per Supplier -->
               <div class="price-section">
                 <div class="price-section-header">
-                  <span class="price-section-title">Stok & Harga per Supplier</span>
-                  <button type="button" class="btn-add-supplier" @click="addPriceRow">
-                    <i class="pi pi-plus"></i> Tambah Supplier
+                  <span class="price-section-title"><i class="pi pi-truck"></i> Stok & Harga per Supplier</span>
+                  <button type="button" class="btn-add-supplier" @click="addPriceRow" tabindex="-1">
+                    <i class="pi pi-plus"></i> Tambah
                   </button>
                 </div>
+
                 <div
                   v-for="(pr, idx) in form.prices"
                   :key="idx"
                   class="price-row"
+                  :class="{ 'price-row--active': modal.activePriceRow === idx }"
                 >
-                  <select v-model="pr.supplier_id" class="price-select" required>
-                    <option value="">— Pilih Supplier —</option>
-                    <option v-for="s in suppliers" :key="s.id" :value="s.id">
-                      {{ s.nama }}
-                    </option>
-                  </select>
+                  <!-- Supplier search -->
+                  <div class="supplier-search-wrap">
+                    <input
+                      :ref="el => { if (el) priceSupplierRefs[idx] = el }"
+                      v-model="pr.supplierSearch"
+                      class="price-supplier-input"
+                      placeholder="Cari supplier..."
+                      autocomplete="off"
+                      @focus="modal.activePriceRow = idx; openSupplierDropdown(idx)"
+                      @input="filterSuppliers(idx)"
+                      @keydown="onSupplierSearchKey($event, idx)"
+                    />
+                    <!-- Supplier dropdown (fixed position to escape modal overflow) -->
+                    <Teleport to="body">
+                      <div
+                        v-if="pr.dropdownOpen && pr.filteredSuppliers?.length"
+                        class="supplier-dropdown"
+                        :style="{ top: dropdownPos.top + 'px', left: dropdownPos.left + 'px', width: dropdownPos.width + 'px' }"
+                      >
+                        <div
+                          v-for="(s, si) in pr.filteredSuppliers"
+                          :key="s.id"
+                          class="supplier-dropdown-item"
+                          :class="{ active: pr.dropdownIndex === si }"
+                          @mousedown.prevent="selectSupplier(idx, s)"
+                        >
+                          {{ s.nama }}
+                        </div>
+                      </div>
+                    </Teleport>
+                  </div>
+
+                  <!-- Stok -->
                   <div class="price-input-wrap price-input-wrap--stok">
                     <input
+                      :ref="el => { if (el) priceStokRefs[idx] = el }"
                       v-model.number="pr.stok"
                       type="number"
                       class="price-input"
                       min="0"
-                      placeholder="Stok"
-                      required
+                      placeholder="0"
+                      @keydown.enter.prevent="focusPriceHarga(idx)"
                     />
-                    <span class="price-suffix">{{ form.satuan }}</span>
                   </div>
+
+                  <!-- Harga -->
                   <div class="price-input-wrap">
                     <span class="price-prefix">Rp</span>
                     <input
+                      :ref="el => { if (el) priceHargaRefs[idx] = el }"
                       v-model.number="pr.harga_beli"
                       type="number"
                       class="price-input"
                       min="0"
                       placeholder="0"
-                      required
+                      @keydown.enter.prevent="onHargaEnter(idx)"
                     />
                   </div>
+
+                  <!-- Delete row -->
                   <button
                     type="button"
                     class="btn-rm-supplier"
                     @click="removePriceRow(idx)"
                     :disabled="form.prices.length === 1"
+                    tabindex="-1"
                   ><i class="pi pi-trash"></i></button>
                 </div>
               </div>
@@ -437,9 +424,9 @@
                 <button type="button" class="btn-cancel" @click="closeModal">
                   Batal <kbd>Esc</kbd>
                 </button>
-                <button type="submit" class="btn-save" :disabled="modal.saving">
+                <button type="submit" class="btn-save" :disabled="modal.saving" ref="btnSave">
                   <i v-if="modal.saving" class="pi pi-spin pi-spinner"></i>
-                  <span v-else>{{ modal.mode === 'add' ? 'Simpan' : 'Update' }}</span>
+                  <span v-else>{{ modal.mode === 'add' ? 'Simpan' : 'Update' }} <kbd>Y</kbd></span>
                 </button>
               </div>
             </form>
@@ -630,6 +617,9 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from
 import { supabase } from '@/lib/supabase'
 import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 // ── Composables ────────────────────────────────────────────
 const toast = useToast()
@@ -641,8 +631,17 @@ const PAGE_SIZE = 15
 const pageEl        = ref(null)
 const inputBarang   = ref(null)
 const inputCustomer = ref(null)
-const firstInput    = ref(null)
+const firstInput    = ref(null) // kept for compat
+const photoViewRef  = ref(null)
 const rowRefs       = new Map()
+// Edit modal refs
+const inputKode     = ref(null)
+const inputNama     = ref(null)
+const photoAreaRef  = ref(null)
+const btnSave       = ref(null)
+const priceSupplierRefs = ref({})
+const priceStokRefs     = ref({})
+const priceHargaRefs    = ref({})
 
 function setRowRef(el, i) {
   if (el) rowRefs.set(i, el)
@@ -716,11 +715,13 @@ const suppliers = ref([])
 // ── Modal state ────────────────────────────────────────────
 const modal = reactive({
   show: false, mode: 'add', title: '', saving: false, error: '',
+  activePriceRow: 0,
 })
+const dropdownPos = reactive({ top: 0, left: 0, width: 0 })
 const form = reactive({
   id: null, kode: '', nama: '', deskripsi: '', stok: 0, satuan: 'pcs',
-  prices: [{ supplier_id: '', harga_beli: 0 }],
-  foto_urls: [], // Array URL foto dari Cloudinary (max 3)
+  prices: [{ supplier_id: '', supplierSearch: '', filteredSuppliers: [], dropdownOpen: false, dropdownIndex: 0, stok: 0, harga_beli: 0 }],
+  foto_urls: [],
 })
 
 // State untuk foto upload
@@ -755,12 +756,24 @@ function formatDate(d) {
 // GLOBAL KEYBOARD HANDLER
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
+  // Lightbox takes full keyboard priority
+  if (lightbox.show) {
+    if (e.key === 'Escape')    { e.preventDefault(); closeLightbox() }
+    else if (e.key === 'ArrowLeft')  { e.preventDefault(); prevPhoto() }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); nextPhoto() }
+    return
+  }
+
   if (modal.show || deleteModal.show) return
 
   switch (e.key) {
     case 'F1':
       e.preventDefault()
-      inputBarang.value?.focus()
+      if (selectedRowData.value?.foto_urls?.length > 0) {
+        openPhotoLightbox(0)
+      } else {
+        inputBarang.value?.focus()
+      }
       break
     case 'F2':
       e.preventDefault()
@@ -772,20 +785,30 @@ function onGlobalKey(e) {
         openEdit(pagedRows.value[selectedRowIndex.value])
       }
       break
+    case 'Enter':
+      if (hasSearched.value && selectedRowIndex.value >= 0 && !e.target.matches('input,textarea,select')) {
+        e.preventDefault()
+        openEdit(pagedRows.value[selectedRowIndex.value])
+      }
+      break
     case 'Delete':
-      if (selectedRowIndex.value >= 0 && !e.target.matches('input,textarea,select')) {
+      if (hasSearched.value && selectedRowIndex.value >= 0 && !e.target.matches('input,textarea,select')) {
         e.preventDefault()
         openDelete(pagedRows.value[selectedRowIndex.value])
       }
       break
     case 'ArrowDown':
       if (hasSearched.value && !e.target.matches('input,textarea,select')) {
-        e.preventDefault(); moveRow(1)
+        e.preventDefault()
+        e.stopPropagation()
+        moveRow(1)
       }
       break
     case 'ArrowUp':
       if (hasSearched.value && !e.target.matches('input,textarea,select')) {
-        e.preventDefault(); moveRow(-1)
+        e.preventDefault()
+        e.stopPropagation()
+        moveRow(-1)
       }
       break
     case 'PageDown':
@@ -795,8 +818,16 @@ function onGlobalKey(e) {
       e.preventDefault(); prevPage()
       break
     case 'Escape':
-      clearBarang()
-      inputBarang.value?.focus()
+      e.preventDefault()
+      e.stopPropagation()
+      if (hasSearched.value) {
+        // ESC saat hasil tampil: reset ke input
+        clearBarang()
+        nextTick(() => inputBarang.value?.focus())
+      } else {
+        // ESC saat input kosong: ke menu gudang
+        router.push('/gudang')
+      }
       break
     case 'n':
     case 'N':
@@ -831,8 +862,22 @@ function onBarangKey(e) {
     openBarangModal()
   } else if (e.key === 'ArrowDown' && hasSearched.value) {
     e.preventDefault()
+    e.stopPropagation()
     inputBarang.value?.blur()
     moveRow(0)
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    if (hasSearched.value) {
+      // ESC dari input saat hasil tampil: reset
+      clearBarang()
+    } else if (!searchBarang.value.trim()) {
+      // ESC saat kosong & belum ada hasil: ke menu gudang
+      router.push('/gudang')
+    } else {
+      // ESC saat ada teks tapi belum search: clear teks
+      searchBarang.value = ''
+    }
   }
 }
 
@@ -1059,6 +1104,14 @@ async function doSearch(productId = null) {
     }
     allRows.value = grouped
 
+    // Auto-select first row and move focus to table
+    if (grouped.length > 0) {
+      selectedRowIndex.value = 0
+      nextTick(() => {
+        rowRefs.get(0)?.focus?.() || rowRefs.get(0)?.scrollIntoView({ block: 'nearest' })
+      })
+    }
+
     if (selectedCustomer.value && grouped.length) {
       await fetchCustomerHistory(selectedCustomer.value.id, grouped[0].product_id)
     }
@@ -1138,14 +1191,31 @@ async function loadSuppliers() {
 // ───────────────────────────────────────────────────────────
 // MODAL ADD / EDIT
 // ───────────────────────────────────────────────────────────
+function makePriceRow(overrides = {}) {
+  return {
+    price_id: null,
+    supplier_id: '',
+    supplierSearch: '',
+    filteredSuppliers: [],
+    dropdownOpen: false,
+    dropdownIndex: 0,
+    stok: 0,
+    harga_beli: 0,
+    ...overrides,
+  }
+}
+
 function resetForm() {
   form.id = null; form.kode = ''; form.nama = ''; form.deskripsi = ''
   form.stok = 0; form.satuan = 'pcs'
-  form.prices = [{ supplier_id: '', stok: 0, harga_beli: 0 }]
+  form.prices = [makePriceRow()]
   form.foto_urls = []
   photoUpload.uploading = false
   photoUpload.progress = 0
   photoUpload.error = ''
+  priceSupplierRefs.value = {}
+  priceStokRefs.value = {}
+  priceHargaRefs.value = {}
 }
 
 function openAdd() {
@@ -1153,8 +1223,9 @@ function openAdd() {
   modal.mode  = 'add'
   modal.title = 'Tambah Barang Baru'
   modal.error = ''
+  modal.activePriceRow = 0
   modal.show  = true
-  nextTick(() => firstInput.value?.focus())
+  nextTick(() => inputKode.value?.focus())
 }
 
 function openEdit(row) {
@@ -1167,27 +1238,156 @@ function openEdit(row) {
   form.stok      = row.stok
   form.satuan    = row.satuan
   form.foto_urls = row.foto_urls ?? []
-  
-  // Populate prices dari row.prices array
+
+  // Populate prices with supplier search support
   form.prices = row.prices?.length
-    ? row.prices.map(p => ({ 
-        price_id: p.id, 
-        supplier_id: p.supplier_id ?? '', 
+    ? row.prices.map(p => makePriceRow({
+        price_id: p.id,
+        supplier_id: p.supplier_id ?? '',
+        supplierSearch: p.supplier_nama ?? '',
         stok: p.stok ?? 0,
-        harga_beli: p.harga_beli ?? 0 
+        harga_beli: p.harga_beli ?? 0,
       }))
-    : [{ supplier_id: '', stok: 0, harga_beli: 0 }]
-  
+    : [makePriceRow()]
+
   modal.mode  = 'edit'
   modal.title = 'Edit Barang'
   modal.error = ''
+  modal.activePriceRow = 0
   modal.show  = true
-  nextTick(() => firstInput.value?.focus())
+  nextTick(() => inputKode.value?.focus())
 }
 
-function closeModal()      { modal.show = false }
-function addPriceRow()     { form.prices.push({ supplier_id: '', stok: 0, harga_beli: 0 }) }
-function removePriceRow(i) { if (form.prices.length > 1) form.prices.splice(i, 1) }
+function closeModal() { modal.show = false }
+
+function addPriceRow() {
+  form.prices.push(makePriceRow())
+  const newIdx = form.prices.length - 1
+  modal.activePriceRow = newIdx
+  nextTick(() => priceSupplierRefs.value[newIdx]?.focus())
+}
+
+function removePriceRow(i) {
+  if (form.prices.length > 1) form.prices.splice(i, 1)
+}
+
+// ───────────────────────────────────────────────────────────
+// MODAL KEYBOARD NAV
+// ───────────────────────────────────────────────────────────
+function focusField(refName) {
+  const refMap = { inputKode, inputNama, photoAreaRef, btnSave }
+  nextTick(() => refMap[refName]?.value?.focus())
+}
+
+function triggerFileInput() {
+  fileInput.value?.click()
+}
+
+function focusFirstSupplier() {
+  nextTick(() => priceSupplierRefs.value[0]?.focus())
+}
+
+// Global keydown inside the modal overlay
+function onModalKeydown(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    closeModal()
+  } else if (e.key === 'y' || e.key === 'Y') {
+    // Y shortcut to save - only if not in a text input
+    if (!e.target.matches('input[type=text],input[type=number],textarea,select')) {
+      e.preventDefault()
+      submitModal()
+    }
+  } else if (e.key === 'Delete') {
+    // Del on active price row (when not in an input)
+    if (!e.target.matches('input,textarea,select')) {
+      e.preventDefault()
+      removePriceRow(modal.activePriceRow)
+    }
+  }
+}
+
+// Supplier search
+function calcDropdownPos(idx) {
+  const el = priceSupplierRefs.value[idx]
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  dropdownPos.top = rect.bottom + 4
+  dropdownPos.left = rect.left
+  dropdownPos.width = rect.width
+}
+
+function openSupplierDropdown(idx) {
+  if (!form.prices[idx]) return
+  // Close other dropdowns first
+  form.prices.forEach((p, i) => { if (i !== idx) p.dropdownOpen = false })
+  form.prices[idx].filteredSuppliers = suppliers.value.slice(0, 10)
+  form.prices[idx].dropdownOpen = true
+  form.prices[idx].dropdownIndex = 0
+  nextTick(() => calcDropdownPos(idx))
+}
+
+function filterSuppliers(idx) {
+  const pr = form.prices[idx]
+  if (!pr) return
+  pr.supplier_id = ''
+  const q = pr.supplierSearch.toLowerCase()
+  pr.filteredSuppliers = suppliers.value.filter(s => s.nama.toLowerCase().includes(q)).slice(0, 8)
+  pr.dropdownOpen = pr.filteredSuppliers.length > 0
+  pr.dropdownIndex = 0
+  if (pr.dropdownOpen) nextTick(() => calcDropdownPos(idx))
+}
+
+function selectSupplier(idx, supplier) {
+  const pr = form.prices[idx]
+  if (!pr) return
+  pr.supplier_id = supplier.id
+  pr.supplierSearch = supplier.nama
+  pr.dropdownOpen = false
+  // Move focus to stok
+  nextTick(() => priceStokRefs.value[idx]?.focus())
+}
+
+function onSupplierSearchKey(e, idx) {
+  const pr = form.prices[idx]
+  if (!pr) return
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    pr.dropdownIndex = Math.min((pr.dropdownIndex ?? 0) + 1, (pr.filteredSuppliers?.length ?? 1) - 1)
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    pr.dropdownIndex = Math.max((pr.dropdownIndex ?? 0) - 1, 0)
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    const selected = pr.filteredSuppliers?.[pr.dropdownIndex]
+    if (pr.dropdownOpen && selected) {
+      selectSupplier(idx, selected)
+    } else {
+      // No dropdown: move to stok
+      priceStokRefs.value[idx]?.focus()
+    }
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    pr.dropdownOpen = false
+  } else if (e.key === 'Tab') {
+    pr.dropdownOpen = false
+  }
+}
+
+function focusPriceHarga(idx) {
+  priceHargaRefs.value[idx]?.focus()
+}
+
+function onHargaEnter(idx) {
+  // If not the last row - move to next supplier search
+  if (idx < form.prices.length - 1) {
+    modal.activePriceRow = idx + 1
+    nextTick(() => priceSupplierRefs.value[idx + 1]?.focus())
+  } else {
+    // Last row: add new row
+    addPriceRow()
+  }
+}
 
 // ───────────────────────────────────────────────────────────
 // FOTO UPLOAD - CLOUDINARY
@@ -1195,70 +1395,56 @@ function removePriceRow(i) { if (form.prices.length > 1) form.prices.splice(i, 1
 const fileInput = ref(null)
 
 // Fungsi kompresi gambar
-async function compressImage(file, maxSizeKB = 300, maxWidth = 1200) {
+async function compressImage(file, maxSizeKB = 150, maxWidth = 800) {
+  // Small files: skip compression entirely
+  if (file.size / 1024 <= maxSizeKB) return file
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    
+    reader.onerror = () => reject(new Error('Gagal membaca file'))
     reader.onload = (e) => {
       const img = new Image()
-      
+      img.onerror = () => reject(new Error('Gagal memproses gambar'))
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        let width = img.width
-        let height = img.height
-        
-        // Resize jika lebih besar dari maxWidth
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width
-          width = maxWidth
-        }
-        
-        canvas.width = width
-        canvas.height = height
-        
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0, width, height)
-        
-        // Mulai dengan quality 0.9 dan turunkan sampai ukuran sesuai
-        let quality = 0.9
-        const tryCompress = () => {
-          canvas.toBlob((blob) => {
-            const sizeKB = blob.size / 1024
-            
-            if (sizeKB <= maxSizeKB || quality <= 0.3) {
-              // Buat File baru dari blob
-              const compressedFile = new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              })
-              
-              console.log(`Compressed: ${file.name} from ${(file.size/1024).toFixed(0)}KB to ${sizeKB.toFixed(0)}KB`)
-              resolve(compressedFile)
-            } else {
-              // Turunkan quality dan coba lagi
-              quality -= 0.1
-              tryCompress()
-            }
-          }, 'image/jpeg', quality)
-        }
-        
-        tryCompress()
+        let w = img.width, h = img.height
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth }
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+
+        // Estimate quality in one shot based on size ratio, then one fallback pass
+        const ratio = (maxSizeKB * 1024) / file.size
+        // Clamp quality between 0.4 and 0.82
+        const q1 = Math.min(0.82, Math.max(0.4, Math.sqrt(ratio) * 0.9))
+
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve(file); return }
+          if (blob.size / 1024 <= maxSizeKB || q1 <= 0.4) {
+            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }))
+          } else {
+            // One extra pass at lower quality if still too big
+            const q2 = Math.max(0.35, q1 * (maxSizeKB * 1024 / blob.size) * 0.85)
+            canvas.toBlob((blob2) => {
+              resolve(new File([blob2 || blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }))
+            }, 'image/jpeg', q2)
+          }
+        }, 'image/jpeg', q1)
       }
-      
-      img.onerror = () => reject(new Error('Gagal memproses gambar'))
       img.src = e.target.result
     }
-    
-    reader.onerror = () => reject(new Error('Gagal membaca file'))
     reader.readAsDataURL(file)
   })
 }
 
 function removeFoto(index) {
   form.foto_urls.splice(index, 1)
-  // Reset file input jika ada
-  if (fileInput.value) {
-    fileInput.value.value = ''
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+function removeLastFoto() {
+  if (form.foto_urls.length > 0) {
+    form.foto_urls.splice(form.foto_urls.length - 1, 1)
+    if (fileInput.value) fileInput.value.value = ''
   }
 }
 
@@ -1393,10 +1579,8 @@ async function submitModal() {
 
     const payload = {
       kode: form.kode.trim(), 
-      nama: form.nama.trim().toUpperCase(),  // UPPERCASE!
-      deskripsi: form.deskripsi.trim() || null,
+      nama: form.nama.trim().toUpperCase(),
       stok: totalStok, 
-      satuan: form.satuan.trim() || 'pcs', 
       foto_urls: form.foto_urls.length > 0 ? form.foto_urls : null,
       aktif: true,
     }

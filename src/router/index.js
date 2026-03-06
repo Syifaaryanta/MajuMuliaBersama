@@ -33,7 +33,19 @@ const router = createRouter({
         {
           path: 'gudang',
           name: 'Gudang',
-          component: () => import('@/pages/gudang/GudangPage.vue')
+          component: () => import('@/pages/gudang/GudangMenuPage.vue')
+        },
+        {
+          path: 'gudang/cek-harga',
+          name: 'GudangCekHarga',
+          component: () => import('@/pages/gudang/GudangCekHargaPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Gudang' }
+        },
+        {
+          path: 'gudang/cek-semua',
+          name: 'GudangCekSemua',
+          component: () => import('@/pages/gudang/GudangCekSemuaPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Gudang' }
         },
         {
           path: 'pembelian',

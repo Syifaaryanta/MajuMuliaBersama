@@ -2,7 +2,7 @@
   <div class="penjualan-edit-page" ref="pageEl" tabindex="-1">
 
     <!-- ── SEARCH CARD ──────────────────────────────────── -->
-    <div class="search-card">
+    <div class="search-card" v-if="formVisible">
       <div class="form-header">
         <h1 class="form-header-title">Edit Order Penjualan</h1>
         <p class="form-header-subtitle">Cari dan edit order yang sudah ada </p>
@@ -16,7 +16,7 @@
             class="search-input"
             placeholder="Ketik No. Order lalu tekan Enter..."
             @keydown.enter="searchOrder"
-            @keydown.esc="clearSearch"
+            @keydown.esc="handleSearchEsc"
             autocomplete="off"
           />
           <button 
@@ -355,7 +355,7 @@
             </div>
             <div class="modal-footer">
               <button class="btn-primary" @click="priceInfoModal.show = false">
-                Tutup <kbd>Esc</kbd>
+                Tutup
               </button>
             </div>
           </div>
@@ -383,14 +383,14 @@
                 @click="confirmModal.show = false"
                 ref="btnCancelConfirm"
               >
-                Batal <kbd>Esc</kbd>
+                Batal
               </button>
               <button 
                 class="btn-primary" 
                 @click="confirmSave"
                 ref="btnConfirmSave"
               >
-                Simpan <kbd>Enter</kbd>
+                Simpan Order
               </button>
             </div>
           </div>
@@ -423,9 +423,11 @@ const searchQuery = ref('')
 const loading = ref(false)
 const notFound = ref(false)
 const saving = ref(false)
+const formVisible = ref(true)
 
 const order = ref(null)
 const items = ref([])
+const originalItems = ref([]) // Store original items for stock restoration
 
 // Dynamic refs for table navigation
 const qtyRefs = ref({})
@@ -641,11 +643,26 @@ function handleNewItemKeydown(e, field) {
 // GLOBAL KEY HANDLER
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
-  // Ignore if modal is open or typing in input
-  if (productModal.show || priceInfoModal.show) return
-  if (e.target.tagName === 'INPUT' && e.target !== pageEl.value) {
+  // Ignore if modal is open
+  if (productModal.show || priceInfoModal.show || confirmModal.show) return
+  
+  // Ignore if typing in input (let input handler handle it)
+  if (e.target.tagName === 'INPUT') {
     // Allow Y to work even in inputs
     if (e.key.toLowerCase() !== 'y') return
+  }
+  
+  // ESC - Show form and hide order info (when editing order)
+  if (e.key === 'Escape' && order.value && !formVisible.value) {
+    e.preventDefault()
+    e.stopPropagation()
+    formVisible.value = true
+    order.value = null
+    items.value = []
+    nextTick(() => {
+      searchInput.value?.focus()
+    })
+    return
   }
 
   // Y - Save order
@@ -694,18 +711,40 @@ async function searchOrder() {
       `)
       .eq('sale_id', orderData.id)
     
-    if (!itemsError && itemsData) {
-      items.value = itemsData.map(item => ({
-        ...item,
-        product_id: item.product_id,
-        product_kode: item.product_kode,
-        product_nama: item.product_nama,
-        product_stok: item.product?.stok || 0,
-        stok_available: item.product?.stok || 0,
-        total: item.qty * item.unit_price
-      }))
+    console.log('Items query result:', { itemsData, itemsError })
+    
+    if (itemsError) {
+      console.error('Error loading items:', itemsError)
+      throw itemsError
     }
+    
+    if (!itemsData || itemsData.length === 0) {
+      alert('Order tidak memiliki item yang dapat diedit')
+      notFound.value = true
+      return
+    }
+    
+    items.value = itemsData.map(item => ({
+      ...item,
+      product_id: item.product_id,
+      product_kode: item.product_kode,
+      product_nama: item.product_nama,
+      product_stok: item.product?.stok || 0,
+      stok_available: item.product?.stok || 0,
+      total: item.qty * item.unit_price
+    }))
+    
+    console.log('Items loaded:', items.value.length, items.value)
+    
+    // Store original items for stock restoration
+    originalItems.value = JSON.parse(JSON.stringify(itemsData.map(item => ({
+      product_id: item.product_id,
+      qty: item.qty
+    }))))
 
+    // Hide search form after order loads
+    formVisible.value = false
+    
     // Focus first qty input after loading
     await nextTick()
     setTimeout(() => {
@@ -723,10 +762,36 @@ async function searchOrder() {
 }
 
 function clearSearch() {
+  // If search is already empty, go back to menu
+  if (!searchQuery.value && !order.value) {
+    router.push('/penjualan')
+    return
+  }
+  
+  // Otherwise, just clear the search
   searchQuery.value = ''
   order.value = null
   items.value = []
+  originalItems.value = []
   notFound.value = false
+  formVisible.value = true
+  nextTick(() => {
+    searchInput.value?.focus()
+  })
+}
+
+function handleSearchEsc(e) {
+  e.preventDefault()
+  e.stopPropagation()
+  
+  // If search input is empty, go back to menu
+  if (!searchQuery.value.trim()) {
+    router.push('/penjualan')
+    return
+  }
+  
+  // Otherwise, clear the search
+  searchQuery.value = ''
   nextTick(() => {
     searchInput.value?.focus()
   })
@@ -930,6 +995,9 @@ function showConfirmModal() {
 }
 
 async function confirmSave() {
+  console.log('confirmSave called - items.value:', items.value)
+  console.log('items.value.length:', items.value.length)
+  
   if (items.value.length === 0) {
     alert('Order harus memiliki minimal 1 item')
     return
@@ -939,6 +1007,49 @@ async function confirmSave() {
   saving.value = true
   
   try {
+    const oldStatus = order.value.status
+    
+    // STOCK MANAGEMENT LOGIC
+    // If order was 'completed', restore old stock first
+    if (oldStatus === 'completed' && originalItems.value.length > 0) {
+      for (const oldItem of originalItems.value) {
+        // Restore stock (add back the old qty) - manual update
+        const { data: product, error: getError } = await supabase
+          .from('products')
+          .select('stok')
+          .eq('id', oldItem.product_id)
+          .single()
+        
+        if (getError) throw getError
+        
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ stok: (product.stok || 0) + oldItem.qty })
+          .eq('id', oldItem.product_id)
+        
+        if (updateError) throw updateError
+      }
+    }
+    
+    // Now deduct stock for NEW items (always, because status becomes 'completed')
+    for (const item of items.value) {
+      // Deduct stock - manual update
+      const { data: product, error: getError } = await supabase
+        .from('products')
+        .select('stok')
+        .eq('id', item.product_id)
+        .single()
+      
+      if (getError) throw getError
+      
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ stok: Math.max(0, (product.stok || 0) - item.qty) })
+        .eq('id', item.product_id)
+      
+      if (updateError) throw updateError
+    }
+    
     // Update order header - set status to 'completed' after edit
     const { error: orderError } = await supabase
       .from('sales')
@@ -973,12 +1084,21 @@ async function confirmSave() {
     
     if (itemsError) throw itemsError
     
-    // Navigate to list
-    router.push('/penjualan/list')
+    // Show search form again after save
+    formVisible.value = true
+    order.value = null
+    items.value = []
+    searchQuery.value = ''
+    
+    // Focus search input
+    nextTick(() => {
+      searchInput.value?.focus()
+    })
     
   } catch (error) {
     console.error('Error saving order:', error)
-    alert('Gagal menyimpan perubahan')
+    console.error('Error details:', error.message, error.code, error)
+    alert(`Gagal menyimpan perubahan: ${error.message || error}`)
   } finally {
     saving.value = false
   }
