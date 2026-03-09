@@ -1,0 +1,8 @@
+@import '@/assets/pages/penjualan/penjualan-menu-page.css';
+
+.gudang-menu-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  outline: none;
+}

@@ -48,6 +48,24 @@ const router = createRouter({
           meta: { requiresAuth: true, parentRoute: 'Gudang' }
         },
         {
+          path: 'gudang/katalog',
+          name: 'GudangKatalog',
+          component: () => import('@/pages/gudang/GudangKatalogPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Gudang' }
+        },
+        {
+          path: 'gudang/detail',
+          name: 'GudangDetail',
+          component: () => import('@/pages/gudang/GudangDetailPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Gudang' }
+        },
+        {
+          path: 'gudang/archive',
+          name: 'GudangArchive',
+          component: () => import('@/pages/gudang/GudangArchivePage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Gudang' }
+        },
+        {
           path: 'pembelian',
           name: 'Pembelian',
           component: () => import('@/pages/pembelian/PembelianPage.vue')
@@ -79,6 +97,12 @@ const router = createRouter({
           path: 'penjualan/list',
           name: 'PenjualanList',
           component: () => import('@/pages/penjualan/PenjualanListPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penjualan' }
+        },
+        {
+          path: 'penjualan/draft',
+          name: 'PenjualanDraft',
+          component: () => import('@/pages/penjualan/PenjualanDraftPage.vue'),
           meta: { requiresAuth: true, parentRoute: 'Penjualan' }
         },
         {

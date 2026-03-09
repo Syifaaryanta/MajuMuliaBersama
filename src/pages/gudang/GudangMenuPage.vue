@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Menu Gudang</h1>
-        <p class="g-subtitle">Pilih menu yang ingin diakses</p>
+        <h1 class="g-title">Manajemen Gudang</h1>
+        <p class="g-subtitle">Pengelolaan inventori & data produk</p>
       </div>
     </div>
 
@@ -36,7 +36,7 @@
           <i class="pi pi-box"></i>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Total Produk</span>
+          <span class="stat-label">Total SKU</span>
           <span class="stat-value">{{ stats.totalProducts }} item</span>
         </div>
       </div>
@@ -45,7 +45,7 @@
           <i class="pi pi-check-circle"></i>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Stok Aman</span>
+          <span class="stat-label">Stok Normal</span>
           <span class="stat-value">{{ stats.safeStock }} item</span>
         </div>
       </div>
@@ -54,7 +54,7 @@
           <i class="pi pi-exclamation-triangle"></i>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Stok Rendah</span>
+          <span class="stat-label">Perlu Restock</span>
           <span class="stat-value">{{ stats.lowStock }} item</span>
         </div>
       </div>
@@ -63,7 +63,7 @@
           <i class="pi pi-users"></i>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Supplier</span>
+          <span class="stat-label">Mitra Supplier</span>
           <span class="stat-value">{{ stats.suppliers }} supplier</span>
         </div>
       </div>
@@ -84,15 +84,29 @@ const selectedIndex = ref(0)
 const menuOptions = [
   {
     id: 'cek-harga',
-    title: 'Cek Harga',
-    description: 'Cari harga dan histori barang per customer',
+    title: 'Informasi Harga',
+    description: 'Cek harga jual & histori transaksi per pelanggan',
     icon: 'pi pi-search',
     route: '/gudang/cek-harga'
   },
   {
+    id: 'katalog',
+    title: 'Kelola Produk',
+    description: 'Tambah, ubah, dan atur master data produk gudang',
+    icon: 'pi pi-book',
+    route: '/gudang/katalog'
+  },
+  {
+    id: 'archive',
+    title: 'Arsip Produk',
+    description: 'Kelola produk yang dinonaktifkan & pemulihan data',
+    icon: 'pi pi-inbox',
+    route: '/gudang/archive'
+  },
+  {
     id: 'cek-semua',
-    title: 'Cek Semua Barang',
-    description: 'Lihat daftar lengkap semua produk di gudang',
+    title: 'Daftar Inventori',
+    description: 'Pantau seluruh stok & data produk secara real-time',
     icon: 'pi pi-database',
     route: '/gudang/cek-semua'
   }
@@ -110,10 +124,11 @@ const stats = ref({
 // ───────────────────────────────────────────────────────────
 async function loadStats() {
   try {
-    // Total products
+    // Total products (exclude archived)
     const { count: totalCount } = await supabase
       .from('products')
       .select('*', { count: 'exact', head: true })
+      .eq('is_archived', false)
     
     stats.value.totalProducts = totalCount || 0
     
@@ -196,8 +211,8 @@ function handleKeydown(e) {
     navigateToOption(menuOptions[selectedIndex.value])
   }
   
-  // Number keys 1-2
-  else if (e.key === '1' || e.key === '2') {
+  // Number keys 1-N (match card order left to right)
+  else if (e.key >= '1' && e.key <= '9') {
     e.preventDefault()
     const index = parseInt(e.key) - 1
     if (index < menuOptions.length) {
@@ -228,12 +243,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/penjualan/penjualan-menu-page.css';
-
-.gudang-menu-page {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  outline: none;
-}
+@import '@/assets/pages/gudang/gudang-menu-page.css';
 </style>

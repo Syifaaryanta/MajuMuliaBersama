@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Menu Penjualan</h1>
-        <p class="g-subtitle">Pilih menu yang ingin diakses</p>
+        <h1 class="g-title">Manajemen Penjualan</h1>
+        <p class="g-subtitle">Pengelolaan transaksi & riwayat penjualan</p>
       </div>
     </div>
 
@@ -36,7 +36,7 @@
           <i class="pi pi-calendar"></i>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Hari Ini</span>
+          <span class="stat-label">Transaksi Hari Ini</span>
           <span class="stat-value">{{ stats.today }} order</span>
         </div>
       </div>
@@ -45,7 +45,7 @@
           <i class="pi pi-calendar-plus"></i>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Minggu Ini</span>
+          <span class="stat-label">Minggu Berjalan</span>
           <span class="stat-value">{{ stats.week }} order</span>
         </div>
       </div>
@@ -54,7 +54,7 @@
           <i class="pi pi-chart-bar"></i>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Bulan Ini</span>
+          <span class="stat-label">Bulan Berjalan</span>
           <span class="stat-value">{{ stats.month }} order</span>
         </div>
       </div>
@@ -63,7 +63,7 @@
           <i class="pi pi-database"></i>
         </div>
         <div class="stat-content">
-          <span class="stat-label">Total Order</span>
+          <span class="stat-label">Total Transaksi</span>
           <span class="stat-value">{{ stats.total }} order</span>
         </div>
       </div>
@@ -84,22 +84,29 @@ const selectedIndex = ref(0)
 const menuOptions = [
   {
     id: 'buat',
-    title: 'Tambah Penjualan',
-    description: 'Buat order penjualan baru',
+    title: 'Input Penjualan',
+    description: 'Buat & catat transaksi penjualan baru',
     icon: 'pi pi-plus-circle',
     route: '/penjualan/buat'
   },
   {
     id: 'edit',
-    title: 'Edit Penjualan',
-    description: 'Edit order penjualan yang sudah ada',
+    title: 'Revisi Transaksi',
+    description: 'Ubah & koreksi data transaksi yang sudah tercatat',
     icon: 'pi pi-pencil',
     route: '/penjualan/edit'
   },
   {
+    id: 'draft',
+    title: 'Order Tertunda',
+    description: 'Kelola transaksi yang belum diselesaikan',
+    icon: 'pi pi-file-edit',
+    route: '/penjualan/draft'
+  },
+  {
     id: 'daftar',
-    title: 'Daftar Penjualan',
-    description: 'Lihat daftar dan riwayat order',
+    title: 'Riwayat Transaksi',
+    description: 'Pantau seluruh rekap transaksi penjualan',
     icon: 'pi pi-list',
     route: '/penjualan/list'
   }
@@ -210,14 +217,20 @@ function handleKeydown(e) {
     router.push('/penjualan/edit')
   }
   
-  // F3 - Daftar Penjualan
+  // F3 - Draft Order
   else if (e.key === 'F3') {
+    e.preventDefault()
+    router.push('/penjualan/draft')
+  }
+  
+  // F4 - Daftar Penjualan
+  else if (e.key === 'F4') {
     e.preventDefault()
     router.push('/penjualan/list')
   }
   
-  // Number keys 1-3
-  else if (e.key >= '1' && e.key <= '3') {
+  // Number keys 1-N (match card order left to right)
+  else if (e.key >= '1' && e.key <= '9') {
     e.preventDefault()
     const index = parseInt(e.key) - 1
     if (index < menuOptions.length) {

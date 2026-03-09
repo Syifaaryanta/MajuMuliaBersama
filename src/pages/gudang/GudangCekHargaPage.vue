@@ -186,7 +186,7 @@
                   'g-row--lowstok': price.stok <= 3,
                 }"
                 @click="selectedRowIndex = i"
-                @dblclick="openEdit(row)"
+                @dblclick="viewDetail(row)"
               >
                 <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-no">
                   {{ (currentPage - 1) * PAGE_SIZE + i + 1 }}
@@ -214,258 +214,10 @@
         </table>
       </div>
 
-      <!-- ── FOTO PRODUK (di bawah tabel) ──────────────── -->
-      <div
-        v-if="selectedRowData?.foto_urls?.length > 0"
-        class="product-photos"
-        tabindex="0"
-        ref="photoViewRef"
-        @keydown.f1.prevent="openPhotoLightbox(0)"
-      >
-        <div class="photos-header">
-          <span class="photos-title"><i class="pi pi-images"></i> Foto Produk</span>
-          <span class="photos-count">{{ selectedRowData.foto_urls.length }} foto · <kbd>F1</kbd> fullscreen</span>
-        </div>
-        <div class="photos-grid" :class="`photos-grid--${selectedRowData.foto_urls.length}`">
-          <div
-            v-for="(url, idx) in selectedRowData.foto_urls"
-            :key="url"
-            class="photo-item"
-            @click="openPhotoLightbox(idx)"
-          >
-            <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-img" />
-            <div class="photo-overlay"><i class="pi pi-search-plus"></i></div>
-          </div>
-        </div>
-      </div>
+
     </template>
 
-    <!-- ═══════════════════════════════════════════════════
-         MODAL TAMBAH / EDIT BARANG
-    ════════════════════════════════════════════════════ -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="modal.show" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal">
-          <div class="modal-box modal-box--edit" role="dialog" :aria-label="modal.title">
-            <!-- Blue header -->
-            <div class="modal-header modal-header--blue">
-              <h3 class="modal-title">{{ modal.title }}</h3>
-              <button class="modal-close" @click="closeModal" tabindex="-1">
-                <i class="pi pi-times"></i>
-              </button>
-            </div>
-
-            <form @submit.prevent="submitModal" class="modal-body modal-body--compact">
-
-              <!-- Kode + Nama in one row -->
-              <div class="mfield-row">
-                <div class="mfield">
-                  <label class="mfield-label">Kode Barang</label>
-                  <input
-                    v-model="form.kode"
-                    ref="inputKode"
-                    class="mfield-input"
-                    placeholder="CDX-001"
-                    @keydown.enter.prevent="focusField('inputNama')"
-                    required
-                  />
-                </div>
-                <div class="mfield mfield--grow">
-                  <label class="mfield-label">Nama Barang</label>
-                  <input
-                    v-model="form.nama"
-                    ref="inputNama"
-                    class="mfield-input"
-                    placeholder="Nama barang"
-                    @keydown.enter.prevent="focusField('photoAreaRef')"
-                    required
-                  />
-                </div>
-              </div>
-
-              <!-- Foto Barang -->
-              <div class="photo-section">
-                <div class="photo-section-header">
-                  <span class="photo-section-title"><i class="pi pi-images"></i> Foto Barang</span>
-                  <span class="photo-limit">Maks 3 foto · <kbd>F1</kbd> tambah</span>
-                </div>
-
-                <div class="photo-area" ref="photoAreaRef" tabindex="0"
-                  @keydown.enter.prevent="focusFirstSupplier"
-                  @keydown.f1.prevent="triggerFileInput"
-                  @keydown.backspace.prevent="removeLastFoto"
-                  @keydown.tab.prevent="focusFirstSupplier"
-                >
-                  <!-- Previews -->
-                  <div v-if="form.foto_urls.length > 0" class="photo-preview-grid">
-                    <div v-for="(url, idx) in form.foto_urls" :key="url" class="photo-preview-item">
-                      <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-preview-img" />
-                      <button type="button" class="photo-remove-btn" @click="removeFoto(idx)" title="Hapus foto">
-                        <i class="pi pi-times"></i>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Upload trigger -->
-                  <div v-if="form.foto_urls.length < 3" class="photo-upload-area" @click="triggerFileInput">
-                    <input
-                      ref="fileInput"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      class="photo-file-input"
-                      @change="handleFileSelect"
-                      :disabled="photoUpload.uploading"
-                    />
-                    <div class="photo-upload-label">
-                      <i class="pi pi-cloud-upload"></i>
-                      <span v-if="!photoUpload.uploading">Klik atau tekan Enter / F1</span>
-                      <span v-else class="uploading-text">
-                        <i class="pi pi-spin pi-spinner"></i> Mengupload... {{ photoUpload.progress }}%
-                      </span>
-                    </div>
-                  </div>
-                  <div v-if="photoUpload.error" class="photo-upload-error">
-                    <i class="pi pi-exclamation-circle"></i> {{ photoUpload.error }}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Stok & Harga per Supplier -->
-              <div class="price-section">
-                <div class="price-section-header">
-                  <span class="price-section-title"><i class="pi pi-truck"></i> Stok & Harga per Supplier</span>
-                  <button type="button" class="btn-add-supplier" @click="addPriceRow" tabindex="-1">
-                    <i class="pi pi-plus"></i> Tambah
-                  </button>
-                </div>
-
-                <div
-                  v-for="(pr, idx) in form.prices"
-                  :key="idx"
-                  class="price-row"
-                  :class="{ 'price-row--active': modal.activePriceRow === idx }"
-                >
-                  <!-- Supplier search -->
-                  <div class="supplier-search-wrap">
-                    <input
-                      :ref="el => { if (el) priceSupplierRefs[idx] = el }"
-                      v-model="pr.supplierSearch"
-                      class="price-supplier-input"
-                      placeholder="Cari supplier..."
-                      autocomplete="off"
-                      @focus="modal.activePriceRow = idx; openSupplierDropdown(idx)"
-                      @input="filterSuppliers(idx)"
-                      @keydown="onSupplierSearchKey($event, idx)"
-                    />
-                    <!-- Supplier dropdown (fixed position to escape modal overflow) -->
-                    <Teleport to="body">
-                      <div
-                        v-if="pr.dropdownOpen && pr.filteredSuppliers?.length"
-                        class="supplier-dropdown"
-                        :style="{ top: dropdownPos.top + 'px', left: dropdownPos.left + 'px', width: dropdownPos.width + 'px' }"
-                      >
-                        <div
-                          v-for="(s, si) in pr.filteredSuppliers"
-                          :key="s.id"
-                          class="supplier-dropdown-item"
-                          :class="{ active: pr.dropdownIndex === si }"
-                          @mousedown.prevent="selectSupplier(idx, s)"
-                        >
-                          {{ s.nama }}
-                        </div>
-                      </div>
-                    </Teleport>
-                  </div>
-
-                  <!-- Stok -->
-                  <div class="price-input-wrap price-input-wrap--stok">
-                    <input
-                      :ref="el => { if (el) priceStokRefs[idx] = el }"
-                      v-model.number="pr.stok"
-                      type="number"
-                      class="price-input"
-                      min="0"
-                      placeholder="0"
-                      @keydown.enter.prevent="focusPriceHarga(idx)"
-                    />
-                  </div>
-
-                  <!-- Harga -->
-                  <div class="price-input-wrap">
-                    <span class="price-prefix">Rp</span>
-                    <input
-                      :ref="el => { if (el) priceHargaRefs[idx] = el }"
-                      v-model.number="pr.harga_beli"
-                      type="number"
-                      class="price-input"
-                      min="0"
-                      placeholder="0"
-                      @keydown.enter.prevent="onHargaEnter(idx)"
-                    />
-                  </div>
-
-                  <!-- Delete row -->
-                  <button
-                    type="button"
-                    class="btn-rm-supplier"
-                    @click="removePriceRow(idx)"
-                    :disabled="form.prices.length === 1"
-                    tabindex="-1"
-                  ><i class="pi pi-trash"></i></button>
-                </div>
-              </div>
-
-              <div v-if="modal.error" class="modal-error">
-                <i class="pi pi-exclamation-triangle"></i> {{ modal.error }}
-              </div>
-
-              <div class="modal-footer">
-                <button type="button" class="btn-cancel" @click="closeModal">
-                  Batal <kbd>Esc</kbd>
-                </button>
-                <button type="submit" class="btn-save" :disabled="modal.saving" ref="btnSave">
-                  <i v-if="modal.saving" class="pi pi-spin pi-spinner"></i>
-                  <span v-else>{{ modal.mode === 'add' ? 'Simpan' : 'Update' }} <kbd>Y</kbd></span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- ═══════════════════════════════════════════════════
-         MODAL KONFIRMASI HAPUS
-    ════════════════════════════════════════════════════ -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="deleteModal.show" class="modal-overlay" @click.self="deleteModal.show = false">
-          <div class="modal-box modal-box--sm" role="dialog">
-            <div class="modal-header modal-header--danger">
-              <h3 class="modal-title">Hapus Barang</h3>
-              <button class="modal-close" @click="deleteModal.show = false" tabindex="-1">
-                <i class="pi pi-times"></i>
-              </button>
-            </div>
-            <div class="modal-body delete-body">
-              <i class="pi pi-exclamation-triangle del-icon"></i>
-              <p>Yakin hapus barang <b>{{ deleteModal.row?.nama }}</b>?</p>
-              <p class="del-warn">Semua data harga dari semua supplier akan ikut terhapus.</p>
-            </div>
-            <div class="modal-footer">
-              <button class="btn-cancel" @click="deleteModal.show = false">
-                Batal <kbd>Esc</kbd>
-              </button>
-              <button class="btn-danger" @click="doDelete" :disabled="deleteModal.saving">
-                <i v-if="deleteModal.saving" class="pi pi-spin pi-spinner"></i>
-                <span v-else>Hapus</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <!-- edit modal dipindah ke GudangKatalogPage -->
 
     <!-- ── MODAL: PILIH BARANG ────────────────────────────── -->
     <Teleport to="body">
@@ -606,23 +358,15 @@
       </Transition>
     </Teleport>
 
-    <!-- Toast notification -->
-    <Toast position="top-right" />
-
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
-import { useToast } from 'primevue/usetoast'
-import Toast from 'primevue/toast'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-
-// ── Composables ────────────────────────────────────────────
-const toast = useToast()
 
 // ── Constants ──────────────────────────────────────────────
 const PAGE_SIZE = 15
@@ -769,11 +513,7 @@ function onGlobalKey(e) {
   switch (e.key) {
     case 'F1':
       e.preventDefault()
-      if (selectedRowData.value?.foto_urls?.length > 0) {
-        openPhotoLightbox(0)
-      } else {
-        inputBarang.value?.focus()
-      }
+      inputBarang.value?.focus()
       break
     case 'F2':
       e.preventDefault()
@@ -782,19 +522,13 @@ function onGlobalKey(e) {
     case 'F4':
       if (selectedRowIndex.value >= 0) {
         e.preventDefault()
-        openEdit(pagedRows.value[selectedRowIndex.value])
+        viewDetail(pagedRows.value[selectedRowIndex.value])
       }
       break
     case 'Enter':
       if (hasSearched.value && selectedRowIndex.value >= 0 && !e.target.matches('input,textarea,select')) {
         e.preventDefault()
-        openEdit(pagedRows.value[selectedRowIndex.value])
-      }
-      break
-    case 'Delete':
-      if (hasSearched.value && selectedRowIndex.value >= 0 && !e.target.matches('input,textarea,select')) {
-        e.preventDefault()
-        openDelete(pagedRows.value[selectedRowIndex.value])
+        viewDetail(pagedRows.value[selectedRowIndex.value])
       }
       break
     case 'ArrowDown':
@@ -904,12 +638,13 @@ async function openBarangModal() {
   const q = searchBarang.value.trim()
   if (!q) return
   
-  // Fetch barang yang cocok
+  // Fetch barang yang cocok (exclude archived)
   const { data, error } = await supabase
     .from('products')
     .select('*')
     .or(`nama.ilike.%${q}%,kode.ilike.%${q}%`)
     .eq('aktif', true)
+    .eq('is_archived', false)
     .order('nama')
   
   if (error) {
@@ -1068,6 +803,7 @@ async function doSearch(productId = null) {
         )
       `)
       .eq('aktif', true)
+      .eq('is_archived', false)
       .order('kode')
 
     if (productId) {
@@ -1170,6 +906,12 @@ function clearBarang() {
   selectedRowIndex.value    = -1
   lastSearch.value          = ''
   clearInfoCards()
+}
+
+// Navigate to GudangDetail page
+function viewDetail(row) {
+  if (!row) return
+  router.push({ path: '/gudang/detail', query: { product_id: row.product_id } })
 }
 
 // ───────────────────────────────────────────────────────────
@@ -1690,15 +1432,12 @@ function onLightboxKey(e) {
 
 onMounted(() => {
   window.addEventListener('keydown', onGlobalKey)
-  window.addEventListener('keydown', onModalEscKey)
   window.addEventListener('keydown', onLightboxKey)
-  loadSuppliers()
   nextTick(() => inputBarang.value?.focus())
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKey)
-  window.removeEventListener('keydown', onModalEscKey)
   window.removeEventListener('keydown', onLightboxKey)
   clearTimeout(barangTimer)
 })
@@ -1718,10 +1457,5 @@ watch([selectedRowIndex, pagedRows], ([idx]) => {
 </script>
 
 <style scoped>
-/* Import modular CSS files */
-@import '@/assets/pages/gudang/gudang-page.css';
-@import '@/assets/components/modal.css';
-@import '@/assets/components/form.css';
-@import '@/assets/components/table.css';
-
+@import '@/assets/pages/gudang/gudang-cek-harga-page.css';
 </style>

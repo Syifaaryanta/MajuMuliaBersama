@@ -834,6 +834,7 @@ async function openProductModal() {
     .from('products')
     .select('*')
     .or(`kode.ilike.%${newItem.search}%,nama.ilike.%${newItem.search}%`)
+    .eq('is_archived', false)
     .limit(20)
   
   productModal.results = data || []
@@ -1010,8 +1011,8 @@ async function confirmSave() {
     const oldStatus = order.value.status
     
     // STOCK MANAGEMENT LOGIC
-    // If order was 'completed', restore old stock first
-    if (oldStatus === 'completed' && originalItems.value.length > 0) {
+    // If order was 'completed' or 'draft' (draft also deducts stock), restore old stock first
+    if ((oldStatus === 'completed' || oldStatus === 'draft') && originalItems.value.length > 0) {
       for (const oldItem of originalItems.value) {
         // Restore stock (add back the old qty) - manual update
         const { data: product, error: getError } = await supabase

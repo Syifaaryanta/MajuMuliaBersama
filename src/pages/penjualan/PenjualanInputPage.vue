@@ -176,18 +176,27 @@
                   />
                 </td>
                 <td class="col-price">
-                  <input
-                    ref="inputPrice"
-                    :value="newItem.unit_price ? formatNumber(newItem.unit_price) : ''"
-                    type="text"
-                    @keydown="handleNewItemKeydown($event, 'price')"
-                    class="price-input"
-                    placeholder="0"
-                    @input="formatNewItemPrice"
-                    @keydown.enter="addItem"
-                    @keydown.f4.prevent="showPriceInfoPreview"
-                    disabled
-                  />
+                  <div class="price-input-wrap">
+                    <input
+                      ref="inputPrice"
+                      :value="newItem.unit_price ? formatNumber(newItem.unit_price) : ''"
+                      type="text"
+                      @keydown="handleNewItemKeydown($event, 'price')"
+                      class="price-input"
+                      placeholder="0"
+                      @input="formatNewItemPrice"
+                      @keydown.enter="addItem"
+                      disabled
+                    />
+                    <button
+                      class="price-info-btn"
+                      @click="showPriceInfoPreview"
+                      title="Info harga (F4)"
+                      tabindex="-1"
+                    >
+                      <i class="pi pi-info-circle"></i>
+                    </button>
+                  </div>
                 </td>
                 <td class="col-total">
                   <span class="total-val total-preview">
@@ -336,6 +345,50 @@
       </Transition>
     </Teleport>
 
+    <!-- ═══════════════════════════════════════════════════════
+         MODAL SUPPLIER SELECTION
+    ═══════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="supplierModal.show" class="modal-overlay" @click.self="supplierModal.show = false" @keydown="onSupplierModalKey">
+          <div class="modal-box modal-search" role="dialog">
+            <div class="modal-header">
+              <i class="pi pi-truck"></i>
+              <h3 class="modal-title">Pilih Supplier &mdash; {{ supplierModal.product?.nama }}</h3>
+              <button class="modal-close" @click="supplierModal.show = false" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="supplier-select-hint">
+                <i class="pi pi-info-circle"></i>
+                Barang ini tersedia dari beberapa supplier dengan harga berbeda. Pilih supplier yang akan digunakan.
+              </p>
+              <div class="search-modal-results">
+                <div
+                  v-for="(entry, idx) in supplierModal.prices"
+                  :key="entry.id"
+                  class="search-modal-item"
+                  :class="{ active: idx === supplierModal.selectedIndex }"
+                  @click="selectSupplierPrice(entry)"
+                  @mouseenter="supplierModal.selectedIndex = idx"
+                >
+                  <div class="smi-main">
+                    <span class="smi-nama">{{ entry.supplier_nama }}</span>
+                  </div>
+                  <div class="smi-sub">
+                    <span>Stok: <strong>{{ entry.stok }}</strong></span>
+                    <span class="smi-price-sep">&nbsp;&middot;&nbsp;</span>
+                    <span>Harga Beli: <strong>{{ formatRp(entry.harga_beli) }}</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </div>
 </template>
 
@@ -397,6 +450,13 @@ const priceInfoModal = reactive({
   }
 })
 
+const supplierModal = reactive({
+  show: false,
+  product: null,
+  prices: [],        // [{ id, supplier_id, supplier_nama, stok, harga_beli }]
+  selectedIndex: 0,
+})
+
 // ───────────────────────────────────────────────────────────
 // COMPUTED
 // ───────────────────────────────────────────────────────────
@@ -431,7 +491,7 @@ onUnmounted(() => {
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
-  if (productModal.show || priceInfoModal.show) return
+  if (productModal.show || priceInfoModal.show || supplierModal.show) return
 
   // Esc: Track for double press to exit without save or single for back with draft
   if (e.key === 'Escape') {
@@ -445,7 +505,7 @@ function onGlobalKey(e) {
     if (escPressCount.value === 1) {
       // First Esc - go back to step 1 (save as draft)
       escTimer.value = setTimeout(() => {
-        backToStep1(true) // true = save as draft
+        backToStep1() // save as draft and go back
         escPressCount.value = 0
       }, 300)
     } else if (escPressCount.value === 2) {
@@ -535,6 +595,13 @@ function handleNewItemKeydown(e, field) {
         priceRefs.value[lastIdx]?.focus()
       }
     }
+    return
+  }
+
+  // F4 - Show price info (only in price field)
+  if (e.key === 'F4' && field === 'price') {
+    e.preventDefault()
+    showPriceInfoPreview()
     return
   }
 
@@ -663,6 +730,7 @@ async function openProductModal() {
       .select('*')
       .or(`nama.ilike.%${q}%,kode.ilike.%${q}%`)
       .eq('aktif', true)
+      .eq('is_archived', false)
       .order('nama')
 
     if (error) throw error
@@ -711,13 +779,70 @@ function onProductModalKey(e) {
 async function selectProduct(product) {
   productModal.show = false
 
-  // Get default price based on priority
-  const price = await getDefaultPrice(product.id)
+  try {
+    // Check how many active suppliers this product has
+    const { data: prices, error } = await supabase
+      .from('product_prices')
+      .select('id, stok, harga_beli, supplier:suppliers(id, nama)')
+      .eq('product_id', product.id)
+      .eq('aktif', true)
+      .order('updated_at', { ascending: false })
 
-  // Check stock warning
-  const stok_warning = product.stok <= 0
+    if (error) throw error
 
-  // Fill new item
+    const activePrices = (prices || []).filter(p => p.supplier)
+
+    if (activePrices.length > 1) {
+      // Multiple suppliers — show selection modal
+      supplierModal.product = product
+      supplierModal.prices = activePrices.map(p => ({
+        id: p.id,
+        supplier_id: p.supplier.id,
+        supplier_nama: p.supplier.nama,
+        stok: p.stok,
+        harga_beli: p.harga_beli,
+      }))
+      supplierModal.selectedIndex = 0
+      supplierModal.show = true
+      return
+    }
+
+    // Single or no supplier — use harga_beli directly if available, else historical
+    const fallbackPrice = activePrices.length === 1
+      ? activePrices[0].harga_beli
+      : await getDefaultPrice(product.id)
+
+    fillNewItem(product, fallbackPrice)
+  } catch (err) {
+    console.error('[selectProduct]', err)
+    const price = await getDefaultPrice(product.id)
+    fillNewItem(product, price)
+  }
+}
+
+function selectSupplierPrice(entry) {
+  supplierModal.show = false
+  fillNewItem(supplierModal.product, entry.harga_beli)
+}
+
+function onSupplierModalKey(e) {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    supplierModal.selectedIndex = Math.min(supplierModal.selectedIndex + 1, supplierModal.prices.length - 1)
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    supplierModal.selectedIndex = Math.max(supplierModal.selectedIndex - 1, 0)
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    if (supplierModal.prices[supplierModal.selectedIndex]) {
+      selectSupplierPrice(supplierModal.prices[supplierModal.selectedIndex])
+    }
+  } else if (e.key === 'Escape') {
+    supplierModal.show = false
+  }
+}
+
+function fillNewItem(product, price) {
   newItem.product_id = product.id
   newItem.product_kode = product.kode
   newItem.product_nama = product.nama
@@ -725,14 +850,13 @@ async function selectProduct(product) {
   newItem.stok_available = product.stok
   newItem.search = product.nama
 
-  // Enable qty and price inputs
   inputQty.value?.removeAttribute('disabled')
   inputPrice.value?.removeAttribute('disabled')
 
-  // Focus to qty
-  await nextTick()
-  inputQty.value?.focus()
-  inputQty.value?.select()
+  nextTick(() => {
+    inputQty.value?.focus()
+    inputQty.value?.select()
+  })
 }
 
 async function getDefaultPrice(productId) {
@@ -1062,6 +1186,21 @@ async function submitSale(shouldPrint = false) {
 
     if (itemsError) throw itemsError
 
+    // Deduct stock from warehouse for each item
+    for (const item of items.value) {
+      const { data: product, error: getError } = await supabase
+        .from('products')
+        .select('stok')
+        .eq('id', item.product_id)
+        .single()
+      if (getError) throw getError
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ stok: Math.max(0, (product.stok || 0) - item.qty) })
+        .eq('id', item.product_id)
+      if (updateError) throw updateError
+    }
+
     // Clear session storage
     sessionStorage.removeItem('penjualan_draft')
 
@@ -1125,6 +1264,25 @@ async function saveAsDraft() {
       total: item.total,
     }))
 
+    // Restore stock for currently saved items (in case of re-save)
+    const { data: existingItems } = await supabase
+      .from('sale_items')
+      .select('product_id, qty')
+      .eq('sale_id', sale_id)
+    for (const existingItem of (existingItems || [])) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('stok')
+        .eq('id', existingItem.product_id)
+        .single()
+      if (product) {
+        await supabase
+          .from('products')
+          .update({ stok: (product.stok || 0) + existingItem.qty })
+          .eq('id', existingItem.product_id)
+      }
+    }
+
     // Delete existing items first
     await supabase
       .from('sale_items')
@@ -1138,38 +1296,32 @@ async function saveAsDraft() {
 
     if (itemsError) throw itemsError
 
+    // Deduct stock from warehouse for each new item
+    for (const item of items.value) {
+      const { data: product, error: getError } = await supabase
+        .from('products')
+        .select('stok')
+        .eq('id', item.product_id)
+        .single()
+      if (getError) throw getError
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ stok: Math.max(0, (product.stok || 0) - item.qty) })
+        .eq('id', item.product_id)
+      if (updateError) throw updateError
+    }
+
     console.log('Draft saved successfully')
   } catch (err) {
     console.error('[saveAsDraft]', err)
   }
 }
 
-function backToStep1(saveAsDraftFirst = false) {
-  if (saveAsDraftFirst && items.value.length > 0) {
-    // Save as draft then go back
-    saveAsDraft().then(() => {
-      router.push('/penjualan')
-    })
-  } else {
-    const confirm = window.confirm('Kembali ke step 1? Data yang belum disimpan akan hilang.')
-    if (confirm) {
-      // Delete draft order if exists
-      const sale_id = orderData.value.sale_id
-      if (sale_id) {
-        supabase
-          .from('sales')
-          .delete()
-          .eq('id', sale_id)
-          .then(() => {
-            sessionStorage.removeItem('penjualan_draft')
-            router.push('/penjualan')
-          })
-      } else {
-        sessionStorage.removeItem('penjualan_draft')
-        router.push('/penjualan')
-      }
-    }
-  }
+function backToStep1() {
+  // Always save as draft (keep the order) and return to menu
+  saveAsDraft().then(() => {
+    router.push('/penjualan')
+  })
 }
 
 // ───────────────────────────────────────────────────────────

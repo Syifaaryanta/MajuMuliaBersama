@@ -1,0 +1,25 @@
+@import '@/assets/pages/gudang/gudang-page.css';
+@import '@/assets/components/modal.css';
+@import '@/assets/components/form.css';
+@import '@/assets/components/table.css';
+
+/* ── Table layout ───────────────────────────────────────── */
+.g-table {
+  table-layout: fixed;
+}
+
+.col-no       { width: 48px;  text-align: center; }
+.col-kode     { width: 120px; }
+.col-nama     { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.col-stok     { width: 110px; text-align: center; }
+.col-supplier { width: 200px; }
+.col-harga    { width: 150px; text-align: right; }
+
+.g-table thead .col-no      { text-align: center; }
+.g-table thead .col-stok    { text-align: center; }
+.g-table thead .col-harga   { text-align: right; }
+
+.col-harga .harga-val {
+  font-size: 1rem;
+  font-weight: 700;
+}

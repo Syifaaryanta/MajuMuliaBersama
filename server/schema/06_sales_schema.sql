@@ -80,24 +80,31 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   tahun TEXT;
-  last_no INTEGER;
+  new_no_int INTEGER;
   new_no TEXT;
 BEGIN
   -- Ambil 2 digit tahun terakhir (misal: 2026 → 26)
   tahun := TO_CHAR(CURRENT_DATE, 'YY');
-  
-  -- Cari nomor order terakhir di tahun yang sama
-  SELECT COALESCE(
-    MAX(CAST(SUBSTRING(no_order FROM 3) AS INTEGER)),
-    0
+
+  -- Cari nomor terkecil yang belum dipakai di tahun ini (isi celah / gap)
+  SELECT s.n INTO new_no_int
+  FROM generate_series(1, 99999) AS s(n)
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM sales
+    WHERE no_order = tahun || LPAD(s.n::TEXT, 5, '0')
   )
-  INTO last_no
-  FROM sales
-  WHERE no_order LIKE tahun || '%';
-  
+  ORDER BY s.n
+  LIMIT 1;
+
+  -- Fallback (tidak mungkin terjadi jika < 99999 order)
+  IF new_no_int IS NULL THEN
+    new_no_int := 1;
+  END IF;
+
   -- Generate nomor baru (format: YYXXXXX, misal: 2600001)
-  new_no := tahun || LPAD((last_no + 1)::TEXT, 5, '0');
-  
+  new_no := tahun || LPAD(new_no_int::TEXT, 5, '0');
+
   RETURN new_no;
 END;
 $$;

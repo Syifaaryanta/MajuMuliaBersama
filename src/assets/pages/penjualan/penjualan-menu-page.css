@@ -51,6 +51,31 @@
   transition: all 0.2s ease;
 }
 
+.menu-num-badge {
+  position: absolute;
+  top: .6rem;
+  right: .75rem;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  border-radius: 5px;
+  font-size: .7rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  line-height: 1;
+}
+
+.menu-card--active .menu-num-badge {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #2563eb;
+}
+
 .menu-card:hover {
   border-color: var(--primary-color, #3b82f6);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);

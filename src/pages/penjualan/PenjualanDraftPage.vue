@@ -5,7 +5,7 @@
     <div class="page-header-card">
       <div class="page-header">
         <div class="page-header-left">
-          <h1 class="page-header-title">Daftar Order Penjualan</h1>
+          <h1 class="page-header-title">Draft Order</h1>
         </div>
         <button class="btn-secondary" @click="$router.push('/penjualan')" title="Kembali ke Menu (Esc)">
           <i class="pi pi-arrow-left"></i>
@@ -85,7 +85,7 @@
       <!-- ── RESULT META ──────────────────────────────────── -->
       <div class="result-meta">
         <span class="result-count">
-          <b>{{ filteredOrders.length }}</b> order
+          <b>{{ filteredOrders.length }}</b> draft
           <span v-if="searchOrderNo || searchDateStart || searchDateEnd" class="meta-filter">
             (dari {{ orders.length }} total)
           </span>
@@ -125,9 +125,9 @@
           <tr>
             <td colspan="8" class="empty-cell">
               <i class="pi pi-inbox"></i>
-              <p v-if="searchOrderNo">Tidak ada order dengan No. Order "<b>{{ searchOrderNo }}</b>"</p>
-              <p v-else-if="searchDate">Tidak ada order pada tanggal "<b>{{ searchDate }}</b>"</p>
-              <p v-else>Belum ada order penjualan.</p>
+              <p v-if="searchOrderNo">Tidak ada draft dengan No. Order "<b>{{ searchOrderNo }}</b>"</p>
+              <p v-else-if="searchDateStart || searchDateEnd">Tidak ada draft pada rentang tanggal tersebut.</p>
+              <p v-else>Belum ada draft order.</p>
             </td>
           </tr>
         </tbody>
@@ -168,7 +168,7 @@
                   {{ item.qty }}
                 </div>
                 <div v-if="order.items.length > 3" class="item-more">
-                   
+                   
                 </div>
               </div>
               <span v-else class="items-empty">-</span>
@@ -178,7 +178,7 @@
             </td>
             <td class="col-status">
               <span class="status-badge" :class="`status-${order.status}`">
-                {{ order.status === 'completed' ? 'Selesai' : 'Draft' }}
+                Draft
               </span>
             </td>
           </tr>
@@ -198,7 +198,7 @@
               <div class="modal-header-icon">
                 <i class="pi pi-file-edit"></i>
               </div>
-              <h3 class="modal-title">Detail Order: {{ detailModal.order?.no_order }}</h3>
+              <h3 class="modal-title">Detail Draft: {{ detailModal.order?.no_order }}</h3>
               <button class="modal-close" @click="detailModal.show = false" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
@@ -218,9 +218,7 @@
                   </div>
                   <div class="detail-item">
                     <label>Status:</label>
-                    <span class="status-badge" :class="`status-${detailModal.order.status}`">
-                      {{ detailModal.order.status === 'completed' ? 'Selesai' : 'Draft' }}
-                    </span>
+                    <span class="status-badge status-draft">Draft</span>
                   </div>
                   <div class="detail-item">
                     <label>Pengiriman:</label>
@@ -312,7 +310,7 @@
           <div class="modal-box modal-box--sm" role="dialog">
             <div class="modal-header">
               <i class="pi pi-print"></i>
-              <h3 class="modal-title">Print Order</h3>
+              <h3 class="modal-title">Print Draft</h3>
               <button class="modal-close" @click="printModal.show = false" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
@@ -359,10 +357,10 @@
               <div class="modal-header-icon">
                 <i class="pi pi-exclamation-triangle"></i>
               </div>
-              <h3 class="modal-title">Konfirmasi Hapus Order</h3>
+              <h3 class="modal-title">Konfirmasi Hapus Draft</h3>
             </div>
             <div class="modal-body modal-body--confirm" v-if="deleteModal.order">
-              <p class="confirm-message">Yakin hapus order ini?</p>
+              <p class="confirm-message">Yakin hapus draft ini?</p>
               <div class="delete-info">
                 <div class="info-row">
                   <span class="info-label">No. Order:</span>
@@ -376,16 +374,6 @@
                   <span class="info-label">Total:</span>
                   <span class="info-value">{{ formatRp(deleteModal.order.subtotal) }}</span>
                 </div>
-                <div class="info-row">
-                  <span class="info-label">Status:</span>
-                  <span class="status-badge" :class="`status-${deleteModal.order.status}`">
-                    {{ deleteModal.order.status === 'completed' ? 'Selesai' : 'Draft' }}
-                  </span>
-                </div>
-              </div>
-              <div class="delete-warning" v-if="deleteModal.order.status === 'completed'">
-                <i class="pi pi-info-circle"></i>
-                <span>Stok barang akan dikembalikan ke gudang.</span>
               </div>
             </div>
             <div class="modal-footer">
@@ -401,7 +389,7 @@
                 @click="confirmDelete"
                 ref="btnConfirmDelete"
               >
-                Hapus Order
+                Hapus Draft
               </button>
             </div>
           </div>
@@ -482,21 +470,18 @@ const printModal = reactive({
 const filteredOrders = computed(() => {
   let result = orders.value
 
-  // Filter by order number
   if (searchOrderNo.value) {
     const q = searchOrderNo.value.toLowerCase()
     result = result.filter(order =>
       order.no_order.toLowerCase().includes(q)
     )
-  }
-  // Filter by date range (DD/MM/YY format)
-  else if (searchDateStart.value || searchDateEnd.value) {
+  } else if (searchDateStart.value || searchDateEnd.value) {
     const startDate = parseDateInput(searchDateStart.value)
     const endDate = parseDateInput(searchDateEnd.value)
-    
+
     if (startDate && endDate) {
       result = result.filter(order => {
-        const orderDate = order.order_date.split('T')[0] // Get YYYY-MM-DD part
+        const orderDate = order.order_date.split('T')[0]
         return orderDate >= startDate && orderDate <= endDate
       })
     } else if (startDate) {
@@ -540,62 +525,6 @@ onUnmounted(() => {
 // ───────────────────────────────────────────────────────────
 // DATA LOADING
 // ───────────────────────────────────────────────────────────
-async function loadOrders() {
-  loading.value = true
-  try {
-    // First get all orders
-    const { data: ordersData, error: ordersError } = await supabase
-      .from('sales')
-      .select('*')
-      .order('order_date', { ascending: false })
-      .order('created_at', { ascending: false })
-
-    if (ordersError) throw ordersError
-
-    // Then get items for each order (first 3 items only for display)
-    const ordersWithItems = await Promise.all(
-      (ordersData || []).map(async (order) => {
-        const { data: items, error: itemsError } = await supabase
-          .from('sale_items')
-          .select('product_nama, qty')
-          .eq('sale_id', order.id)
-          .order('created_at')
-          .limit(3)
-
-        if (itemsError) {
-          console.error('[loadOrders items]', itemsError)
-        }
-
-        return {
-          ...order,
-          items: items || [],
-          total_items: items?.length || 0
-        }
-      })
-    )
-
-    orders.value = ordersWithItems
-  } catch (err) {
-    console.error('[loadOrders]', err)
-    alert('Gagal memuat daftar order: ' + err.message)
-  } finally {
-    loading.value = false
-  }
-}
-
-// ───────────────────────────────────────────────────────────────
-// SEARCH FUNCTIONS - SEQUENTIAL FLOW
-// ───────────────────────────────────────────────────────────────
-async function onNoOrderEnter() {
-  if (searchOrderNo.value.trim()) {
-    // Search by order number
-    await searchByOrderNo()
-  } else {
-    // Move to date range input
-    focusDateStart()
-  }
-}
-
 async function searchByOrderNo() {
   loading.value = true
   showResults.value = false
@@ -603,7 +532,7 @@ async function searchByOrderNo() {
     const { data: ordersData, error: ordersError } = await supabase
       .from('sales')
       .select('*')
-      .eq('status', 'completed')
+      .eq('status', 'draft')
       .ilike('no_order', `%${searchOrderNo.value}%`)
       .order('order_date', { ascending: false })
 
@@ -631,27 +560,16 @@ async function searchByOrderNo() {
     formVisible.value = false
     currentPage.value = 1
     selectedRowIndex.value = 0
-    
-    // Auto-focus to first row after data loaded
+
     await nextTick()
     setTimeout(() => {
       pageEl.value?.focus()
     }, 100)
   } catch (err) {
     console.error('[searchByOrderNo]', err)
-    alert('Gagal mencari order: ' + err.message)
+    alert('Gagal mencari draft: ' + err.message)
   } finally {
     loading.value = false
-  }
-}
-
-function onDateStartEnter() {
-  focusDateEnd()
-}
-
-async function onDateEndEnter() {
-  if (searchDateStart.value || searchDateEnd.value) {
-    await searchByDateRange()
   }
 }
 
@@ -665,14 +583,13 @@ async function searchByDateRange() {
     let query = supabase
       .from('sales')
       .select('*')
-      .eq('status', 'completed')
+      .eq('status', 'draft')
       .order('order_date', { ascending: false })
 
     if (startDate) {
       query = query.gte('order_date', startDate)
     }
     if (endDate) {
-      // Add 1 day to make it inclusive
       const endDateObj = new Date(endDate)
       endDateObj.setDate(endDateObj.getDate() + 1)
       const endDateInclusive = endDateObj.toISOString().split('T')[0]
@@ -705,17 +622,37 @@ async function searchByDateRange() {
     formVisible.value = false
     currentPage.value = 1
     selectedRowIndex.value = 0
-    
-    // Auto-focus to first row after data loaded
+
     await nextTick()
     setTimeout(() => {
       pageEl.value?.focus()
     }, 100)
   } catch (err) {
     console.error('[searchByDateRange]', err)
-    alert('Gagal mencari order: ' + err.message)
+    alert('Gagal mencari draft: ' + err.message)
   } finally {
     loading.value = false
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// SEARCH FUNCTIONS - SEQUENTIAL FLOW
+// ───────────────────────────────────────────────────────────────
+async function onNoOrderEnter() {
+  if (searchOrderNo.value.trim()) {
+    await searchByOrderNo()
+  } else {
+    focusDateStart()
+  }
+}
+
+function onDateStartEnter() {
+  focusDateEnd()
+}
+
+async function onDateEndEnter() {
+  if (searchDateStart.value || searchDateEnd.value) {
+    await searchByDateRange()
   }
 }
 
@@ -753,16 +690,15 @@ function clearSearch() {
 function parseDateInput(dateStr) {
   const parts = dateStr.split('/')
   if (parts.length !== 3) return null
-  
+
   const day = parts[0].padStart(2, '0')
   const month = parts[1].padStart(2, '0')
   let year = parts[2]
-  
-  // Convert YY to YYYY
+
   if (year.length === 2) {
     year = '20' + year
   }
-  
+
   return `${year}-${month}-${day}`
 }
 
@@ -770,7 +706,6 @@ function parseDateInput(dateStr) {
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
-  // Handle delete modal
   if (deleteModal.show) {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -785,7 +720,6 @@ function onGlobalKey(e) {
     return
   }
 
-  // Handle detail modal
   if (detailModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -794,7 +728,6 @@ function onGlobalKey(e) {
     return
   }
 
-  // Handle print modal
   if (printModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -803,9 +736,7 @@ function onGlobalKey(e) {
     return
   }
 
-  // If no results shown, let input fields handle their own keys
   if (!showResults.value) {
-    // ESC when form is visible: go back to menu
     if (e.key === 'Escape' && formVisible.value && !searchOrderNo.value && !searchDateStart.value && !searchDateEnd.value) {
       e.preventDefault()
       router.push('/penjualan')
@@ -813,7 +744,6 @@ function onGlobalKey(e) {
     return
   }
 
-  // Escape: Hide results and show form again
   if (e.key === 'Escape') {
     e.preventDefault()
     showResults.value = false
@@ -824,7 +754,6 @@ function onGlobalKey(e) {
     return
   }
 
-  // Enter: View detail
   if (e.key === 'Enter') {
     e.preventDefault()
     if (pagedOrders.value[selectedRowIndex.value]) {
@@ -833,7 +762,6 @@ function onGlobalKey(e) {
     return
   }
 
-  // Delete: Delete order
   if (e.key === 'Delete') {
     e.preventDefault()
     if (pagedOrders.value[selectedRowIndex.value]) {
@@ -842,7 +770,6 @@ function onGlobalKey(e) {
     return
   }
 
-  // F10: Print
   if (e.key === 'F10') {
     e.preventDefault()
     if (pagedOrders.value[selectedRowIndex.value]) {
@@ -851,7 +778,6 @@ function onGlobalKey(e) {
     return
   }
 
-  // Arrow navigation
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     if (selectedRowIndex.value < pagedOrders.value.length - 1) {
@@ -866,7 +792,6 @@ function onGlobalKey(e) {
     }
   }
 
-  // Page navigation
   if (e.key === 'PageDown') {
     e.preventDefault()
     nextPage()
@@ -883,7 +808,6 @@ async function viewOrder(order) {
   detailModal.order = order
   detailModal.show = true
 
-  // Load items
   try {
     const { data, error } = await supabase
       .from('sale_items')
@@ -895,15 +819,14 @@ async function viewOrder(order) {
     detailModal.items = data || []
   } catch (err) {
     console.error('[viewOrder]', err)
-    alert('Gagal memuat detail order: ' + err.message)
+    alert('Gagal memuat detail draft: ' + err.message)
   }
 }
 
 function initiateDelete(order) {
   deleteModal.order = order
   deleteModal.show = true
-  
-  // Auto-focus to confirm button
+
   nextTick(() => {
     btnConfirmDelete.value?.focus()
   })
@@ -912,7 +835,6 @@ function initiateDelete(order) {
 function cancelDelete() {
   deleteModal.show = false
   deleteModal.order = null
-  // Return focus to table
   nextTick(() => {
     pageEl.value?.focus()
   })
@@ -926,46 +848,27 @@ async function confirmDelete() {
   loading.value = true
 
   try {
-    // 1. If order status is 'completed', return stock to warehouse
-    if (order.status === 'completed') {
-      // Get all items from this order
-      const { data: items, error: itemsError } = await supabase
-        .from('sale_items')
-        .select('product_id, qty')
-        .eq('sale_id', order.id)
-
-      if (itemsError) throw itemsError
-
-      // Return stock for each item
-      for (const item of items || []) {
-        const { error: stockError } = await supabase.rpc('increment_product_stock', {
-          p_product_id: item.product_id,
-          p_qty: item.qty
-        })
-
-        // If RPC doesn't exist, fallback to manual update
-        if (stockError && stockError.code === '42883') {
-          const { data: product, error: getError } = await supabase
-            .from('products')
-            .select('stok')
-            .eq('id', item.product_id)
-            .single()
-
-          if (getError) throw getError
-
-          const { error: updateError } = await supabase
-            .from('products')
-            .update({ stok: (product.stok || 0) + item.qty })
-            .eq('id', item.product_id)
-
-          if (updateError) throw updateError
-        } else if (stockError) {
-          throw stockError
-        }
-      }
+    // Restore stock to warehouse before deleting
+    const { data: draftItems, error: draftItemsError } = await supabase
+      .from('sale_items')
+      .select('product_id, qty')
+      .eq('sale_id', order.id)
+    if (draftItemsError) throw draftItemsError
+    for (const item of (draftItems || [])) {
+      const { data: product, error: getError } = await supabase
+        .from('products')
+        .select('stok')
+        .eq('id', item.product_id)
+        .single()
+      if (getError) throw getError
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ stok: (product.stok || 0) + item.qty })
+        .eq('id', item.product_id)
+      if (updateError) throw updateError
     }
 
-    // 2. Delete order items first (foreign key constraint)
+    // Delete order items first (foreign key constraint)
     const { error: itemsDeleteError } = await supabase
       .from('sale_items')
       .delete()
@@ -973,7 +876,7 @@ async function confirmDelete() {
 
     if (itemsDeleteError) throw itemsDeleteError
 
-    // 3. Delete order
+    // Delete order
     const { error: orderDeleteError } = await supabase
       .from('sales')
       .delete()
@@ -987,16 +890,14 @@ async function confirmDelete() {
     } else if (searchDateStart.value || searchDateEnd.value) {
       await searchByDateRange()
     } else {
-      // Clear everything
       clearSearch()
     }
   } catch (err) {
     console.error('[confirmDelete]', err)
-    alert('Gagal menghapus order: ' + err.message)
+    alert('Gagal menghapus draft: ' + err.message)
   } finally {
     loading.value = false
     deleteModal.order = null
-    // Return focus to table
     nextTick(() => {
       pageEl.value?.focus()
     })
