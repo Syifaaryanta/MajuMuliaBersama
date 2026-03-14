@@ -147,7 +147,7 @@
                     <div class="photo-inline-sep"></div>
                     <button class="btn-restore-cs" @click.stop="openUnarchiveConfirm(row)" title="Buka Archive (F3)">
                       <i class="pi pi-folder-open"></i>
-                      <span>Buka Archive</span>
+                      <span class="btn-label">Buka Archive</span>
                       <kbd class="kbd-cs">F3</kbd>
                     </button>
                   </div>
@@ -184,14 +184,14 @@
             <div class="arc-confirm-footer">
               <button class="arc-btn-cancel" @click="unarchiveModal.show = false">
                 <i class="pi pi-times"></i>
-                <span>Batal</span>
+                <span class="btn-label">Batal</span>
                 <kbd>Esc</kbd>
               </button>
               <button class="arc-btn-confirm" @click="doUnarchive" :disabled="unarchiveModal.saving">
                 <i v-if="unarchiveModal.saving" class="pi pi-spin pi-spinner"></i>
                 <template v-else>
                   <i class="pi pi-folder-open"></i>
-                  <span>Buka Archive</span>
+                  <span class="btn-label">Buka Archive</span>
                   <kbd>F3</kbd>
                 </template>
               </button>

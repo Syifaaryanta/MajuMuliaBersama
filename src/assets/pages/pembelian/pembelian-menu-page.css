@@ -1,6 +1,6 @@
 @import '@/assets/pages/penjualan/penjualan-menu-page.css';
 
-.gudang-menu-page {
+.pembelian-menu-page {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
@@ -8,7 +8,7 @@
 }
 
 @media (max-width: 768px) {
-  .gudang-menu-page {
+  .pembelian-menu-page {
     padding: 1rem;
   }
 
@@ -35,23 +35,5 @@
 
   .menu-card-desc {
     font-size: .78rem;
-  }
-
-  .stats-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .stat-card {
-    padding: .95rem;
-  }
-
-  .stat-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 1.1rem;
-  }
-
-  .stat-value {
-    font-size: 1.2rem;
   }
 }

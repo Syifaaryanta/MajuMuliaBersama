@@ -206,7 +206,7 @@
                   <span class="supplier-chip">{{ price.supplier_nama }}</span>
                 </td>
                 <td class="col-harga">
-                  <span class="harga-val">{{ formatRp(price.harga_beli) }}</span>
+                  <span class="harga-val">{{ price.is_placeholder ? '-' : formatRp(price.harga_beli) }}</span>
                 </td>
               </tr>
             </template>
@@ -243,7 +243,7 @@
                   @keydown="onBarangModalKey"
                 />
               </div>
-              <div class="modal-list">
+              <div class="modal-list" ref="barangModalListRef">
                 <div
                   v-for="(p, i) in barangModal.filtered"
                   :key="p.id"
@@ -420,6 +420,7 @@ const barangModal = reactive({
   selectedIndex: 0,
 })
 const barangModalInput = ref(null)
+const barangModalListRef = ref(null)
 
 // ── State: table & paging ──────────────────────────────────
 const allRows          = ref([])
@@ -670,6 +671,7 @@ function filterBarangModal() {
       )
     : barangModal.results
   barangModal.selectedIndex = 0
+  nextTick(() => scrollBarangModalActiveIntoView())
 }
 
 function selectBarangFromModal(product) {
@@ -682,9 +684,11 @@ function onBarangModalKey(e) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     barangModal.selectedIndex = Math.min(barangModal.selectedIndex + 1, barangModal.filtered.length - 1)
+    nextTick(() => scrollBarangModalActiveIntoView())
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     barangModal.selectedIndex = Math.max(barangModal.selectedIndex - 1, 0)
+    nextTick(() => scrollBarangModalActiveIntoView())
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (barangModal.filtered[barangModal.selectedIndex]) {
@@ -693,6 +697,13 @@ function onBarangModalKey(e) {
   } else if (e.key === 'Escape') {
     barangModal.show = false
   }
+}
+
+function scrollBarangModalActiveIntoView() {
+  const listEl = barangModalListRef.value
+  if (!listEl) return
+  const activeEl = listEl.querySelector('.modal-item--active')
+  activeEl?.scrollIntoView({ block: 'nearest' })
 }
 
 // ───────────────────────────────────────────────────────────
@@ -819,13 +830,23 @@ async function doSearch(productId = null) {
     const grouped = []
     for (const p of data ?? []) {
       const activePrices = p.product_prices?.filter(pp => pp.aktif) ?? []
-      const prices = activePrices.map(pp => ({
-        id: pp.id,
-        supplier_id: pp.suppliers?.id ?? null,
-        supplier_nama: pp.suppliers?.nama ?? null,
-        harga_beli: pp.harga_beli,
-        stok: pp.stok ?? 0,
-      }))
+      const prices = activePrices.length
+        ? activePrices.map(pp => ({
+            id: pp.id,
+            supplier_id: pp.suppliers?.id ?? null,
+            supplier_nama: pp.suppliers?.nama ?? '—',
+            harga_beli: pp.harga_beli,
+            stok: pp.stok ?? 0,
+            is_placeholder: false,
+          }))
+        : [{
+            id: `no-price-${p.id}`,
+            supplier_id: null,
+            supplier_nama: 'Belum ada supplier',
+            harga_beli: 0,
+            stok: p.stok ?? 0,
+            is_placeholder: true,
+          }]
 
       grouped.push({
         product_id: p.id,

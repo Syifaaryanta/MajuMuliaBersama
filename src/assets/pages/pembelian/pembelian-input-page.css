@@ -1,0 +1,40 @@
+@import '@/assets/pages/penjualan/penjualan-input-page.css';
+
+.pembelian-input-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  outline: none;
+}
+
+.pembelian-input-page .row-delete-hint {
+  margin: 0.75rem 1.5rem 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.pembelian-input-page .btn-delete {
+  min-width: 44px;
+  padding: 0.32rem 0.55rem;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+}
+
+.pembelian-input-page .btn-delete .del-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #dc2626;
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  .pembelian-input-page {
+    padding: 1rem;
+  }
+
+  .pembelian-input-page .row-delete-hint {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+}

@@ -1,0 +1,61 @@
+@import '@/assets/pages/penjualan/penjualan-edit-page.css';
+
+.pembelian-edit-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  outline: none;
+}
+
+.pembelian-edit-page .form-card .form-header {
+  padding: 1.15rem 1.5rem;
+}
+
+.pembelian-edit-page .form-card .table-wrap {
+  margin: 1rem 1.25rem 0;
+  border-radius: 10px;
+}
+
+.pembelian-edit-page .form-card .table-footer {
+  margin: 0 1.25rem;
+  border-radius: 0 0 10px 10px;
+}
+
+.pembelian-edit-page .form-card .modal-footer {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.pembelian-edit-page .row-delete-hint {
+  margin: 0.75rem 1.25rem 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.pembelian-edit-page .btn-delete {
+  min-width: 44px;
+  padding: 0.32rem 0.55rem;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+}
+
+.pembelian-edit-page .btn-delete .del-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #dc2626;
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  .pembelian-edit-page {
+    padding: 1rem;
+  }
+
+  .pembelian-edit-page .form-card .table-wrap,
+  .pembelian-edit-page .form-card .table-footer,
+  .pembelian-edit-page .row-delete-hint,
+  .pembelian-edit-page .form-card .modal-footer {
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+  }
+}

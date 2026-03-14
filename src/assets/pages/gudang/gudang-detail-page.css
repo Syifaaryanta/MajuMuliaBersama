@@ -452,9 +452,99 @@
 
 /* ── Responsive ───────────────────────────────────────── */
 @media (max-width: 768px) {
-  .detail-hero { flex-direction: column-reverse; padding: 1.5rem; }
-  .hero-foto-wrap { width: 100%; height: 200px; }
-  .detail-body { grid-template-columns: 1fr; }
-  .detail-card--full { grid-column: auto; }
-  .hero-nama { font-size: 1.3rem; }
+  .gudang-detail-page {
+    gap: 1rem;
+    padding-bottom: 1.4rem;
+  }
+
+  .detail-topbar {
+    align-items: flex-start;
+  }
+
+  .detail-hero {
+    flex-direction: column-reverse;
+    padding: 1rem;
+    border-radius: 14px;
+    gap: 1rem;
+  }
+
+  .hero-foto-wrap {
+    width: 100%;
+    height: 180px;
+  }
+
+  .hero-badges {
+    margin-bottom: .55rem;
+  }
+
+  .hero-nama {
+    font-size: 1.15rem;
+    margin-bottom: .8rem;
+  }
+
+  .hero-stats {
+    gap: .6rem;
+  }
+
+  .hero-stat {
+    width: 100%;
+    justify-content: flex-start;
+    padding: .45rem .6rem;
+  }
+
+  .detail-body {
+    grid-template-columns: 1fr;
+    gap: .85rem;
+  }
+
+  .detail-card {
+    border-radius: 12px;
+    padding: .9rem .95rem;
+  }
+
+  .detail-card--full {
+    grid-column: auto;
+  }
+
+  .foto-gallery {
+    gap: .45rem;
+  }
+
+  .foto-item {
+    width: 84px;
+    height: 84px;
+  }
+
+  .price-cards-grid {
+    grid-template-columns: 1fr;
+    gap: .55rem;
+    margin-bottom: .75rem;
+  }
+
+  .price-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .lightbox-image {
+    max-width: 96vw;
+    max-height: 72vh;
+  }
+
+  .lightbox-prev,
+  .lightbox-next {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: .95rem;
+  }
+
+  .lightbox-prev {
+    left: .6rem;
+  }
+
+  .lightbox-next {
+    right: .6rem;
+  }
 }

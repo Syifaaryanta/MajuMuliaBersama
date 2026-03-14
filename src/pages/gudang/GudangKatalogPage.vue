@@ -9,7 +9,7 @@
       </div>
       <button class="btn-tambah-header" @click="openAdd" title="Tambah Barang Baru (F2)">
         <i class="pi pi-plus"></i>
-        <span>Tambah Baru</span>
+        <span class="btn-label">Tambah Baru</span>
         <kbd class="kbd-f2">F2</kbd>
       </button>
     </div>
@@ -165,11 +165,64 @@
     </template>
 
     <!-- ═══════════════════════════════════════════════════
+         MODAL PILIH MODE EDIT (ENTER PADA ROW)
+    ════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="editModeModal.show"
+          class="modal-overlay"
+          @keydown="onEditModeModalKeydown"
+          @click.self="closeEditModeModal"
+        >
+          <div class="modal-box modal-box--choice" role="dialog" aria-label="Pilih mode edit" ref="editModeModalRef" tabindex="0">
+            <div class="modal-header modal-header--blue">
+              <h3 class="modal-title">Pilih Mode Edit</h3>
+              <button class="modal-close" @click="closeEditModeModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+
+            <div class="modal-body modal-choice-body">
+              <p class="choice-subtitle">Pilih tindakan untuk barang <b>{{ editModeModal.row?.nama }}</b></p>
+
+              <div class="choice-grid">
+                <button
+                  type="button"
+                  class="choice-card"
+                  :class="{ 'choice-card--active': editModeModal.selected === 0 }"
+                  @click="chooseEditMode('identity')"
+                  @mouseenter="editModeModal.selected = 0"
+                >
+                  <span class="choice-icon"><i class="pi pi-file-edit"></i></span>
+                  <span class="choice-title">Edit Data Barang</span>
+                  <span class="choice-desc">Ubah kode, nama, deskripsi, dan foto barang.</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="choice-card"
+                  :class="{ 'choice-card--active': editModeModal.selected === 1 }"
+                  @click="chooseEditMode('stock')"
+                  @mouseenter="editModeModal.selected = 1"
+                >
+                  <span class="choice-icon"><i class="pi pi-warehouse"></i></span>
+                  <span class="choice-title">Edit Stok & Harga</span>
+                  <span class="choice-desc">Ubah stok dan harga per supplier dengan validasi perubahan.</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ═══════════════════════════════════════════════════
          MODAL TAMBAH / EDIT BARANG
     ════════════════════════════════════════════════════ -->
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="modal.show" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal">
+        <div v-if="modal.show && !isStockOnlyEdit" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal">
           <div class="modal-box modal-box--edit" role="dialog" :aria-label="modal.title">
             <!-- Blue header -->
             <div class="modal-header modal-header--blue">
@@ -190,6 +243,8 @@
                     ref="inputKode"
                     class="mfield-input"
                     placeholder="CDX-001"
+                    :readonly="isStockOnlyEdit"
+                    :class="{ 'mfield-input--readonly': isStockOnlyEdit }"
                     @keydown.enter.prevent="focusField('inputNama')"
                     required
                   />
@@ -201,6 +256,8 @@
                     ref="inputNama"
                     class="mfield-input"
                     placeholder="Nama barang"
+                    :readonly="isStockOnlyEdit"
+                    :class="{ 'mfield-input--readonly': isStockOnlyEdit }"
                     @keydown.enter.prevent="focusField('inputDeskripsi')"
                     required
                   />
@@ -214,6 +271,8 @@
                   v-model="form.deskripsi"
                   ref="inputDeskripsi"
                   class="mfield-input mfield-textarea"
+                  :class="{ 'mfield-input--readonly': isStockOnlyEdit }"
+                  :readonly="isStockOnlyEdit"
                   rows="3"
                   placeholder="Deskripsi barang…"
                   @keydown.enter.exact.prevent="focusField('photoAreaRef')"
@@ -224,11 +283,11 @@
               <div class="photo-section">
                 <div class="photo-section-header">
                   <span class="photo-section-title"><i class="pi pi-images"></i> Foto Barang</span>
-                  <span class="photo-limit">Maks 3 foto · <kbd>F1</kbd> tambah</span>
+                  <span v-if="!isStockOnlyEdit" class="photo-limit">Maks 3 foto · <kbd>F1</kbd> tambah</span>
                 </div>
 
                 <div class="photo-area" ref="photoAreaRef" tabindex="0"
-                  @keydown.enter.prevent="focusFirstSupplier"
+                  @keydown.enter.prevent="onPhotoAreaEnter"
                   @keydown.f1.prevent="triggerFileInput"
                   @keydown.backspace.prevent="removeLastFoto"
                   @keydown.tab.prevent="focusFirstSupplier"
@@ -237,14 +296,24 @@
                   <div v-if="form.foto_urls.length > 0" class="photo-preview-grid">
                     <div v-for="(url, idx) in form.foto_urls" :key="url" class="photo-preview-item">
                       <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-preview-img" />
-                      <button type="button" class="photo-remove-btn" @click="removeFoto(idx)" title="Hapus foto">
+                      <button
+                        v-if="!isStockOnlyEdit"
+                        type="button"
+                        class="photo-remove-btn"
+                        @click="removeFoto(idx)"
+                        title="Hapus foto"
+                      >
                         <i class="pi pi-times"></i>
                       </button>
                     </div>
                   </div>
 
                   <!-- Upload trigger -->
-                  <div v-if="form.foto_urls.length < 3" class="photo-upload-area" @click="triggerFileInput">
+                  <div
+                    v-if="!isStockOnlyEdit && form.foto_urls.length < 3"
+                    class="photo-upload-area"
+                    @click="triggerFileInput"
+                  >
                     <input
                       ref="fileInput"
                       type="file"
@@ -272,8 +341,15 @@
               <div class="price-section">
                 <div class="price-section-header">
                   <span class="price-section-title"><i class="pi pi-truck"></i> Stok & Harga per Supplier</span>
-                  <button type="button" class="btn-add-supplier" @click="addPriceRow" tabindex="-1">
-                    <i class="pi pi-plus"></i> Tambah
+                  <button
+                    v-if="!isIdentityOnlyEdit"
+                    type="button"
+                    class="btn-add-supplier"
+                    @click="addPriceRow"
+                    tabindex="-1"
+                  >
+                    <i class="pi pi-plus"></i>
+                    <span class="btn-label">Tambah</span>
                   </button>
                 </div>
 
@@ -290,6 +366,8 @@
                       v-model="pr.supplierSearch"
                       class="price-supplier-input"
                       placeholder="Cari supplier..."
+                      :readonly="isIdentityOnlyEdit"
+                      :class="{ 'mfield-input--readonly': isIdentityOnlyEdit }"
                       autocomplete="off"
                       @focus="modal.activePriceRow = idx; openSupplierDropdown(idx)"
                       @input="filterSuppliers(idx)"
@@ -323,6 +401,8 @@
                       type="number"
                       class="price-input"
                       min="0"
+                      :readonly="isIdentityOnlyEdit"
+                      :class="{ 'mfield-input--readonly': isIdentityOnlyEdit }"
                       placeholder="0"
                       @keydown.enter.prevent="focusPriceHarga(idx)"
                     />
@@ -333,17 +413,21 @@
                     <span class="price-prefix">Rp</span>
                     <input
                       :ref="el => { if (el) priceHargaRefs[idx] = el }"
-                      v-model.number="pr.harga_beli"
-                      type="number"
+                      :value="formatHargaInput(pr.harga_beli)"
+                      type="text"
                       class="price-input"
-                      min="0"
+                      inputmode="numeric"
+                      :readonly="isIdentityOnlyEdit"
+                      :class="{ 'mfield-input--readonly': isIdentityOnlyEdit }"
                       placeholder="0"
+                      @input="onHargaInput(idx, $event)"
                       @keydown.enter.prevent="onHargaEnter(idx)"
                     />
                   </div>
 
                   <!-- Delete row -->
                   <button
+                    v-if="!isIdentityOnlyEdit"
                     type="button"
                     class="btn-rm-supplier"
                     @click="removePriceRow(idx)"
@@ -358,12 +442,191 @@
               </div>
 
               <div class="modal-footer">
-                <button type="button" class="btn-cancel" @click="closeModal">
-                  Batal <kbd>Esc</kbd>
+                <button type="button" class="btn-cancel" @click="closeModal({ backToChoice: true })">
+                  <i class="pi pi-times"></i>
+                  <span class="btn-label">{{ modal.mode === 'edit' ? 'Kembali' : 'Batal' }}</span>
+                  <kbd>Esc</kbd>
                 </button>
                 <button type="submit" class="btn-save" :disabled="modal.saving" ref="btnSave">
                   <i v-if="modal.saving" class="pi pi-spin pi-spinner"></i>
-                  <span v-else>{{ modal.mode === 'add' ? 'Simpan' : 'Update' }} <kbd>Y</kbd></span>
+                  <template v-else>
+                    <i class="pi pi-check"></i>
+                    <span class="btn-label">{{ modal.mode === 'add' ? 'Simpan' : 'Update' }}</span>
+                    <kbd>Enter</kbd>
+                  </template>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ═══════════════════════════════════════════════════
+         MODAL KHUSUS EDIT STOK & HARGA
+    ════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="modal.show && isStockOnlyEdit" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal({ backToChoice: true })">
+          <div class="modal-box modal-box--stock" role="dialog" aria-label="Edit stok dan harga">
+            <div class="modal-header modal-header--blue">
+              <h3 class="modal-title">Edit Stok & Harga</h3>
+              <button class="modal-close" @click="closeModal({ backToChoice: true })" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+
+            <form @submit.prevent="submitModal" class="modal-body modal-body--compact">
+              <div class="mfield-row">
+                <div class="mfield">
+                  <label class="mfield-label">Kode Barang</label>
+                  <input :value="form.kode" class="mfield-input mfield-input--readonly" readonly />
+                </div>
+                <div class="mfield mfield--grow">
+                  <label class="mfield-label">Nama Barang</label>
+                  <input :value="form.nama" class="mfield-input mfield-input--readonly" readonly />
+                </div>
+              </div>
+
+              <div class="price-section">
+                <div class="price-section-header">
+                  <span class="price-section-title"><i class="pi pi-truck"></i> Stok & Harga per Supplier</span>
+                  <button type="button" class="btn-add-supplier" @click="addPriceRow" tabindex="-1">
+                    <i class="pi pi-plus"></i>
+                    <span class="btn-label">Tambah</span>
+                  </button>
+                </div>
+
+                <div
+                  v-for="(pr, idx) in form.prices"
+                  :key="idx"
+                  class="price-row"
+                  :class="{ 'price-row--active': modal.activePriceRow === idx }"
+                >
+                  <div class="supplier-search-wrap">
+                    <input
+                      :ref="el => { if (el) priceSupplierRefs[idx] = el }"
+                      v-model="pr.supplierSearch"
+                      class="price-supplier-input"
+                      placeholder="Cari supplier..."
+                      autocomplete="off"
+                      @focus="modal.activePriceRow = idx; openSupplierDropdown(idx)"
+                      @input="filterSuppliers(idx)"
+                      @keydown="onSupplierSearchKey($event, idx)"
+                    />
+                    <Teleport to="body">
+                      <div
+                        v-if="pr.dropdownOpen && pr.filteredSuppliers?.length"
+                        class="supplier-dropdown"
+                        :style="{ top: dropdownPos.top + 'px', left: dropdownPos.left + 'px', width: dropdownPos.width + 'px' }"
+                      >
+                        <div
+                          v-for="(s, si) in pr.filteredSuppliers"
+                          :key="s.id"
+                          class="supplier-dropdown-item"
+                          :class="{ active: pr.dropdownIndex === si }"
+                          @mousedown.prevent="selectSupplier(idx, s)"
+                        >
+                          {{ s.nama }}
+                        </div>
+                      </div>
+                    </Teleport>
+                  </div>
+
+                  <div class="price-input-wrap price-input-wrap--stok">
+                    <input
+                      :ref="el => { if (el) priceStokRefs[idx] = el }"
+                      v-model.number="pr.stok"
+                      type="number"
+                      class="price-input"
+                      min="0"
+                      placeholder="0"
+                      @keydown.enter.prevent="focusPriceHarga(idx)"
+                    />
+                  </div>
+
+                  <div class="price-input-wrap">
+                    <span class="price-prefix">Rp</span>
+                    <input
+                      :ref="el => { if (el) priceHargaRefs[idx] = el }"
+                      :value="formatHargaInput(pr.harga_beli)"
+                      type="text"
+                      class="price-input"
+                      inputmode="numeric"
+                      placeholder="0"
+                      @input="onHargaInput(idx, $event)"
+                      @keydown.enter.prevent="onHargaEnter(idx)"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    class="btn-rm-supplier"
+                    @click="removePriceRow(idx)"
+                    :disabled="form.prices.length === 1"
+                    tabindex="-1"
+                  ><i class="pi pi-trash"></i></button>
+                </div>
+              </div>
+
+              <div class="stock-validate-section">
+                <div class="stock-validate-title"><i class="pi pi-verified"></i> Validasi Perubahan Stok</div>
+                <div class="mfield-row">
+                  <div class="mfield">
+                    <label class="mfield-label">Tanggal Diubah</label>
+                    <input
+                      v-model="stockValidation.tanggal"
+                      ref="stockTanggalRef"
+                      type="date"
+                      class="mfield-input"
+                      @keydown.enter.prevent="stockPetugasRef?.focus()"
+                      required
+                    />
+                  </div>
+                  <div class="mfield mfield--grow">
+                    <label class="mfield-label">Diubah Oleh</label>
+                    <input
+                      v-model="stockValidation.diubahOleh"
+                      ref="stockPetugasRef"
+                      class="mfield-input"
+                      placeholder="Nama Staff"
+                      maxlength="80"
+                      @keydown.enter.prevent="stockAlasanRef?.focus()"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="mfield stock-reason-field">
+                  <label class="mfield-label">Alasan Diubah</label>
+                  <textarea
+                    v-model="stockValidation.alasan"
+                    ref="stockAlasanRef"
+                    class="mfield-input mfield-textarea stock-reason-input"
+                    rows="2"
+                    placeholder="Contoh: koreksi stok fisik setelah stock opname"
+                    @keydown.enter.exact.prevent="onStockReasonEnter"
+                    required
+                  ></textarea>
+                </div>
+              </div>
+
+              <div v-if="modal.error" class="modal-error">
+                <i class="pi pi-exclamation-triangle"></i> {{ modal.error }}
+              </div>
+
+              <div class="modal-footer">
+                <button type="button" class="btn-cancel" @click="closeModal({ backToChoice: true })">
+                  <i class="pi pi-arrow-left"></i>
+                  <span class="btn-label">Kembali</span>
+                  <kbd>Esc</kbd>
+                </button>
+                <button type="submit" class="btn-save" :disabled="modal.saving" ref="btnSave">
+                  <i v-if="modal.saving" class="pi pi-spin pi-spinner"></i>
+                  <template v-else>
+                    <i class="pi pi-check"></i>
+                    <span class="btn-label">Update</span>
+                    <kbd>Enter</kbd>
+                  </template>
                 </button>
               </div>
             </form>
@@ -392,11 +655,16 @@
             </div>
             <div class="modal-footer">
               <button class="btn-cancel" @click="deleteModal.show = false">
-                Batal <kbd>Esc</kbd>
+                <i class="pi pi-times"></i>
+                <span class="btn-label">Batal</span>
+                <kbd>Esc</kbd>
               </button>
               <button class="btn-danger" @click="doDelete" :disabled="deleteModal.saving">
                 <i v-if="deleteModal.saving" class="pi pi-spin pi-spinner"></i>
-                <span v-else>Hapus</span>
+                <template v-else>
+                  <i class="pi pi-trash"></i>
+                  <span class="btn-label">Hapus</span>
+                </template>
               </button>
             </div>
           </div>
@@ -428,7 +696,7 @@
                   @keydown="onBarangModalKey"
                 />
               </div>
-              <div class="modal-list">
+              <div class="modal-list" ref="barangModalListRef">
                 <div
                   v-for="(p, i) in barangModal.filtered"
                   :key="p.id"
@@ -519,6 +787,10 @@ const inputDeskripsi = ref(null)
 const photoAreaRef  = ref(null)
 const btnSave       = ref(null)
 const fileInput     = ref(null)
+const editModeModalRef = ref(null)
+const stockTanggalRef = ref(null)
+const stockPetugasRef = ref(null)
+const stockAlasanRef = ref(null)
 const priceSupplierRefs = ref({})
 const priceStokRefs     = ref({})
 const priceHargaRefs    = ref({})
@@ -543,9 +815,17 @@ const barangModal = reactive({
   show: false, query: '', results: [], filtered: [], selectedIndex: 0,
 })
 const barangModalInput = ref(null)
+const barangModalListRef = ref(null)
+
+const editModeModal = reactive({
+  show: false,
+  selected: 0,
+  row: null,
+})
 
 const modal = reactive({
   show: false, mode: 'add', title: '', saving: false, error: '',
+  variant: 'full',
   activePriceRow: 0,
 })
 const dropdownPos = reactive({ top: 0, left: 0, width: 0 })
@@ -557,6 +837,7 @@ const form = reactive({
 const photoUpload = reactive({ uploading: false, progress: 0, error: '' })
 const lightbox    = reactive({ show: false, photos: [], currentIndex: 0 })
 const deleteModal  = reactive({ show: false, row: null, saving: false })
+const stockValidation = reactive({ tanggal: '', diubahOleh: '', alasan: '' })
 
 
 // ── Computed ───────────────────────────────────────────────
@@ -572,10 +853,34 @@ const selectedRowData = computed(() => {
   }
   return null
 })
+const isIdentityOnlyEdit = computed(() => modal.mode === 'edit' && modal.variant === 'identity')
+const isStockOnlyEdit = computed(() => modal.mode === 'edit' && modal.variant === 'stock')
 
 // ── Utilities ──────────────────────────────────────────────
 function formatRp(val) {
   return 'Rp ' + Number(val).toLocaleString('id-ID')
+}
+
+function formatHargaInput(val) {
+  const num = Number(val)
+  if (!Number.isFinite(num) || num <= 0) return ''
+  return num.toLocaleString('id-ID')
+}
+
+function parseHargaInput(raw) {
+  const digits = String(raw ?? '').replace(/\D/g, '')
+  if (!digits) return 0
+  return Number(digits)
+}
+
+function onHargaInput(idx, event) {
+  const pr = form.prices[idx]
+  if (!pr) return
+  const nextValue = parseHargaInput(event?.target?.value)
+  pr.harga_beli = nextValue
+  if (event?.target) {
+    event.target.value = formatHargaInput(nextValue)
+  }
 }
 
 function makePriceRowDefault(overrides = {}) {
@@ -617,6 +922,7 @@ function filterBarangModal() {
         p.nama.toLowerCase().includes(q) || p.kode.toLowerCase().includes(q))
     : barangModal.results
   barangModal.selectedIndex = 0
+  nextTick(() => scrollBarangModalActiveIntoView())
 }
 
 function selectBarangFromModal(product) {
@@ -629,9 +935,11 @@ function onBarangModalKey(e) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     barangModal.selectedIndex = Math.min(barangModal.selectedIndex + 1, barangModal.filtered.length - 1)
+    nextTick(() => scrollBarangModalActiveIntoView())
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     barangModal.selectedIndex = Math.max(barangModal.selectedIndex - 1, 0)
+    nextTick(() => scrollBarangModalActiveIntoView())
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (barangModal.filtered[barangModal.selectedIndex]) {
@@ -640,6 +948,13 @@ function onBarangModalKey(e) {
   } else if (e.key === 'Escape') {
     barangModal.show = false
   }
+}
+
+function scrollBarangModalActiveIntoView() {
+  const listEl = barangModalListRef.value
+  if (!listEl) return
+  const activeEl = listEl.querySelector('.modal-item--active')
+  activeEl?.scrollIntoView({ block: 'nearest' })
 }
 
 async function doSearch(productId = null) {
@@ -742,6 +1057,9 @@ function resetForm() {
   form.stok = 0; form.satuan = 'pcs'
   form.prices = [makePriceRowDefault()]
   form.foto_urls = []
+  stockValidation.tanggal = ''
+  stockValidation.diubahOleh = ''
+  stockValidation.alasan = ''
   photoUpload.uploading = false; photoUpload.progress = 0; photoUpload.error = ''
   priceSupplierRefs.value = {}
   priceStokRefs.value = {}
@@ -750,12 +1068,12 @@ function resetForm() {
 
 function openAdd() {
   resetForm()
-  modal.mode = 'add'; modal.title = 'Tambah Barang Baru'
+  modal.mode = 'add'; modal.variant = 'full'; modal.title = 'Tambah Barang Baru'
   modal.error = ''; modal.activePriceRow = 0; modal.show = true
   nextTick(() => inputKode.value?.focus())
 }
 
-function openEdit(row) {
+function openEdit(row, variant = 'full') {
   if (!row) return
   resetForm()
   form.id        = row.product_id
@@ -771,14 +1089,75 @@ function openEdit(row) {
         supplierSearch: p.supplier_nama ?? '', stok: p.stok ?? 0, harga_beli: p.harga_beli ?? 0,
       }))
     : [makePriceRowDefault()]
-  modal.mode = 'edit'; modal.title = 'Edit Barang'
+
+  if (variant === 'stock') {
+    stockValidation.tanggal = new Date().toISOString().slice(0, 10)
+  }
+
+  modal.mode = 'edit'
+  modal.variant = variant
+  modal.title = variant === 'identity' ? 'Edit Data Barang' : variant === 'stock' ? 'Edit Stok & Harga' : 'Edit Barang'
   modal.error = ''; modal.activePriceRow = 0; modal.show = true
-  nextTick(() => inputKode.value?.focus())
+  nextTick(() => {
+    if (isStockOnlyEdit.value) priceSupplierRefs.value[0]?.focus()
+    else inputKode.value?.focus()
+  })
 }
 
-function closeModal() { modal.show = false }
+function openEditModeModal(row) {
+  if (!row) return
+  editModeModal.row = row
+  editModeModal.selected = 0
+  editModeModal.show = true
+  nextTick(() => editModeModalRef.value?.focus())
+}
+
+function closeEditModeModal() {
+  editModeModal.show = false
+  editModeModal.row = null
+}
+
+function chooseEditMode(mode) {
+  const row = editModeModal.row
+  closeEditModeModal()
+  if (!row) return
+  if (mode === 'stock') openEdit(row, 'stock')
+  else openEdit(row, 'identity')
+}
+
+function onEditModeModalKeydown(e) {
+  if (!editModeModal.show) return
+  if (e.key === 'ArrowRight') {
+    e.preventDefault()
+    editModeModal.selected = 1
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    editModeModal.selected = 0
+  } else if (e.key === 'F1') {
+    e.preventDefault()
+    chooseEditMode('identity')
+  } else if (e.key === 'F2') {
+    e.preventDefault()
+    chooseEditMode('stock')
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    chooseEditMode(editModeModal.selected === 0 ? 'identity' : 'stock')
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    closeEditModeModal()
+  }
+}
+
+function closeModal({ backToChoice = false } = {}) {
+  const reopenChoice = backToChoice && modal.mode === 'edit' && selectedRowData.value
+  modal.show = false
+  if (reopenChoice) {
+    nextTick(() => openEditModeModal(selectedRowData.value))
+  }
+}
 
 function addPriceRow() {
+  if (isIdentityOnlyEdit.value) return
   form.prices.push(makePriceRowDefault())
   const newIdx = form.prices.length - 1
   modal.activePriceRow = newIdx
@@ -786,6 +1165,7 @@ function addPriceRow() {
 }
 
 function removePriceRow(i) {
+  if (isIdentityOnlyEdit.value) return
   if (form.prices.length > 1) form.prices.splice(i, 1)
 }
 
@@ -797,18 +1177,55 @@ function focusField(refName) {
 function triggerFileInput() { fileInput.value?.click() }
 
 function focusFirstSupplier() {
+  if (isIdentityOnlyEdit.value) {
+    nextTick(() => btnSave.value?.focus())
+    return
+  }
   nextTick(() => priceSupplierRefs.value[0]?.focus())
+}
+
+function isUpdateFormReady() {
+  if (!form.kode.trim() || !form.nama.trim()) return false
+  if (isStockOnlyEdit.value) {
+    if (!stockValidation.tanggal) return false
+    if (!stockValidation.diubahOleh.trim()) return false
+    if (!stockValidation.alasan.trim()) return false
+  }
+  return true
+}
+
+function shouldSubmitByEnter(target) {
+  if (modal.mode !== 'edit' || !isUpdateFormReady()) return false
+  if (isStockOnlyEdit.value) return target === stockAlasanRef.value || target === btnSave.value
+  if (isIdentityOnlyEdit.value) return target === photoAreaRef.value || target === btnSave.value
+  return target === btnSave.value
+}
+
+function onPhotoAreaEnter(e) {
+  e?.stopPropagation?.()
+  if (shouldSubmitByEnter(photoAreaRef.value)) {
+    submitModal()
+    return
+  }
+  focusFirstSupplier()
+}
+
+function onStockReasonEnter(e) {
+  e?.stopPropagation?.()
+  if (shouldSubmitByEnter(stockAlasanRef.value)) {
+    submitModal()
+  }
 }
 
 function onModalKeydown(e) {
   if (e.key === 'Escape') {
-    e.preventDefault(); closeModal()
-  } else if (e.key === 'y' || e.key === 'Y') {
-    if (!e.target.matches('input[type=text],input[type=number],textarea,select')) {
-      e.preventDefault(); submitModal()
-    }
+    e.preventDefault(); closeModal({ backToChoice: true })
+  } else if (e.key === 'F1' && isStockOnlyEdit.value) {
+    e.preventDefault(); addPriceRow()
+  } else if (e.key === 'Enter' && !e.shiftKey && shouldSubmitByEnter(e.target)) {
+    e.preventDefault(); submitModal()
   } else if (e.key === 'Delete') {
-    if (!e.target.matches('input,textarea,select')) {
+    if (!e.target.matches('input,textarea,select') && !isIdentityOnlyEdit.value) {
       e.preventDefault(); removePriceRow(modal.activePriceRow)
     }
   }
@@ -825,6 +1242,7 @@ function calcDropdownPos(idx) {
 }
 
 function openSupplierDropdown(idx) {
+  if (isIdentityOnlyEdit.value) return
   if (!form.prices[idx]) return
   form.prices.forEach((p, i) => { if (i !== idx) p.dropdownOpen = false })
   form.prices[idx].filteredSuppliers = suppliers.value.slice(0, 10)
@@ -834,6 +1252,7 @@ function openSupplierDropdown(idx) {
 }
 
 function filterSuppliers(idx) {
+  if (isIdentityOnlyEdit.value) return
   const pr = form.prices[idx]
   if (!pr) return
   pr.supplier_id = ''
@@ -845,6 +1264,7 @@ function filterSuppliers(idx) {
 }
 
 function selectSupplier(idx, supplier) {
+  if (isIdentityOnlyEdit.value) return
   const pr = form.prices[idx]
   if (!pr) return
   pr.supplier_id = supplier.id
@@ -854,6 +1274,10 @@ function selectSupplier(idx, supplier) {
 }
 
 function onSupplierSearchKey(e, idx) {
+  if (isIdentityOnlyEdit.value) {
+    e.preventDefault()
+    return
+  }
   const pr = form.prices[idx]
   if (!pr) return
   if (e.key === 'ArrowDown') {
@@ -880,6 +1304,21 @@ function onSupplierSearchKey(e, idx) {
 function focusPriceHarga(idx) { priceHargaRefs.value[idx]?.focus() }
 
 function onHargaEnter(idx) {
+  if (isIdentityOnlyEdit.value) {
+    btnSave.value?.focus()
+    return
+  }
+
+  if (isStockOnlyEdit.value) {
+    if (idx < form.prices.length - 1) {
+      modal.activePriceRow = idx + 1
+      nextTick(() => priceSupplierRefs.value[idx + 1]?.focus())
+    } else {
+      nextTick(() => stockTanggalRef.value?.focus())
+    }
+    return
+  }
+
   if (idx < form.prices.length - 1) {
     modal.activePriceRow = idx + 1
     nextTick(() => priceSupplierRefs.value[idx + 1]?.focus())
@@ -924,11 +1363,13 @@ async function compressImage(file, maxSizeKB = 150, maxWidth = 800) {
 }
 
 function removeFoto(index) {
+  if (isStockOnlyEdit.value) return
   form.foto_urls.splice(index, 1)
   if (fileInput.value) fileInput.value.value = ''
 }
 
 function removeLastFoto() {
+  if (isStockOnlyEdit.value) return
   if (form.foto_urls.length > 0) {
     form.foto_urls.splice(form.foto_urls.length - 1, 1)
     if (fileInput.value) fileInput.value.value = ''
@@ -936,6 +1377,7 @@ function removeLastFoto() {
 }
 
 async function handleFileSelect(event) {
+  if (isStockOnlyEdit.value) return
   const files = Array.from(event.target.files || [])
   if (files.length === 0) return
   const remainingSlots = 3 - form.foto_urls.length
@@ -1001,6 +1443,12 @@ async function uploadToCloudinary(file, index, total) {
 async function submitModal() {
   modal.saving = true; modal.error = ''
   try {
+    if (isStockOnlyEdit.value) {
+      if (!stockValidation.tanggal) throw new Error('Tanggal perubahan stok wajib diisi.')
+      if (!stockValidation.diubahOleh.trim()) throw new Error('Nama petugas yang mengubah wajib diisi.')
+      if (!stockValidation.alasan.trim()) throw new Error('Alasan perubahan stok wajib diisi.')
+    }
+
     const totalStok = form.prices.reduce((sum, pr) => {
       return pr.supplier_id ? sum + (pr.stok ?? 0) : sum
     }, 0)
@@ -1031,7 +1479,11 @@ async function submitModal() {
     }
     closeModal()
     if (hasSearched.value) await doSearch()
-    toast.add({ severity: 'success', summary: 'Berhasil', detail: modal.mode === 'add' ? 'Barang berhasil ditambahkan' : 'Barang berhasil diupdate', life: 3000 })
+    const baseMessage = modal.mode === 'add' ? 'Barang berhasil ditambahkan' : 'Barang berhasil diupdate'
+    const stockInfo = isStockOnlyEdit.value
+      ? ` | Validasi: ${stockValidation.tanggal} oleh ${stockValidation.diubahOleh.trim()} (${stockValidation.alasan.trim()})`
+      : ''
+    toast.add({ severity: 'success', summary: 'Berhasil', detail: baseMessage + stockInfo, life: 3000 })
   } catch (err) {
     modal.error = err.message
   } finally {
@@ -1095,6 +1547,12 @@ function onGlobalKey(e) {
     else if (e.key === 'ArrowRight')  { e.preventDefault(); nextPhoto() }
     return
   }
+  if (editModeModal.show) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'F1' || e.key === 'F2' || e.key === 'Enter' || e.key === 'Escape') {
+      onEditModeModalKeydown(e)
+    }
+    return
+  }
   if (modal.show || deleteModal.show || barangModal.show) return
 
   switch (e.key) {
@@ -1104,11 +1562,11 @@ function onGlobalKey(e) {
       else { inputBarang.value?.focus() }
       break
     case 'F4':
-      if (selectedRowIndex.value >= 0) { e.preventDefault(); openEdit(pagedRows.value[selectedRowIndex.value]) }
+      if (selectedRowIndex.value >= 0) { e.preventDefault(); openEditModeModal(pagedRows.value[selectedRowIndex.value]) }
       break
     case 'Enter':
       if (hasSearched.value && selectedRowIndex.value >= 0 && !e.target.matches('input,textarea,select')) {
-        e.preventDefault(); openEdit(pagedRows.value[selectedRowIndex.value])
+        e.preventDefault(); openEditModeModal(pagedRows.value[selectedRowIndex.value])
       }
       break
     case 'Delete':
@@ -1142,7 +1600,8 @@ function onGlobalKey(e) {
 function onGlobalEscModal(e) {
   if (e.key !== 'Escape') return
   if (deleteModal.show) { deleteModal.show = false }
-  else if (modal.show)  { closeModal() }
+  else if (modal.show)  { closeModal({ backToChoice: true }) }
+  else if (editModeModal.show) { closeEditModeModal() }
 }
 
 function onLightboxKey(e) {

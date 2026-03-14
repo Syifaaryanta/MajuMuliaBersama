@@ -7,7 +7,8 @@
   background: #fff;
   border: 1.5px solid #e2e8f0;
   border-radius: 14px;
-  overflow: hidden;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 2px 8px rgba(0,0,0,.04);
 }
 
@@ -258,17 +259,31 @@
 
 /* ── RESPONSIVE ─────────────────────────────────────────── */
 @media (max-width: 600px) {
+  .g-table {
+    min-width: 640px;
+  }
+
   .col-kode { 
     display: none; 
   }
 
   .g-table th, 
   .g-table td { 
-    padding: .65rem .75rem; 
-    font-size: .85rem; 
+    padding: .55rem .6rem; 
+    font-size: .74rem; 
   }
 
   .result-meta { 
     font-size: .8rem; 
+  }
+
+  .stok-val,
+  .supplier-chip,
+  .kode-badge {
+    font-size: .68rem;
+  }
+
+  .harga-val {
+    font-size: .82rem;
   }
 }

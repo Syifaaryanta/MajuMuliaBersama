@@ -304,15 +304,59 @@
   .g-title { 
     font-size: 1.3rem; 
   }
+
+  .product-photos {
+    border-radius: 12px;
+  }
+
+  .photos-header {
+    padding: .65rem .85rem;
+  }
 }
 
 @media (max-width: 600px) {
   .gudang-page { 
-    gap: 1rem; 
+    gap: .85rem; 
+  }
+
+  .g-header {
+    padding: .8rem .9rem;
+    border-radius: 10px;
+    gap: .7rem;
+  }
+
+  .g-title {
+    font-size: 1.1rem;
+    line-height: 1.2;
+  }
+
+  .g-subtitle {
+    font-size: .74rem;
   }
   
   .info-cards { 
     grid-template-columns: 1fr 1fr; 
+    gap: .55rem;
+  }
+
+  .info-card {
+    padding: .6rem .7rem;
+    gap: .55rem;
+  }
+
+  .ic-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    font-size: .8rem;
+  }
+
+  .ic-label {
+    font-size: .62rem;
+  }
+
+  .ic-value {
+    font-size: .8rem;
   }
 
   .photos-grid--1 .photo-item,
@@ -325,15 +369,92 @@
 
 @media (max-width: 480px) {
   .info-cards { 
-    grid-template-columns: 1fr 1fr; 
+    grid-template-columns: 1fr;
+  }
+
+  .photos-grid {
+    gap: .7rem;
+    padding: .75rem;
   }
   
   .ic-value { 
     font-size: .88rem; 
   }
   
-  .g-header .btn-primary { 
-    padding: .7rem 1rem; 
-    font-size: .88rem; 
+  .photos-count {
+    font-size: .68rem;
+    padding: .15rem .5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Semua tombol aksi Gudang jadi icon-only di mobile. */
+  .btn-tambah-header,
+  .btn-to-detail,
+  .btn-archive-cs,
+  .btn-restore-cs,
+  .btn-back,
+  .btn-back-sm,
+  .btn-cancel,
+  .btn-save,
+  .btn-danger,
+  .btn-archive,
+  .btn-restore,
+  .arc-btn-cancel,
+  .arc-btn-confirm,
+  .btn-add-supplier {
+    width: 2.3rem;
+    min-width: 2.3rem;
+    height: 2.3rem;
+    padding: 0;
+    border-radius: 9px;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .btn-label,
+  .kbd-f2,
+  .kbd-cs,
+  .btn-cancel kbd,
+  .btn-save kbd,
+  .arc-btn-cancel kbd,
+  .arc-btn-confirm kbd {
+    display: none !important;
+  }
+
+  .btn-tambah-header i,
+  .btn-to-detail i,
+  .btn-archive-cs i,
+  .btn-restore-cs i,
+  .btn-back i,
+  .btn-back-sm i,
+  .btn-cancel i,
+  .btn-save i,
+  .btn-danger i,
+  .btn-archive i,
+  .btn-restore i,
+  .arc-btn-cancel i,
+  .arc-btn-confirm i,
+  .btn-add-supplier i {
+    margin: 0;
+  }
+
+  .result-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .45rem;
+  }
+
+  .result-meta-right,
+  .pagination-wrap,
+  .ktl-meta-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .topbar-hint,
+  .ktl-kbd-bar,
+  .arc-kbd-bar {
+    display: none;
   }
 }

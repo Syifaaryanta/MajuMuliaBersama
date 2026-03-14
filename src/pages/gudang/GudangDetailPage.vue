@@ -11,7 +11,10 @@
     <div v-else-if="!product" class="detail-not-found">
       <i class="pi pi-exclamation-circle"></i>
       <h2>Produk tidak ditemukan</h2>
-      <button class="btn-back-sm" @click="goBack">← Kembali</button>
+      <button class="btn-back-sm" @click="goBack">
+        <i class="pi pi-arrow-left"></i>
+        <span class="btn-label">Kembali</span>
+      </button>
     </div>
 
     <!-- ── CONTENT ──────────────────────────────────────── -->
@@ -21,7 +24,7 @@
       <div class="detail-topbar">
         <button class="btn-back" @click="goBack">
           <i class="pi pi-arrow-left"></i>
-          <span>Kembali</span>
+          <span class="btn-label">Kembali</span>
         </button>
         <span class="topbar-hint"><kbd>Esc</kbd> kembali &nbsp;·&nbsp; <kbd>F1</kbd> foto fullscreen</span>
       </div>

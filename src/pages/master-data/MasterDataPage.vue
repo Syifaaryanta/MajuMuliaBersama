@@ -5,38 +5,69 @@
     <div class="g-header">
       <div class="g-header-left">
         <h1 class="g-title">Data Master</h1>
-        <p class="g-subtitle">Kelola data customer dan supplier</p>
+        <p class="g-subtitle">Kelola data customer, supplier, dan pembaruan data master</p>
       </div>
-      <button class="btn-primary" @click="openAdd" :title="`Tambah ${activeTab === 'customer' ? 'Customer' : 'Supplier'} (F1)`">
+      <button
+        class="btn-primary"
+        @click="openAdd"
+        :disabled="!hasDataTabSelected"
+        :title="hasDataTabSelected ? `Tambah ${activeEntityLabel}` : 'Pilih menu Customer atau Supplier dulu'"
+      >
         <i class="pi pi-plus"></i>
-        <span>Tambah {{ activeTab === 'customer' ? 'Customer' : 'Supplier' }}</span>
+        <span>Tambah {{ activeEntityLabel }}</span>
       </button>
     </div>
 
-    <!-- ── TAB NAVIGATION ────────────────────────────────── -->
-    <div class="tab-nav">
-      <button 
-        class="tab-btn" 
-        :class="{ active: activeTab === 'customer' }"
-        @click="switchTab('customer')"
+    <!-- ── QUICK MENU (3 OPTIONS) ────────────────────────── -->
+    <div class="md-menu-grid">
+      <button
+        class="md-menu-card"
+        :class="{ 'md-menu-card--active': activeTab === 'customer', 'md-menu-card--focus': focusedMenuIndex === 0 }"
+        @click="chooseMenu(0)"
+        @dblclick="chooseMenu(0, true)"
+        :title="'Data Customer (1)'"
       >
-        <i class="pi pi-users"></i>
-        <span>Customer</span>
-        <span class="tab-count">{{ customerRows.length }}</span>
+        <div class="md-menu-icon md-menu-icon--blue"><i class="pi pi-users"></i></div>
+        <div class="md-menu-body">
+          <h3>Data Customer</h3>
+          <p>Lihat dan kelola master customer</p>
+        </div>
+        <span class="md-menu-count">{{ customerRows.length }}</span>
       </button>
-      <button 
-        class="tab-btn" 
-        :class="{ active: activeTab === 'supplier' }"
-        @click="switchTab('supplier')"
+
+      <button
+        class="md-menu-card"
+        :class="{ 'md-menu-card--active': activeTab === 'supplier', 'md-menu-card--focus': focusedMenuIndex === 1 }"
+        @click="chooseMenu(1)"
+        @dblclick="chooseMenu(1, true)"
+        :title="'Data Supplier (2)'"
       >
-        <i class="pi pi-truck"></i>
-        <span>Supplier</span>
-        <span class="tab-count">{{ supplierRows.length }}</span>
+        <div class="md-menu-icon md-menu-icon--teal"><i class="pi pi-truck"></i></div>
+        <div class="md-menu-body">
+          <h3>Data Supplier</h3>
+          <p>Lihat dan kelola master supplier</p>
+        </div>
+        <span class="md-menu-count">{{ supplierRows.length }}</span>
+      </button>
+
+      <button
+        class="md-menu-card"
+        :class="{ 'md-menu-card--focus': focusedMenuIndex === 2 }"
+        @click="chooseMenu(2)"
+        @dblclick="chooseMenu(2, true)"
+        :title="'Ubah/Edit Data'"
+      >
+        <div class="md-menu-icon md-menu-icon--amber"><i class="pi pi-pencil"></i></div>
+        <div class="md-menu-body">
+          <h3>Ubah/Edit Data</h3>
+          <p>Edit data baris terpilih sesuai tab aktif</p>
+        </div>
+        <span class="md-menu-count">{{ selectedRowData ? 'Ready' : 'Pilih Data' }}</span>
       </button>
     </div>
 
     <!-- ── SEARCH BAR ───────────────────────────────────── -->
-    <div class="search-bar">
+    <div v-if="hasDataTabSelected" class="search-bar">
       <div class="search-input-wrap">
         <i class="pi pi-search"></i>
         <input
@@ -57,8 +88,13 @@
       </div>
     </div>
 
+    <div v-else class="md-empty-state">
+      <i class="pi pi-th-large"></i>
+      <p>Pilih menu Data Customer atau Data Supplier untuk menampilkan tabel.</p>
+    </div>
+
     <!-- ── CUSTOMER TAB CONTENT ──────────────────────────── -->
-    <div v-show="activeTab === 'customer'" class="tab-content">
+    <div v-if="hasDataTabSelected" v-show="activeTab === 'customer'" class="tab-content">
       <!-- Meta bar -->
       <div class="result-meta">
         <span class="result-count">
@@ -69,10 +105,10 @@
         </span>
         <div class="result-meta-right">
           <span class="page-info">Hal {{ currentCustomerPage }} / {{ totalCustomerPages }}</span>
-          <button class="icon-btn" :disabled="currentCustomerPage <= 1" @click="prevCustomerPage" title="PgUp">
+          <button class="icon-btn" :disabled="currentCustomerPage <= 1" @click="prevCustomerPage" title="Sebelumnya">
             <i class="pi pi-chevron-left"></i>
           </button>
-          <button class="icon-btn" :disabled="currentCustomerPage >= totalCustomerPages" @click="nextCustomerPage" title="PgDn">
+          <button class="icon-btn" :disabled="currentCustomerPage >= totalCustomerPages" @click="nextCustomerPage" title="Selanjutnya">
             <i class="pi pi-chevron-right"></i>
           </button>
         </div>
@@ -103,7 +139,7 @@
               <td colspan="8" class="empty-cell">
                 <i class="pi pi-inbox"></i>
                 <p v-if="searchQuery">Tidak ada customer yang cocok dengan "<b>{{ searchQuery }}</b>"</p>
-                <p v-else>Belum ada data customer. Tekan <kbd>F1</kbd> untuk tambah data.</p>
+                <p v-else>Belum ada data customer.</p>
               </td>
             </tr>
           </tbody>
@@ -126,10 +162,10 @@
               <td class="col-piutang"><span class="harga-val">{{ formatRp(row.saldo_piutang) }}</span></td>
               <td class="col-aksi">
                 <div class="aksi-wrap">
-                  <button class="aksi-btn aksi-edit" @click.stop="openEdit(row, 'customer')" title="Edit (F4)">
+                  <button class="aksi-btn aksi-edit" @click.stop="openEdit(row, 'customer')" title="Edit">
                     <i class="pi pi-pencil"></i>
                   </button>
-                  <button class="aksi-btn aksi-del" @click.stop="openDelete(row, 'customer')" title="Hapus (Del)">
+                  <button class="aksi-btn aksi-del" @click.stop="openDelete(row, 'customer')" title="Hapus">
                     <i class="pi pi-trash"></i>
                   </button>
                 </div>
@@ -141,7 +177,7 @@
     </div>
 
     <!-- ── SUPPLIER TAB CONTENT ──────────────────────────── -->
-    <div v-show="activeTab === 'supplier'" class="tab-content">
+    <div v-if="hasDataTabSelected" v-show="activeTab === 'supplier'" class="tab-content">
       <!-- Meta bar -->
       <div class="result-meta">
         <span class="result-count">
@@ -152,10 +188,10 @@
         </span>
         <div class="result-meta-right">
           <span class="page-info">Hal {{ currentSupplierPage }} / {{ totalSupplierPages }}</span>
-          <button class="icon-btn" :disabled="currentSupplierPage <= 1" @click="prevSupplierPage" title="PgUp">
+          <button class="icon-btn" :disabled="currentSupplierPage <= 1" @click="prevSupplierPage" title="Sebelumnya">
             <i class="pi pi-chevron-left"></i>
           </button>
-          <button class="icon-btn" :disabled="currentSupplierPage >= totalSupplierPages" @click="nextSupplierPage" title="PgDn">
+          <button class="icon-btn" :disabled="currentSupplierPage >= totalSupplierPages" @click="nextSupplierPage" title="Selanjutnya">
             <i class="pi pi-chevron-right"></i>
           </button>
         </div>
@@ -184,7 +220,7 @@
               <td colspan="6" class="empty-cell">
                 <i class="pi pi-inbox"></i>
                 <p v-if="searchQuery">Tidak ada supplier yang cocok dengan "<b>{{ searchQuery }}</b>"</p>
-                <p v-else>Belum ada data supplier. Tekan <kbd>F1</kbd> untuk tambah data.</p>
+                <p v-else>Belum ada data supplier.</p>
               </td>
             </tr>
           </tbody>
@@ -205,10 +241,10 @@
               <td class="col-telp">{{ row.no_telp || '—' }}</td>
               <td class="col-aksi">
                 <div class="aksi-wrap">
-                  <button class="aksi-btn aksi-edit" @click.stop="openEdit(row, 'supplier')" title="Edit (F4)">
+                  <button class="aksi-btn aksi-edit" @click.stop="openEdit(row, 'supplier')" title="Edit">
                     <i class="pi pi-pencil"></i>
                   </button>
-                  <button class="aksi-btn aksi-del" @click.stop="openDelete(row, 'supplier')" title="Hapus (Del)">
+                  <button class="aksi-btn aksi-del" @click.stop="openDelete(row, 'supplier')" title="Hapus">
                     <i class="pi pi-trash"></i>
                   </button>
                 </div>
@@ -294,12 +330,11 @@
 
               <div class="modal-footer">
                 <button type="button" class="btn-secondary" @click="closeModal">
-                  Batal <kbd>Esc</kbd>
+                  Batal
                 </button>
                 <button type="submit" class="btn-primary" :disabled="saving">
                   <i class="pi pi-check"></i>
                   <span>{{ saving ? 'Menyimpan...' : 'Simpan' }}</span>
-                  <kbd>Enter</kbd>
                 </button>
               </div>
             </form>
@@ -325,7 +360,7 @@
             </div>
             <div class="modal-footer">
               <button class="btn-secondary" @click="deleteModal.show = false">
-                Batal <kbd>Esc</kbd>
+                Batal
               </button>
               <button class="btn-danger" @click="confirmDelete" :disabled="deleting">
                 <i class="pi pi-trash"></i>
@@ -362,7 +397,8 @@ const tableWrap = ref(null)
 // ───────────────────────────────────────────────────────────
 // STATE
 // ───────────────────────────────────────────────────────────
-const activeTab = ref('customer')
+const activeTab = ref('')
+const focusedMenuIndex = ref(0)
 const searchQuery = ref('')
 const loading = ref(false)
 const saving = ref(false)
@@ -438,10 +474,17 @@ const pagedSupplierRows = computed(() => {
 })
 
 const currentPagedRows = computed(() => {
+  if (activeTab.value !== 'customer' && activeTab.value !== 'supplier') return []
   return activeTab.value === 'customer' ? pagedCustomerRows.value : pagedSupplierRows.value
 })
 
 const selectedRowData = computed(() => currentPagedRows.value[selectedRowIndex.value] || null)
+const hasDataTabSelected = computed(() => activeTab.value === 'customer' || activeTab.value === 'supplier')
+const activeEntityLabel = computed(() => {
+  if (activeTab.value === 'customer') return 'Customer'
+  if (activeTab.value === 'supplier') return 'Supplier'
+  return 'Data'
+})
 
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
@@ -524,6 +567,42 @@ async function loadSuppliers() {
 // ───────────────────────────────────────────────────────────
 function switchTab(tab) {
   activeTab.value = tab
+  focusedMenuIndex.value = tab === 'customer' ? 0 : 1
+}
+
+function chooseMenu(index, shouldRunAction = false) {
+  focusedMenuIndex.value = index
+
+  if (index === 0) {
+    switchTab('customer')
+    return
+  }
+
+  if (index === 1) {
+    switchTab('supplier')
+    return
+  }
+
+  if (index === 2 && (shouldRunAction || selectedRowData.value)) {
+    if (selectedRowData.value) {
+      openEdit(selectedRowData.value, activeTab.value)
+    }
+  }
+}
+
+function moveMenu(delta) {
+  const max = 2
+  if (delta > 0) {
+    focusedMenuIndex.value = focusedMenuIndex.value >= max ? 0 : focusedMenuIndex.value + 1
+  } else {
+    focusedMenuIndex.value = focusedMenuIndex.value <= 0 ? max : focusedMenuIndex.value - 1
+  }
+}
+
+function isTypingTarget(target) {
+  if (!target) return false
+  const tag = target.tagName?.toLowerCase?.()
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable
 }
 
 // ───────────────────────────────────────────────────────────
@@ -531,11 +610,22 @@ function switchTab(tab) {
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
   if (modal.show || deleteModal.show) return
+  const typing = isTypingTarget(e.target)
 
   switch (e.key) {
     case 'F1':
       e.preventDefault()
+      searchInput.value?.focus()
+      break
+    case 'F2':
+      e.preventDefault()
       openAdd()
+      break
+    case 'F3':
+      if (selectedRowData.value) {
+        e.preventDefault()
+        openEdit(selectedRowData.value, activeTab.value)
+      }
       break
     case 'F4':
       if (selectedRowData.value) {
@@ -549,15 +639,37 @@ function onGlobalKey(e) {
         openDelete(selectedRowData.value, activeTab.value)
       }
       break
+    case 'ArrowLeft':
+      if (typing) break
+      e.preventDefault()
+      moveMenu(-1)
+      break
+    case 'ArrowRight':
+      if (typing) break
+      e.preventDefault()
+      moveMenu(1)
+      break
     case 'ArrowUp':
-      if (document.activeElement === searchInput.value) break
+      if (typing) break
       e.preventDefault()
       moveRow(-1)
       break
     case 'ArrowDown':
-      if (document.activeElement === searchInput.value) break
+      if (typing) break
       e.preventDefault()
       moveRow(1)
+      break
+    case 'Enter':
+      if (typing) break
+      if (focusedMenuIndex.value === 2) {
+        if (selectedRowData.value) {
+          e.preventDefault()
+          openEdit(selectedRowData.value, activeTab.value)
+        }
+      } else {
+        e.preventDefault()
+        chooseMenu(focusedMenuIndex.value, true)
+      }
       break
     case 'PageUp':
       e.preventDefault()
@@ -570,16 +682,19 @@ function onGlobalKey(e) {
       else nextSupplierPage()
       break
     case '1':
-      if (e.ctrlKey) {
-        e.preventDefault()
-        switchTab('customer')
-      }
+      if (typing) break
+      e.preventDefault()
+      chooseMenu(0, true)
       break
     case '2':
-      if (e.ctrlKey) {
-        e.preventDefault()
-        switchTab('supplier')
-      }
+      if (typing) break
+      e.preventDefault()
+      chooseMenu(1, true)
+      break
+    case '3':
+      if (typing) break
+      e.preventDefault()
+      chooseMenu(2, true)
       break
     case 'Escape':
       e.preventDefault()
@@ -655,7 +770,14 @@ function setRowRef(el, index) {
 // MODAL ADD / EDIT
 // ───────────────────────────────────────────────────────────
 function openAdd() {
-  const type = activeTab.value
+  const type = activeTab.value === 'customer' || activeTab.value === 'supplier'
+    ? activeTab.value
+    : focusedMenuIndex.value === 1
+      ? 'supplier'
+      : 'customer'
+  if (!hasDataTabSelected.value) {
+    switchTab(type)
+  }
   modal.mode = 'add'
   modal.type = type
   modal.title = `Tambah ${type === 'customer' ? 'Customer' : 'Supplier'}`

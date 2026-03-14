@@ -23,3 +23,29 @@
   font-size: 1rem;
   font-weight: 700;
 }
+
+@media (max-width: 768px) {
+  .g-table {
+    min-width: 720px;
+  }
+
+  .col-no       { width: 40px; }
+  .col-kode     { width: 105px; }
+  .col-stok     { width: 95px; }
+  .col-supplier { width: 150px; }
+  .col-harga    { width: 120px; }
+
+  .g-table th,
+  .g-table td {
+    padding: .52rem .55rem;
+    font-size: .73rem;
+  }
+
+  .result-meta {
+    padding: .6rem .75rem;
+  }
+
+  .page-info {
+    font-size: .72rem;
+  }
+}

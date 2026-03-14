@@ -71,6 +71,36 @@ const router = createRouter({
           component: () => import('@/pages/pembelian/PembelianPage.vue')
         },
         {
+          path: 'pembelian/order',
+          name: 'PembelianOrder',
+          component: () => import('@/pages/pembelian/PembelianOrderPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Pembelian' }
+        },
+        {
+          path: 'pembelian/input',
+          name: 'PembelianInput',
+          component: () => import('@/pages/pembelian/PembelianInputPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Pembelian' }
+        },
+        {
+          path: 'pembelian/edit-order',
+          name: 'PembelianEditOrder',
+          component: () => import('@/pages/pembelian/PembelianEditOrderPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Pembelian' }
+        },
+        {
+          path: 'pembelian/receiving',
+          name: 'PembelianReceiving',
+          component: () => import('@/pages/pembelian/PembelianReceivingPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Pembelian' }
+        },
+        {
+          path: 'pembelian/history',
+          name: 'PembelianHistory',
+          component: () => import('@/pages/pembelian/PembelianHistoryPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Pembelian' }
+        },
+        {
           path: 'penjualan',
           name: 'Penjualan',
           component: () => import('@/pages/penjualan/PenjualanMenuPage.vue')

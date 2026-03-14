@@ -45,6 +45,13 @@
       <span>Memuat data...</span>
     </div>
 
+    <!-- ── SEARCH HINT (table hidden until query typed) ─── -->
+    <div v-else-if="!hasActiveSearch" class="empty-state">
+      <i class="pi pi-search"></i>
+      <p>Ketik kata kunci di search bar untuk menampilkan data barang.</p>
+      <p class="empty-sub">Contoh: calya, terios, filter udara, fitting.</p>
+    </div>
+
     <!-- ── EMPTY ─────────────────────────────────────────── -->
     <div v-else-if="filteredRows.length === 0" class="empty-state">
       <i class="pi pi-inbox"></i>
@@ -66,15 +73,6 @@
             · baris <b>{{ selectedRowIndex + 1 }}</b>
           </span>
         </span>
-        <div v-if="totalPages > 1" class="pagination-wrap">
-          <button class="icon-btn" :disabled="currentPage <= 1" @click="prevPage">
-            <i class="pi pi-chevron-left"></i>
-          </button>
-          <span class="page-indicator">{{ currentPage }}&nbsp;/&nbsp;{{ totalPages }}</span>
-          <button class="icon-btn" :disabled="currentPage >= totalPages" @click="nextPage">
-            <i class="pi pi-chevron-right"></i>
-          </button>
-        </div>
       </div>
 
       <!-- Table -->
@@ -91,7 +89,7 @@
             </tr>
           </thead>
           <tbody>
-            <template v-for="(row, i) in pagedRows" :key="row.product_id">
+            <template v-for="(row, i) in filteredRows" :key="row.product_id">
 
               <!-- Price rows -->
               <tr
@@ -109,7 +107,7 @@
                 @dblclick="viewDetail(row)"
               >
                 <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-no" style="vertical-align: middle;">
-                  <span class="row-num">{{ (currentPage - 1) * PAGE_SIZE + i + 1 }}</span>
+                  <span class="row-num">{{ i + 1 }}</span>
                 </td>
                 <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-kode" style="vertical-align: middle;">
                   <span class="kode-badge">{{ row.kode }}</span>
@@ -130,7 +128,7 @@
                   <span class="supplier-chip">{{ price.supplier_nama }}</span>
                 </td>
                 <td class="col-harga">
-                  <span class="harga-val">{{ formatRp(price.harga_beli) }}</span>
+                  <span class="harga-val">{{ price.is_placeholder ? '-' : formatRp(price.harga_beli) }}</span>
                 </td>
               </tr>
 
@@ -156,14 +154,16 @@
                         </div>
                       </div>
                       <button class="btn-to-detail" @click="viewDetail(row)">
-                        <i class="pi pi-arrow-right"></i> Lihat Detail
+                        <i class="pi pi-arrow-right"></i>
+                        <span class="btn-label">Lihat Detail</span>
                       </button>
                     </template>
                     <div v-else class="photo-no-foto">
                       <i class="pi pi-image"></i>
                       <span>Belum ada foto</span>
                       <button class="btn-to-detail btn-to-detail--outline" @click="viewDetail(row)">
-                        <i class="pi pi-external-link"></i> Lihat Detail
+                        <i class="pi pi-external-link"></i>
+                        <span class="btn-label">Lihat Detail</span>
                       </button>
                     </div>
 
@@ -171,7 +171,7 @@
                     <div class="photo-inline-sep"></div>
                     <button class="btn-archive-cs" @click.stop="openArchive(row)" title="Archive barang ini (F3)">
                       <i class="pi pi-inbox"></i>
-                      <span>Archive</span>
+                      <span class="btn-label">Archive</span>
                       <kbd class="kbd-cs">F3</kbd>
                     </button>
                   </div>
@@ -205,11 +205,16 @@
           </div>
           <div class="modal-footer">
             <button class="btn-cancel" @click="archiveModal.show = false">
-              Batal <kbd>Esc</kbd>
+              <i class="pi pi-times"></i>
+              <span class="btn-label">Batal</span>
+              <kbd>Esc</kbd>
             </button>
             <button class="btn-archive" @click="doArchive" :disabled="archiveModal.saving">
               <i v-if="archiveModal.saving" class="pi pi-spin pi-spinner"></i>
-              <span v-else><i class="pi pi-inbox"></i> Archive</span>
+              <template v-else>
+                <i class="pi pi-inbox"></i>
+                <span class="btn-label">Archive</span>
+              </template>
             </button>
           </div>
         </div>
@@ -243,34 +248,44 @@ const rowRefs       = new Map()
 
 const archiveModal = reactive({ show: false, row: null, saving: false })
 
-const PAGE_SIZE   = 20
-const currentPage = ref(1)
+const FETCH_BATCH_SIZE = 1000
 
 // ── Reset selection when user types ─────────────────────────
 watch(searchQuery, () => {
   selectedRowIndex.value = -1
-  currentPage.value = 1
 })
 
 // ───────────────────────────────────────────────────────────
 // COMPUTED
 // ───────────────────────────────────────────────────────────
 const filteredRows = computed(() => {
-  if (!searchQuery.value) return allRows.value
-  const q = searchQuery.value.toLowerCase()
-  return allRows.value.filter(row =>
-    row.kode.toLowerCase().includes(q) ||
-    row.nama.toLowerCase().includes(q)
-  )
+  const q = normalizeSearch(searchQuery.value)
+  if (!q) return []
+
+  const qLoose = normalizeLooseSearch(q)
+  const qTokens = qLoose.split(' ').filter(Boolean)
+
+  const startsWithRows = []
+  const containsRows = []
+
+  for (const row of allRows.value) {
+    const raw = row.searchRaw
+    const loose = row.searchLoose
+
+    const startsWith = raw.startsWith(q) || loose.startsWith(qLoose)
+    const contains = raw.includes(q) || loose.includes(qLoose)
+    const tokenMatch = qTokens.length > 0 && qTokens.every(t => loose.includes(t))
+
+    if (startsWith) startsWithRows.push(row)
+    else if (contains || tokenMatch) containsRows.push(row)
+  }
+
+  return [...startsWithRows, ...containsRows]
 })
+
+const hasActiveSearch = computed(() => normalizeSearch(searchQuery.value).length > 0)
 
 const totalRows  = computed(() => filteredRows.value.length)
-const totalPages = computed(() => Math.ceil(totalRows.value / PAGE_SIZE) || 1)
-
-const pagedRows = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE
-  return filteredRows.value.slice(start, start + PAGE_SIZE)
-})
 
 // ───────────────────────────────────────────────────────────
 // LOAD DATA
@@ -278,33 +293,55 @@ const pagedRows = computed(() => {
 async function loadAllProducts() {
   loading.value = true
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        kode,
-        nama,
-        deskripsi,
-        satuan,
-        foto_urls,
-        product_prices (
-          id,
-          stok,
-          harga_beli,
-          aktif,
-          supplier:suppliers (
-            id,
-            nama
-          )
-        )
-      `)
-      .eq('is_archived', false)
-      .order('kode', { ascending: true })
+    const data = []
+    let from = 0
 
-    if (error) throw error
+    while (true) {
+      const to = from + FETCH_BATCH_SIZE - 1
+      const { data: chunk, error } = await supabase
+        .from('products')
+        .select(`
+          id,
+          kode,
+          nama,
+          stok,
+          deskripsi,
+          satuan,
+          foto_urls,
+          product_prices (
+            id,
+            stok,
+            harga_beli,
+            aktif,
+            supplier:suppliers (
+              id,
+              nama
+            )
+          )
+        `)
+        .eq('is_archived', false)
+        .order('kode', { ascending: true })
+        .range(from, to)
+
+      if (error) throw error
+      if (!chunk?.length) break
+
+      data.push(...chunk)
+
+      if (chunk.length < FETCH_BATCH_SIZE) break
+      from += FETCH_BATCH_SIZE
+    }
 
     allRows.value = data.map(p => {
       const activePrices = p.product_prices?.filter(pp => pp.aktif) ?? []
+      const fallbackPrice = {
+        id:            `no-price-${p.id}`,
+        stok:          p.stok ?? 0,
+        harga_beli:    0,
+        supplier_nama: 'Belum ada supplier',
+        is_placeholder: true,
+      }
+
       return {
         product_id: p.id,
         kode:       p.kode,
@@ -312,38 +349,24 @@ async function loadAllProducts() {
         deskripsi:  p.deskripsi ?? '',
         satuan:     p.satuan,
         foto_urls:  p.foto_urls ?? [],
-        prices: activePrices.map(pp => ({
-          id:            pp.id,
-          stok:          pp.stok,
-          harga_beli:    pp.harga_beli,
-          supplier_nama: pp.supplier?.nama || '—'
-        }))
+        searchRaw: normalizeSearch(`${p.kode ?? ''} ${p.nama ?? ''}`),
+        searchLoose: normalizeLooseSearch(`${p.kode ?? ''} ${p.nama ?? ''}`),
+        prices: activePrices.length
+          ? activePrices.map(pp => ({
+              id:            pp.id,
+              stok:          pp.stok,
+              harga_beli:    pp.harga_beli,
+              supplier_nama: pp.supplier?.nama || '—',
+              is_placeholder: false,
+            }))
+          : [fallbackPrice]
       }
-    }).filter(p => p.prices.length > 0)
+    })
 
   } catch (error) {
     console.error('Error loading products:', error)
   } finally {
     loading.value = false
-  }
-}
-
-// ───────────────────────────────────────────────────────────
-// PAGINATION
-// ───────────────────────────────────────────────────────────
-function prevPage() {
-  if (currentPage.value > 1) {
-    currentPage.value--
-    selectedRowIndex.value = 0
-    nextTick(() => rowRefs.get(0)?.scrollIntoView({ block: 'nearest' }))
-  }
-}
-
-function nextPage() {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++
-    selectedRowIndex.value = 0
-    nextTick(() => rowRefs.get(0)?.scrollIntoView({ block: 'nearest' }))
   }
 }
 
@@ -360,7 +383,7 @@ function selectRow(i) {
 }
 
 function moveRow(delta) {
-  const max = pagedRows.value.length - 1
+  const max = filteredRows.value.length - 1
   if (max < 0) return
   if (selectedRowIndex.value < 0) {
     selectedRowIndex.value = delta < 0 ? max : 0
@@ -421,14 +444,12 @@ function onSearchEnter() {
   if (!filteredRows.value.length) return
   searchInput.value?.blur()
   selectedRowIndex.value = 0
-  currentPage.value = 1
   nextTick(() => rowRefs.get(0)?.scrollIntoView({ block: 'nearest' }))
 }
 
 function clearSearch() {
   searchQuery.value      = ''
   selectedRowIndex.value = -1
-  currentPage.value      = 1
   nextTick(() => searchInput.value?.focus())
 }
 
@@ -459,7 +480,6 @@ function onGlobalKey(e) {
       e.preventDefault()
       searchInput.value?.blur()
       selectedRowIndex.value = 0
-      currentPage.value = 1
       nextTick(() => rowRefs.get(0)?.scrollIntoView({ block: 'nearest' }))
     }
     return // all other keys handled by input's own events
@@ -473,14 +493,10 @@ function onGlobalKey(e) {
     case 'Enter':
     case 'F4': {
       if (e.target.matches('input,textarea,select,button')) break
-      const row = pagedRows.value[selectedRowIndex.value]
+      const row = filteredRows.value[selectedRowIndex.value]
       if (row) { e.preventDefault(); viewDetail(row) }
       break
     }
-    case 'PageUp':
-      e.preventDefault(); prevPage(); break
-    case 'PageDown':
-      e.preventDefault(); nextPage(); break
     case 'Escape':
       e.preventDefault(); router.push('/gudang'); break
     case 'F1':
@@ -489,7 +505,7 @@ function onGlobalKey(e) {
       searchInput.value?.select()
       break
     case 'F3': {
-      const row = pagedRows.value[selectedRowIndex.value]
+      const row = filteredRows.value[selectedRowIndex.value]
       if (row) { e.preventDefault(); openArchive(row) }
       break
     }
@@ -502,6 +518,20 @@ function onGlobalKey(e) {
 function formatRp(val) {
   if (val == null) return 'Rp 0'
   return 'Rp ' + Number(val).toLocaleString('id-ID')
+}
+
+function normalizeSearch(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFKC')
+    .trim()
+}
+
+function normalizeLooseSearch(value) {
+  return normalizeSearch(value)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 // ───────────────────────────────────────────────────────────
