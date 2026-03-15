@@ -5,7 +5,7 @@
     <div class="page-header-card">
       <div class="page-header">
         <div class="page-header-left">
-          <h1 class="page-header-title">Draft Order</h1>
+          <h1 class="page-header-title">Draft Order Penjualan</h1>
         </div>
         <button class="btn-secondary" @click="$router.push('/penjualan')" title="Kembali ke Menu (Esc)">
           <i class="pi pi-arrow-left"></i>

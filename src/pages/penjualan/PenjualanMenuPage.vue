@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Manajemen Penjualan</h1>
-        <p class="g-subtitle">Pengelolaan transaksi & riwayat penjualan</p>
+        <h1 class="g-title">Operasional Penjualan</h1>
+        <p class="g-subtitle">Pengelolaan transaksi, draft, dan riwayat penjualan</p>
       </div>
     </div>
 

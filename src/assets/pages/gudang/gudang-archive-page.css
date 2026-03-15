@@ -220,6 +220,11 @@
 }
 
 @media (max-width: 768px) {
+  .arc-kbd-bar,
+  .empty-sub {
+    display: none !important;
+  }
+
   .g-header-badge {
     align-self: flex-start;
     font-size: .74rem;
@@ -239,14 +244,41 @@
     padding: .6rem .75rem;
   }
 
-  .arc-table {
-    min-width: 560px;
+  .table-wrap {
+    overflow-x: hidden;
   }
+
+  .arc-table {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .arc-table .col-no { width: 32px; }
+  .arc-table .col-kode { width: 86px; }
 
   .arc-table th,
   .arc-table td {
-    padding: .52rem .55rem;
-    font-size: .73rem;
+    padding: .46rem .4rem;
+    font-size: .66rem;
+    white-space: normal;
+  }
+
+  .arc-table .col-nama {
+    word-break: break-word;
+  }
+
+  .kode-badge--archived {
+    max-width: 84px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .62rem;
+    padding: .1rem .28rem;
+  }
+
+  .deskripsi-text {
+    display: none;
   }
 
   .photo-inline-cell {

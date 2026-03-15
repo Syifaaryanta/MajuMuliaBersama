@@ -5,7 +5,7 @@
     <div class="page-header-card">
       <div class="page-header">
         <div class="page-header-left">
-          <h1 class="page-header-title">Daftar Order Penjualan</h1>
+          <h1 class="page-header-title">Riwayat Order Penjualan</h1>
         </div>
         <button class="btn-secondary" @click="$router.push('/penjualan')" title="Kembali ke Menu (Esc)">
           <i class="pi pi-arrow-left"></i>
@@ -14,68 +14,22 @@
       </div>
     </div>
 
-    <!-- ── SEARCH & FILTER BAR ──────────────────────────── -->
-    <div class="search-bar" v-if="formVisible">
-      <div class="search-sequential">
-        <div class="search-field">
-          <label class="search-label">
+    <!-- ── FILTER SUMMARY ───────────────────────────────── -->
+    <div class="search-bar" v-if="showResults">
+      <div class="filter-summary">
+        <div class="filter-chip-wrap">
+          <span class="filter-chip" v-if="searchOrderNo">
             <i class="pi pi-hashtag"></i>
-            No. Order
-          </label>
-          <input
-            ref="inputNoOrder"
-            v-model="searchOrderNo"
-            type="text"
-            class="search-input"
-            placeholder="Kosongkan untuk filter tanggal"
-            @keydown.enter="onNoOrderEnter"
-            @keydown.esc="clearSearch"
-            autocomplete="off"
-          />
-        </div>
-        <div class="search-divider"></div>
-        <div class="search-field">
-          <label class="search-label">
+            No. Order: {{ searchOrderNo }}
+          </span>
+          <span class="filter-chip" v-else>
             <i class="pi pi-calendar"></i>
-            Tanggal Awal (DD/MM/YY)
-          </label>
-          <input
-            ref="inputTglAwal"
-            v-model="searchDateStart"
-            type="text"
-            class="search-input"
-            placeholder="05/03/26"
-            @keydown.enter="onDateStartEnter"
-            @keydown.esc="focusNoOrder"
-            autocomplete="off"
-            :disabled="!!searchOrderNo"
-          />
+            {{ activeFilterLabel }}
+          </span>
         </div>
-        <div class="search-field">
-          <label class="search-label">
-            <i class="pi pi-calendar"></i>
-            Tanggal Akhir (DD/MM/YY)
-          </label>
-          <input
-            ref="inputTglAkhir"
-            v-model="searchDateEnd"
-            type="text"
-            class="search-input"
-            placeholder="06/03/26"
-            @keydown.enter="onDateEndEnter"
-            @keydown.esc="focusDateStart"
-            autocomplete="off"
-            :disabled="!!searchOrderNo"
-          />
-        </div>
-        <button 
-          v-if="searchOrderNo || searchDateStart || searchDateEnd" 
-          class="clear-btn" 
-          @click="clearSearch" 
-          title="Clear (Esc)"
-        >
-          <i class="pi pi-times"></i>
-          Clear
+        <button class="btn-secondary btn-filter" @click="openFilterModal" title="Esc">
+          <i class="pi pi-filter"></i>
+          <span>Ubah Filter</span>
         </button>
       </div>
     </div>
@@ -126,7 +80,7 @@
             <td colspan="8" class="empty-cell">
               <i class="pi pi-inbox"></i>
               <p v-if="searchOrderNo">Tidak ada order dengan No. Order "<b>{{ searchOrderNo }}</b>"</p>
-              <p v-else-if="searchDate">Tidak ada order pada tanggal "<b>{{ searchDate }}</b>"</p>
+              <p v-else-if="searchDateStart || searchDateEnd">Tidak ada order pada periode "<b>{{ activeFilterLabel }}</b>"</p>
               <p v-else>Belum ada order penjualan.</p>
             </td>
           </tr>
@@ -137,8 +91,7 @@
             :key="order.id"
             :ref="el => setRowRef(el, idx)"
             :class="{ 'g-row--active': selectedRowIndex === idx }"
-            @click="selectedRowIndex = idx"
-            @dblclick="viewOrder(order)"
+            @click="onRowClick(order, idx)"
           >
             <td class="col-no">{{ (currentPage - 1) * PAGE_SIZE + idx + 1 }}</td>
             <td class="col-order">
@@ -186,6 +139,89 @@
       </table>
     </div>
     </div><!-- End table-container -->
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showFilterModal" class="modal-overlay" @click.self="onFilterOverlayClick">
+          <form class="modal-box modal-box--filter" @submit.prevent="submitFilter">
+            <div class="modal-header modal-header--blue">
+              <div class="modal-header-left">
+                <div class="modal-header-icon">
+                  <i class="pi pi-filter"></i>
+                </div>
+                <h3 class="modal-title">Filter Riwayat Transaksi</h3>
+              </div>
+            </div>
+
+            <div class="modal-body">
+              <p class="modal-helper">Isi No. Order atau rentang tanggal, lalu tekan Enter.</p>
+
+              <div class="filter-modal-grid">
+                <div class="search-field">
+                  <label class="search-label">
+                    <i class="pi pi-calendar"></i>
+                    Tanggal Awal (DD/MM/YY)
+                  </label>
+                  <input
+                    ref="inputTglAwal"
+                    v-model="searchDateStart"
+                    type="text"
+                    class="search-input"
+                    placeholder="05/03/26"
+                    autocomplete="off"
+                    :disabled="!!searchOrderNo"
+                    @keydown.enter.prevent="onDateStartEnter"
+                  />
+                </div>
+
+                <div class="search-field">
+                  <label class="search-label">
+                    <i class="pi pi-calendar"></i>
+                    Tanggal Akhir (DD/MM/YY)
+                  </label>
+                  <input
+                    ref="inputTglAkhir"
+                    v-model="searchDateEnd"
+                    type="text"
+                    class="search-input"
+                    placeholder="06/03/26"
+                    autocomplete="off"
+                    :disabled="!!searchOrderNo"
+                    @keydown.enter.prevent="onDateEndEnter"
+                  />
+                </div>
+
+                <div class="search-field filter-full">
+                  <label class="search-label">
+                    <i class="pi pi-hashtag"></i>
+                    No. Order <span class="optional-note">opsional</span>
+                  </label>
+                  <input
+                    ref="inputNoOrder"
+                    v-model="searchOrderNo"
+                    type="text"
+                    class="search-input"
+                    placeholder="Kosongkan untuk filter tanggal"
+                    autocomplete="off"
+                    @keydown.enter.prevent="onNoOrderEnter"
+                  />
+                </div>
+              </div>
+
+              <p v-if="filterError" class="modal-error-inline">{{ filterError }}</p>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn-secondary" @click="onFilterCancel">Batal</button>
+              <button type="submit" class="btn-primary">
+                <i class="pi pi-check"></i>
+                <span>Enter</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- ═══════════════════════════════════════════════════
          MODAL VIEW ORDER DETAIL
@@ -452,8 +488,9 @@ const orders = ref([])
 const searchOrderNo = ref('')
 const searchDateStart = ref(_defaultRange.start)
 const searchDateEnd = ref(_defaultRange.end)
+const showFilterModal = ref(true)
+const filterError = ref('')
 const showResults = ref(false)
-const formVisible = ref(true)
 const selectedRowIndex = ref(0)
 const rowRefs = new Map()
 
@@ -522,6 +559,12 @@ const pagedOrders = computed(() => {
   return filteredOrders.value.slice(start, start + PAGE_SIZE)
 })
 
+const activeFilterLabel = computed(() => {
+  const start = searchDateStart.value || '-'
+  const end = searchDateEnd.value || '-'
+  return `${start} s/d ${end}`
+})
+
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
@@ -529,7 +572,7 @@ onMounted(() => {
   window.addEventListener('keydown', onGlobalKey)
   pageEl.value?.focus()
   nextTick(() => {
-    inputNoOrder.value?.focus()
+    inputTglAwal.value?.focus()
   })
 })
 
@@ -587,18 +630,13 @@ async function loadOrders() {
 // SEARCH FUNCTIONS - SEQUENTIAL FLOW
 // ───────────────────────────────────────────────────────────────
 async function onNoOrderEnter() {
-  if (searchOrderNo.value.trim()) {
-    // Search by order number
-    await searchByOrderNo()
-  } else {
-    // Move to date range input
-    focusDateStart()
-  }
+  await submitFilter()
 }
 
 async function searchByOrderNo() {
   loading.value = true
   showResults.value = false
+  filterError.value = ''
   try {
     const { data: ordersData, error: ordersError } = await supabase
       .from('sales')
@@ -628,7 +666,7 @@ async function searchByOrderNo() {
 
     orders.value = ordersWithItems
     showResults.value = true
-    formVisible.value = false
+    showFilterModal.value = false
     currentPage.value = 1
     selectedRowIndex.value = 0
     
@@ -650,14 +688,13 @@ function onDateStartEnter() {
 }
 
 async function onDateEndEnter() {
-  if (searchDateStart.value || searchDateEnd.value) {
-    await searchByDateRange()
-  }
+  focusNoOrder()
 }
 
 async function searchByDateRange() {
   loading.value = true
   showResults.value = false
+  filterError.value = ''
   try {
     const startDate = parseDateInput(searchDateStart.value)
     const endDate = parseDateInput(searchDateEnd.value)
@@ -702,7 +739,7 @@ async function searchByDateRange() {
 
     orders.value = ordersWithItems
     showResults.value = true
-    formVisible.value = false
+    showFilterModal.value = false
     currentPage.value = 1
     selectedRowIndex.value = 0
     
@@ -739,14 +776,52 @@ function focusDateEnd() {
 
 function clearSearch() {
   searchOrderNo.value = ''
-  searchDateStart.value = ''
-  searchDateEnd.value = ''
+  searchDateStart.value = _defaultRange.start
+  searchDateEnd.value = _defaultRange.end
+  filterError.value = ''
   orders.value = []
   showResults.value = false
-  formVisible.value = true
+  showFilterModal.value = true
   currentPage.value = 1
   selectedRowIndex.value = 0
-  focusNoOrder()
+  focusDateStart()
+}
+
+function openFilterModal() {
+  filterError.value = ''
+  showFilterModal.value = true
+  nextTick(() => {
+    inputTglAwal.value?.focus()
+  })
+}
+
+async function submitFilter() {
+  const hasOrderNo = !!searchOrderNo.value.trim()
+  const hasDateRange = !!searchDateStart.value || !!searchDateEnd.value
+
+  if (!hasOrderNo && !hasDateRange) {
+    filterError.value = 'Isi No. Order atau rentang tanggal terlebih dahulu.'
+    return
+  }
+
+  if (hasOrderNo) {
+    await searchByOrderNo()
+    return
+  }
+
+  await searchByDateRange()
+}
+
+function onFilterCancel() {
+  if (!showResults.value) {
+    router.push('/penjualan')
+    return
+  }
+  showFilterModal.value = false
+}
+
+function onFilterOverlayClick() {
+  onFilterCancel()
 }
 
 // Parse DD/MM/YY to YYYY-MM-DD
@@ -770,6 +845,15 @@ function parseDateInput(dateStr) {
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
+  if (showFilterModal.value) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      onFilterCancel()
+      return
+    }
+    return
+  }
+
   // Handle delete modal
   if (deleteModal.show) {
     if (e.key === 'Enter') {
@@ -805,8 +889,7 @@ function onGlobalKey(e) {
 
   // If no results shown, let input fields handle their own keys
   if (!showResults.value) {
-    // ESC when form is visible: go back to menu
-    if (e.key === 'Escape' && formVisible.value && !searchOrderNo.value && !searchDateStart.value && !searchDateEnd.value) {
+    if (e.key === 'Escape') {
       e.preventDefault()
       router.push('/penjualan')
     }
@@ -816,11 +899,7 @@ function onGlobalKey(e) {
   // Escape: Hide results and show form again
   if (e.key === 'Escape') {
     e.preventDefault()
-    showResults.value = false
-    formVisible.value = true
-    nextTick(() => {
-      inputNoOrder.value?.focus()
-    })
+    openFilterModal()
     return
   }
 
@@ -897,6 +976,11 @@ async function viewOrder(order) {
     console.error('[viewOrder]', err)
     alert('Gagal memuat detail order: ' + err.message)
   }
+}
+
+function onRowClick(order, idx) {
+  selectedRowIndex.value = idx
+  viewOrder(order)
 }
 
 function initiateDelete(order) {

@@ -2,8 +2,8 @@
   <div class="pembelian-order-page" ref="pageEl" tabindex="-1">
     <div class="form-card">
       <div class="form-header">
-        <h1 class="form-header-title">Order Pembelian</h1>
-        <p class="form-header-subtitle">Step 1: Informasi Header Pembelian</p>
+        <h1 class="form-header-title">Pembuatan Order Pembelian</h1>
+        <p class="form-header-subtitle">Tahap 1: Lengkapi informasi header pembelian</p>
       </div>
 
       <form class="order-form" @submit.prevent="goToInputItem">

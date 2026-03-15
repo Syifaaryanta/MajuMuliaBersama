@@ -4,8 +4,8 @@
     <!-- ── FORM CARD WITH HEADER ─────────────────────────────────────── -->
     <div class="form-card">
       <div class="form-header">
-        <h1 class="form-header-title">Input Barang Penjualan</h1>
-        <p class="form-header-subtitle">Step 2: Tambahkan item yang dijual</p>
+        <h1 class="form-header-title">Input Item Penjualan</h1>
+        <p class="form-header-subtitle">Tahap 2: Tambahkan item yang akan dijual</p>
       </div>
 
       <!-- Order Info Card -->

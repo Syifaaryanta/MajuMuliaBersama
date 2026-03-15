@@ -1,3 +1,5 @@
+import { buildPurchaseOrderFingerprint, secondBucket } from '@/lib/orderDedupe'
+
 const STORAGE_KEY = 'pembelian_orders_v1'
 
 function safeParse(raw, fallback) {
@@ -38,14 +40,25 @@ export function getPurchaseOrderByNo(noOrder) {
 
 export function upsertPurchaseOrder(order) {
   const rows = listPurchaseOrders()
+  const bucket = secondBucket()
+  const requestFingerprint = order.request_fingerprint || buildPurchaseOrderFingerprint(order, bucket)
   const index = rows.findIndex(row => row.no_order === order.no_order)
   const payload = {
     ...order,
+    request_fingerprint: requestFingerprint,
     updated_at: new Date().toISOString(),
   }
 
+  const duplicateIndex = rows.findIndex(row => row.request_fingerprint === requestFingerprint)
+
   if (index >= 0) {
     rows[index] = payload
+  } else if (duplicateIndex >= 0) {
+    rows[duplicateIndex] = {
+      ...rows[duplicateIndex],
+      ...payload,
+      no_order: rows[duplicateIndex].no_order,
+    }
   } else {
     rows.push({
       ...payload,

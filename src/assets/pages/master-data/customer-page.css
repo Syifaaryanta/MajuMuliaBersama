@@ -16,3 +16,19 @@
   min-width: 130px;
   text-align: right;
 }
+
+@media (max-width: 600px) {
+  .col-alamat {
+    min-width: 150px;
+    max-width: 190px;
+  }
+
+  .col-telp {
+    min-width: 100px;
+  }
+
+  .col-kredit,
+  .col-piutang {
+    min-width: 108px;
+  }
+}

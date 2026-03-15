@@ -551,6 +551,51 @@
 }
 
 /* ── RESPONSIVE ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .mfield-grid {
+    grid-template-columns: 1fr;
+    gap: .75rem;
+  }
+
+  .mfield--full {
+    grid-column: 1;
+  }
+
+  .search-section {
+    grid-template-columns: 1fr;
+    gap: .8rem;
+  }
+
+  .search-input {
+    font-size: .9rem;
+  }
+
+  .price-row {
+    grid-template-columns: 1fr auto;
+    gap: .45rem;
+    padding: .58rem .7rem;
+  }
+
+  .price-select {
+    grid-column: 1 / -1;
+  }
+
+  .btn-primary,
+  .btn-cancel,
+  .btn-save,
+  .btn-danger {
+    min-height: 40px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .photo-preview-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: .55rem;
+    padding: .65rem;
+  }
+}
+
 @media (max-width: 820px) {
   .search-section { 
     grid-template-columns: 1fr; 
@@ -559,19 +604,32 @@
 }
 
 @media (max-width: 480px) {
-  .mfield-grid { 
-    grid-template-columns: 1fr; 
+  .mfield-input,
+  .search-input,
+  .price-input {
+    font-size: 16px;
   }
-  
-  .mfield--full { 
-    grid-column: 1; 
+
+  .price-row {
+    grid-template-columns: 1fr;
+    gap: .4rem;
   }
-  
-  .price-row { 
-    grid-template-columns: 1fr auto; 
-  }
-  
+
   .price-select { 
     grid-column: 1 / -1; 
+  }
+
+  .price-input-wrap--stok,
+  .price-input-wrap {
+    width: 100%;
+    max-width: none;
+  }
+
+  .btn-primary,
+  .btn-cancel,
+  .btn-save,
+  .btn-danger {
+    min-height: 42px;
+    font-size: .8rem;
   }
 }

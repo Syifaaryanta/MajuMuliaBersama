@@ -3,7 +3,7 @@
     <div class="form-card">
       <div class="form-header">
         <h1 class="form-header-title">Input Item Pembelian</h1>
-        <p class="form-header-subtitle">Step 2: Input barang, qty, dan harga beli</p>
+        <p class="form-header-subtitle">Tahap 2: Tambahkan item, kuantitas, dan harga beli</p>
       </div>
 
       <div class="order-info-section">
@@ -224,9 +224,11 @@ import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { upsertPurchaseOrder, getTermLabel } from '@/lib/pembelianStore'
+import { buildPurchaseOrderFingerprint } from '@/lib/orderDedupe'
 
 const router = useRouter()
 const pageEl = ref(null)
+const isSubmitting = ref(false)
 const inputProduct = ref(null)
 const inputQty = ref(null)
 const inputPrice = ref(null)
@@ -490,10 +492,14 @@ function resetNewItem() {
 }
 
 function submitPurchase() {
+  if (isSubmitting.value) return
+
   if (!items.value.length) {
     alert('Tambahkan minimal 1 barang.')
     return
   }
+
+  isSubmitting.value = true
 
   const payload = {
     no_order: orderData.value.no_order,
@@ -504,12 +510,24 @@ function submitPurchase() {
     subtotal: subtotal.value,
     status: 'ordered',
     received_at: null,
+    request_fingerprint: buildPurchaseOrderFingerprint({
+      order_date: orderData.value.order_date,
+      supplier: orderData.value.supplier,
+      terms: orderData.value.terms,
+      items: items.value,
+      subtotal: subtotal.value,
+      status: 'ordered',
+    }),
   }
 
-  upsertPurchaseOrder(payload)
-  sessionStorage.removeItem('pembelian_draft')
-  alert('Order pembelian tersimpan. Data masuk ke Edit, Receiving, dan History.')
-  router.push('/pembelian/edit-order')
+  try {
+    upsertPurchaseOrder(payload)
+    sessionStorage.removeItem('pembelian_draft')
+    alert('Order pembelian tersimpan. Data masuk ke Edit, Receiving, dan History.')
+    router.push('/pembelian/edit-order')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function formatRp(val) {

@@ -36,8 +36,8 @@
 
         <!-- Header -->
         <div class="form-header">
-          <h2 class="form-welcome">Selamat Datang</h2>
-          <p class="form-subtitle">Masuk ke Sistem MMB</p>
+          <h2 class="form-welcome">Akses Sistem MMB</h2>
+          <p class="form-subtitle">Silakan masuk untuk melanjutkan operasional</p>
         </div>
 
         <!-- Form -->

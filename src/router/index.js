@@ -97,6 +97,12 @@ const router = createRouter({
         {
           path: 'pembelian/history',
           name: 'PembelianHistory',
+          component: () => import('@/pages/History/HistoryPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Pembelian' }
+        },
+        {
+          path: 'pembelian/history-pembelian',
+          name: 'PembelianHistoryPembelian',
           component: () => import('@/pages/pembelian/PembelianHistoryPage.vue'),
           meta: { requiresAuth: true, parentRoute: 'Pembelian' }
         },

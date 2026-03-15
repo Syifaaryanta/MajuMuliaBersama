@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Supplier</h1>
-        <p class="g-subtitle">Kelola data supplier</p>
+        <h1 class="g-title">Master Supplier</h1>
+        <p class="g-subtitle">Kelola profil dan informasi kerja sama supplier</p>
       </div>
       <button class="btn-primary" @click="openAdd" title="Tambah Supplier (Alt+N)">
         <i class="pi pi-plus"></i>

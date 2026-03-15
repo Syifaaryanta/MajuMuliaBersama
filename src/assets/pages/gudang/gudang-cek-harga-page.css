@@ -25,20 +25,67 @@
 }
 
 @media (max-width: 768px) {
+  .label-kbd,
+  .empty-hint-sub {
+    display: none !important;
+  }
+
+  .info-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .table-wrap {
+    overflow-x: hidden;
+  }
+
   .g-table {
-    min-width: 720px;
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
   }
 
   .col-no       { width: 40px; }
-  .col-kode     { width: 105px; }
-  .col-stok     { width: 95px; }
-  .col-supplier { width: 150px; }
-  .col-harga    { width: 120px; }
+  .col-stok     { width: 72px; }
+  .col-supplier { width: 98px; }
+  .col-harga    { width: 88px; }
+
+  .col-kode {
+    display: none;
+  }
 
   .g-table th,
   .g-table td {
-    padding: .52rem .55rem;
-    font-size: .73rem;
+    padding: .45rem .42rem;
+    font-size: .67rem;
+    white-space: normal;
+  }
+
+  .g-table td.col-nama,
+  .g-table th.col-nama {
+    word-break: break-word;
+  }
+
+  .kode-badge {
+    display: none;
+  }
+
+  .supplier-chip {
+    display: inline-block;
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .62rem;
+    padding: .12rem .32rem;
+  }
+
+  .stok-val {
+    font-size: .65rem;
+    padding: .15rem .32rem;
+  }
+
+  .col-harga .harga-val {
+    font-size: .75rem;
   }
 
   .result-meta {
@@ -48,4 +95,21 @@
   .page-info {
     font-size: .72rem;
   }
+}
+
+@media (max-width: 480px) {
+  .info-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .g-table th,
+  .g-table td {
+    font-size: .63rem;
+    padding: .4rem .35rem;
+  }
+
+  .col-no { width: 32px; }
+  .col-stok { width: 68px; }
+  .col-supplier { width: 86px; }
+  .col-harga { width: 80px; }
 }

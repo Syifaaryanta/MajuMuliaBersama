@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Data Master</h1>
-        <p class="g-subtitle">Kelola data customer, supplier, dan pembaruan data master</p>
+        <h1 class="g-title">Master Data Perusahaan</h1>
+        <p class="g-subtitle">Kelola data customer, supplier, dan referensi bisnis inti</p>
       </div>
       <button
         class="btn-primary"

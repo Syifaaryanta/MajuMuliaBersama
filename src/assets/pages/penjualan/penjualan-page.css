@@ -236,3 +236,69 @@
   color: #10b981 !important;
   font-weight: 600;
 }
+
+@media (max-width: 768px) {
+  .penjualan-page {
+    padding: 1rem;
+  }
+
+  .g-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .75rem;
+    margin-bottom: 1rem;
+  }
+
+  .g-title {
+    font-size: 1.25rem;
+  }
+
+  .g-subtitle {
+    font-size: .8rem;
+  }
+
+  .form-card {
+    padding: 1rem;
+    border-radius: 10px;
+  }
+
+  .order-form {
+    gap: 1rem;
+  }
+
+  .form-input,
+  .search-input-wrap .si-input {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .penjualan-page {
+    padding: .75rem;
+  }
+
+  .form-card {
+    padding: .85rem;
+  }
+
+  .form-row {
+    padding: .6rem;
+  }
+
+  .form-label {
+    font-size: .82rem;
+  }
+
+  .field-hint,
+  .ci-row {
+    font-size: .78rem;
+  }
+
+  .ci-name {
+    font-size: .9rem;
+  }
+
+  .ci-kode {
+    font-size: .72rem;
+  }
+}

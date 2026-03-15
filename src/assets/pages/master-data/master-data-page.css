@@ -342,9 +342,76 @@
     grid-template-columns: 1fr;
   }
 
+  .md-menu-card {
+    padding: .95rem;
+    gap: .8rem;
+  }
+
+  .md-menu-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.2rem;
+    border-radius: 9px;
+  }
+
+  .md-menu-body h3 {
+    font-size: .95rem;
+  }
+
+  .md-menu-body p {
+    font-size: .75rem;
+  }
+
+  .md-menu-count {
+    margin-left: 0;
+    font-size: .66rem;
+    padding: .2rem .5rem;
+  }
+
+  .search-input-wrap {
+    max-width: none;
+  }
+
+  .g-header .btn-primary {
+    width: 100%;
+    justify-content: center;
+    min-height: 40px;
+  }
+
   .data-table th,
   .data-table td {
     padding: .6rem .6rem;
     font-size: .72rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .master-data-page {
+    padding: .78rem;
+    gap: .85rem;
+  }
+
+  .g-title {
+    font-size: 1.18rem;
+    line-height: 1.22;
+    margin-bottom: .2rem;
+  }
+
+  .g-subtitle {
+    font-size: .76rem;
+  }
+
+  .search-input {
+    min-height: 38px;
+    font-size: .82rem;
+    padding: .65rem 2.35rem .65rem 2.35rem;
+  }
+
+  .data-table {
+    min-width: 520px;
+  }
+
+  .meta-filter {
+    font-size: .68rem;
   }
 }

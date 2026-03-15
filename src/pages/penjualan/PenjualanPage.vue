@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Buat Order Penjualan</h1>
-        <p class="g-subtitle">Step 1: Informasi Order & Customer</p>
+        <h1 class="g-title">Pembuatan Order Penjualan</h1>
+        <p class="g-subtitle">Tahap 1: Lengkapi informasi order dan pelanggan</p>
       </div>
       <button class="btn-secondary" @click="$router.push('/penjualan/list')" title="Lihat Daftar Order">
         <i class="pi pi-list"></i>

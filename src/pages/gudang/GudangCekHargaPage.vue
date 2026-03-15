@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Cek Harga Barang</h1>
-        <p class="g-subtitle">Cek stok & harga barang per customer</p>
+        <h1 class="g-title">Informasi Harga Produk</h1>
+        <p class="g-subtitle">Pantau stok dan harga produk per pelanggan</p>
       </div>
     </div>
 

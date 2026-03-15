@@ -10,3 +10,14 @@
 .col-telp {
   min-width: 120px;
 }
+
+@media (max-width: 600px) {
+  .col-alamat {
+    min-width: 150px;
+    max-width: 190px;
+  }
+
+  .col-telp {
+    min-width: 100px;
+  }
+}

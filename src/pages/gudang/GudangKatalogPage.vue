@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Katalog Barang</h1>
-        <p class="g-subtitle">Edit dan kelola data produk di gudang</p>
+        <h1 class="g-title">Manajemen Katalog Produk</h1>
+        <p class="g-subtitle">Kelola data produk, stok, harga, dan dokumentasi foto</p>
       </div>
       <button class="btn-tambah-header" @click="openAdd" title="Tambah Barang Baru (F2)">
         <i class="pi pi-plus"></i>
@@ -98,30 +98,30 @@
           <tbody v-else>
             <template v-for="(row, i) in pagedRows" :key="row.product_id">
               <tr
-                v-for="(price, priceIdx) in row.prices"
+                v-for="(price, priceIdx) in (row.prices.length ? row.prices : [{ id: `empty-${row.product_id}`, stok: row.stok ?? 0, supplier_nama: '-', harga_beli: null }])"
                 :key="`${row.product_id}-${price.id}`"
                 :ref="el => { if (priceIdx === 0) setRowRef(el, i); }"
                 :data-index="i"
                 class="g-row"
                 :class="{
                   'g-row--active': selectedRowIndex === i,
-                  'g-row--lowstok': price.stok <= 3,
+                  'g-row--lowstok': row.prices.length > 0 && price.stok <= 3,
                 }"
-                @click="selectedRowIndex = i"
+                @click="onRowClick(row, i)"
                 @dblclick="openEdit(row)"
               >
-                <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-no">
+                <td v-if="priceIdx === 0" :rowspan="Math.max(1, row.prices.length)" class="col-no">
                   {{ (currentPage - 1) * PAGE_SIZE + i + 1 }}
                 </td>
-                <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-kode">
+                <td v-if="priceIdx === 0" :rowspan="Math.max(1, row.prices.length)" class="col-kode">
                   <span class="kode-badge">{{ row.kode }}</span>
                 </td>
-                <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-nama">
+                <td v-if="priceIdx === 0" :rowspan="Math.max(1, row.prices.length)" class="col-nama">
                   <span class="nama-text">{{ row.nama }}</span>
                   <span v-if="row.deskripsi" class="deskripsi-text">{{ row.deskripsi }}</span>
                 </td>
                 <td class="col-stok">
-                  <span class="stok-val" :class="{ 'stok-low': price.stok <= 3 }">
+                  <span class="stok-val" :class="{ 'stok-low': row.prices.length > 0 && price.stok <= 3 }">
                     {{ price.stok }} {{ row.satuan }}
                   </span>
                 </td>
@@ -129,7 +129,7 @@
                   <span class="supplier-chip">{{ price.supplier_nama }}</span>
                 </td>
                 <td class="col-harga">
-                  <span class="harga-val">{{ formatRp(price.harga_beli) }}</span>
+                  <span class="harga-val">{{ price.harga_beli == null ? '-' : formatRp(price.harga_beli) }}</span>
                 </td>
 
               </tr>
@@ -293,14 +293,14 @@
                   @keydown.tab.prevent="focusFirstSupplier"
                 >
                   <!-- Previews -->
-                  <div v-if="form.foto_urls.length > 0" class="photo-preview-grid">
-                    <div v-for="(url, idx) in form.foto_urls" :key="url" class="photo-preview-item">
-                      <img :src="url" :alt="`Foto ${idx + 1}`" class="photo-preview-img" />
+                  <div v-if="displayedFotos.length > 0" class="photo-preview-grid">
+                    <div v-for="(photo, idx) in displayedFotos" :key="photo.key" class="photo-preview-item">
+                      <img :src="photo.url" :alt="`Foto ${idx + 1}`" class="photo-preview-img" />
                       <button
                         v-if="!isStockOnlyEdit"
                         type="button"
                         class="photo-remove-btn"
-                        @click="removeFoto(idx)"
+                        @click="removeFoto(photo)"
                         title="Hapus foto"
                       >
                         <i class="pi pi-times"></i>
@@ -310,9 +310,8 @@
 
                   <!-- Upload trigger -->
                   <div
-                    v-if="!isStockOnlyEdit && form.foto_urls.length < 3"
+                    v-if="!isStockOnlyEdit && displayedFotos.length < 3"
                     class="photo-upload-area"
-                    @click="triggerFileInput"
                   >
                     <input
                       ref="fileInput"
@@ -323,9 +322,38 @@
                       @change="handleFileSelect"
                       :disabled="photoUpload.uploading"
                     />
+                    <input
+                      ref="fileInputCamera"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      class="photo-file-input"
+                      @change="handleFileSelect"
+                      :disabled="photoUpload.uploading"
+                    />
+                    <div class="photo-upload-actions">
+                      <button
+                        type="button"
+                        class="photo-action-btn photo-action-btn--camera"
+                        @click="triggerCameraInput"
+                        :disabled="photoUpload.uploading"
+                      >
+                        <i class="pi pi-camera"></i>
+                        Ambil Foto
+                      </button>
+                      <button
+                        type="button"
+                        class="photo-action-btn"
+                        @click="triggerFileInput"
+                        :disabled="photoUpload.uploading"
+                      >
+                        <i class="pi pi-upload"></i>
+                        Unggah Foto
+                      </button>
+                    </div>
                     <div class="photo-upload-label">
                       <i class="pi pi-cloud-upload"></i>
-                      <span v-if="!photoUpload.uploading">Klik atau tekan Enter / F1</span>
+                      <span v-if="!photoUpload.uploading">Pilih Ambil Foto atau Unggah Foto · <kbd>F1</kbd> unggah cepat</span>
                       <span v-else class="uploading-text">
                         <i class="pi pi-spin pi-spinner"></i> Mengupload... {{ photoUpload.progress }}%
                       </span>
@@ -787,6 +815,7 @@ const inputDeskripsi = ref(null)
 const photoAreaRef  = ref(null)
 const btnSave       = ref(null)
 const fileInput     = ref(null)
+const fileInputCamera = ref(null)
 const editModeModalRef = ref(null)
 const stockTanggalRef = ref(null)
 const stockPetugasRef = ref(null)
@@ -838,6 +867,7 @@ const photoUpload = reactive({ uploading: false, progress: 0, error: '' })
 const lightbox    = reactive({ show: false, photos: [], currentIndex: 0 })
 const deleteModal  = reactive({ show: false, row: null, saving: false })
 const stockValidation = reactive({ tanggal: '', diubahOleh: '', alasan: '' })
+const pendingFotoFiles = ref([])
 
 
 // ── Computed ───────────────────────────────────────────────
@@ -852,6 +882,21 @@ const selectedRowData = computed(() => {
     return pagedRows.value[selectedRowIndex.value]
   }
   return null
+})
+const displayedFotos = computed(() => {
+  const existing = (form.foto_urls ?? []).map((url, idx) => ({
+    key: `remote-${idx}-${url}`,
+    url,
+    origin: 'remote',
+    index: idx,
+  }))
+  const pending = pendingFotoFiles.value.map((item, idx) => ({
+    key: `pending-${idx}-${item.previewUrl}`,
+    url: item.previewUrl,
+    origin: 'pending',
+    index: idx,
+  }))
+  return [...existing, ...pending]
 })
 const isIdentityOnlyEdit = computed(() => modal.mode === 'edit' && modal.variant === 'identity')
 const isStockOnlyEdit = computed(() => modal.mode === 'edit' && modal.variant === 'stock')
@@ -889,6 +934,13 @@ function makePriceRowDefault(overrides = {}) {
     filteredSuppliers: [], dropdownOpen: false, dropdownIndex: 0,
     stok: 0, harga_beli: 0, ...overrides,
   }
+}
+
+function clearPendingFotoFiles() {
+  for (const item of pendingFotoFiles.value) {
+    if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl)
+  }
+  pendingFotoFiles.value = []
 }
 
 // ── Search / Table ─────────────────────────────────────────
@@ -1037,6 +1089,16 @@ function moveRow(delta) {
   nextTick(() => rowRefs.get(selectedRowIndex.value)?.scrollIntoView({ block: 'nearest' }))
 }
 
+function isMobileViewport() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+}
+
+function onRowClick(row, index) {
+  selectedRowIndex.value = index
+  if (!isMobileViewport()) return
+  openEditModeModal(row)
+}
+
 function prevPage() {
   if (currentPage.value > 1) { currentPage.value--; selectedRowIndex.value = 0 }
 }
@@ -1057,6 +1119,7 @@ function resetForm() {
   form.stok = 0; form.satuan = 'pcs'
   form.prices = [makePriceRowDefault()]
   form.foto_urls = []
+  clearPendingFotoFiles()
   stockValidation.tanggal = ''
   stockValidation.diubahOleh = ''
   stockValidation.alasan = ''
@@ -1151,6 +1214,9 @@ function onEditModeModalKeydown(e) {
 function closeModal({ backToChoice = false } = {}) {
   const reopenChoice = backToChoice && modal.mode === 'edit' && selectedRowData.value
   modal.show = false
+  clearPendingFotoFiles()
+  if (fileInput.value) fileInput.value.value = ''
+  if (fileInputCamera.value) fileInputCamera.value.value = ''
   if (reopenChoice) {
     nextTick(() => openEditModeModal(selectedRowData.value))
   }
@@ -1175,6 +1241,8 @@ function focusField(refName) {
 }
 
 function triggerFileInput() { fileInput.value?.click() }
+
+function triggerCameraInput() { fileInputCamera.value?.click() }
 
 function focusFirstSupplier() {
   if (isIdentityOnlyEdit.value) {
@@ -1362,17 +1430,28 @@ async function compressImage(file, maxSizeKB = 150, maxWidth = 800) {
   })
 }
 
-function removeFoto(index) {
+function removeFoto(photo) {
   if (isStockOnlyEdit.value) return
-  form.foto_urls.splice(index, 1)
+  if (photo?.origin === 'pending') {
+    const pending = pendingFotoFiles.value[photo.index]
+    if (pending?.previewUrl) URL.revokeObjectURL(pending.previewUrl)
+    pendingFotoFiles.value.splice(photo.index, 1)
+  } else {
+    form.foto_urls.splice(photo.index, 1)
+  }
   if (fileInput.value) fileInput.value.value = ''
+  if (fileInputCamera.value) fileInputCamera.value.value = ''
 }
 
 function removeLastFoto() {
   if (isStockOnlyEdit.value) return
-  if (form.foto_urls.length > 0) {
+  if (pendingFotoFiles.value.length > 0) {
+    const last = pendingFotoFiles.value.pop()
+    if (last?.previewUrl) URL.revokeObjectURL(last.previewUrl)
+  } else if (form.foto_urls.length > 0) {
     form.foto_urls.splice(form.foto_urls.length - 1, 1)
     if (fileInput.value) fileInput.value.value = ''
+    if (fileInputCamera.value) fileInputCamera.value.value = ''
   }
 }
 
@@ -1380,7 +1459,7 @@ async function handleFileSelect(event) {
   if (isStockOnlyEdit.value) return
   const files = Array.from(event.target.files || [])
   if (files.length === 0) return
-  const remainingSlots = 3 - form.foto_urls.length
+  const remainingSlots = 3 - (form.foto_urls.length + pendingFotoFiles.value.length)
   if (files.length > remainingSlots) {
     photoUpload.error = `Maksimal 3 foto. Anda hanya bisa menambah ${remainingSlots} foto lagi.`
     toast.add({ severity: 'warn', summary: 'Terlalu Banyak Foto', detail: `Maksimal 3 foto per barang.`, life: 4000 })
@@ -1403,21 +1482,19 @@ async function handleFileSelect(event) {
     return
   }
   photoUpload.error = ''
-  photoUpload.uploading = true
   try {
-    const uploadPromises = files.map(async (file, index) => {
-      const compressedFile = await compressImage(file)
-      return uploadToCloudinary(compressedFile, index, files.length)
-    })
-    const urls = await Promise.all(uploadPromises)
-    form.foto_urls.push(...urls.filter(url => url))
+    const compressedFiles = await Promise.all(files.map(file => compressImage(file)))
+    const newPending = compressedFiles.map(file => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }))
+    pendingFotoFiles.value.push(...newPending)
     if (fileInput.value) fileInput.value.value = ''
-    toast.add({ severity: 'success', summary: 'Upload Berhasil', detail: `${urls.length} foto berhasil diupload.`, life: 3000 })
+    if (fileInputCamera.value) fileInputCamera.value.value = ''
+    toast.add({ severity: 'info', summary: 'Foto Ditambahkan', detail: `${newPending.length} foto siap diupload saat Simpan.`, life: 2600 })
   } catch (error) {
-    photoUpload.error = error.message || 'Gagal mengupload foto.'
-    toast.add({ severity: 'error', summary: 'Upload Gagal', detail: error.message || 'Terjadi kesalahan.', life: 5000 })
-  } finally {
-    photoUpload.uploading = false; photoUpload.progress = 0
+    photoUpload.error = error.message || 'Gagal menyiapkan foto.'
+    toast.add({ severity: 'error', summary: 'Foto Gagal Diproses', detail: error.message || 'Terjadi kesalahan.', life: 5000 })
   }
 }
 
@@ -1452,12 +1529,25 @@ async function submitModal() {
     const totalStok = form.prices.reduce((sum, pr) => {
       return pr.supplier_id ? sum + (pr.stok ?? 0) : sum
     }, 0)
+
+    let uploadedPendingUrls = []
+    if (pendingFotoFiles.value.length > 0) {
+      photoUpload.uploading = true
+      photoUpload.progress = 0
+      const filesToUpload = pendingFotoFiles.value.map(item => item.file)
+      uploadedPendingUrls = await Promise.all(
+        filesToUpload.map((file, index) => uploadToCloudinary(file, index, filesToUpload.length))
+      )
+    }
+
+    const finalFotoUrls = [...form.foto_urls, ...uploadedPendingUrls].filter(Boolean)
+
     const payload = {
       kode: form.kode.trim(),
       nama: form.nama.trim().toUpperCase(),
       deskripsi: form.deskripsi.trim() || null,
       stok: totalStok,
-      foto_urls: form.foto_urls.length > 0 ? form.foto_urls : null,
+      foto_urls: finalFotoUrls.length > 0 ? finalFotoUrls : null,
       aktif: true,
     }
     let productId = form.id
@@ -1488,6 +1578,8 @@ async function submitModal() {
     modal.error = err.message
   } finally {
     modal.saving = false
+    photoUpload.uploading = false
+    photoUpload.progress = 0
   }
 }
 
@@ -1624,6 +1716,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('keydown', onGlobalEscModal)
   window.removeEventListener('keydown', onLightboxKey)
+  clearPendingFotoFiles()
 })
 
 watch(allRows, () => { currentPage.value = 1 })

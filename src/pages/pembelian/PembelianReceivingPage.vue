@@ -2,8 +2,8 @@
   <div class="pembelian-receiving-page" ref="pageEl" tabindex="-1">
     <div class="search-card">
       <div class="form-header">
-        <h1 class="form-header-title">Receiving Pembelian</h1>
-        <p class="form-header-subtitle">Cari no order, validasi barang masuk, lalu konfirmasi</p>
+        <h1 class="form-header-title">Penerimaan Barang Pembelian</h1>
+        <p class="form-header-subtitle">Cari nomor order, validasi barang masuk, lalu konfirmasi</p>
       </div>
       <div class="search-body">
         <div class="search-input-wrap">

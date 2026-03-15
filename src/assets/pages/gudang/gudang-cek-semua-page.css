@@ -424,6 +424,10 @@
 .btn-archive:disabled { opacity: .6; cursor: not-allowed; }
 
 @media (max-width: 768px) {
+  .table-wrap {
+    overflow-x: hidden;
+  }
+
   .g-header-badge {
     align-self: flex-start;
     font-size: .74rem;
@@ -444,13 +448,42 @@
   }
 
   .cs-table {
-    min-width: 760px;
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
   }
+
+  .cs-table .col-kode {
+    display: none;
+  }
+
+  .cs-table .col-no { width: 34px; }
+  .cs-table .col-stok { width: 72px; }
+  .cs-table .col-supplier { width: 98px; }
+  .cs-table .col-harga { width: 88px; }
 
   .cs-table th,
   .cs-table td {
-    padding: .5rem .55rem;
-    font-size: .73rem;
+    padding: .44rem .4rem;
+    font-size: .66rem;
+    white-space: normal;
+  }
+
+  .cs-table .col-nama {
+    word-break: break-word;
+  }
+
+  .supplier-chip {
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .62rem;
+    padding: .1rem .3rem;
+  }
+
+  .deskripsi-text {
+    display: none;
   }
 
   .photo-inline-cell {

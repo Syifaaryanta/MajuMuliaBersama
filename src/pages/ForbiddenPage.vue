@@ -5,7 +5,7 @@
         <i class="pi pi-lock"></i>
       </div>
       <h1 class="forbidden-code">403</h1>
-      <h2 class="forbidden-title">Akses Ditolak</h2>
+      <h2 class="forbidden-title">Akses Tidak Diizinkan</h2>
       <p class="forbidden-desc">
         Anda tidak memiliki izin untuk mengakses halaman ini.<br>
         Silakan hubungi administrator jika ini merupakan kesalahan.

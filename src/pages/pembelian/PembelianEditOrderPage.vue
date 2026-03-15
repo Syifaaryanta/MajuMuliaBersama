@@ -2,8 +2,8 @@
   <div class="pembelian-edit-page" ref="pageEl" tabindex="-1">
     <div class="search-card" v-if="formVisible">
       <div class="form-header">
-        <h1 class="form-header-title">Edit Order Pembelian</h1>
-        <p class="form-header-subtitle">Cari no order lalu Enter untuk edit barang</p>
+        <h1 class="form-header-title">Pemutakhiran Order Pembelian</h1>
+        <p class="form-header-subtitle">Masukkan nomor order lalu tekan Enter untuk memuat data</p>
       </div>
       <div class="search-body">
         <div class="search-input-wrap">
@@ -29,7 +29,7 @@
 
     <div v-if="order && !formVisible" class="form-card">
       <div class="form-header">
-        <h1 class="form-header-title">Edit {{ order.no_order }}</h1>
+        <h1 class="form-header-title">Pemutakhiran {{ order.no_order }}</h1>
         
       </div>
 

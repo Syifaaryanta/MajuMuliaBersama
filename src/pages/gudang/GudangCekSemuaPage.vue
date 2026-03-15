@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Cek Semua Barang</h1>
-        <p class="g-subtitle">Daftar lengkap semua produk di gudang</p>
+        <h1 class="g-title">Daftar Inventori Gudang</h1>
+        <p class="g-subtitle">Ringkasan lengkap seluruh produk aktif di gudang</p>
       </div>
       <div v-if="!loading && allRows.length" class="g-header-badge">
         <i class="pi pi-box"></i>
@@ -103,7 +103,7 @@
                   'g-row--active-sub': selectedRowIndex === i && priceIdx > 0,
                   'g-row--sub':        selectedRowIndex !== i && priceIdx > 0,
                 }"
-                @click="selectRow(i)"
+                @click="onRowClick(row, i)"
                 @dblclick="viewDetail(row)"
               >
                 <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-no" style="vertical-align: middle;">
@@ -380,6 +380,13 @@ function setRowRef(el, index) {
 // ───────────────────────────────────────────────────────────
 function selectRow(i) {
   selectedRowIndex.value = i
+}
+
+function onRowClick(row, i) {
+  selectedRowIndex.value = i
+  if (window.innerWidth <= 768) {
+    viewDetail(row)
+  }
 }
 
 function moveRow(delta) {

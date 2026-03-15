@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Archive Barang</h1>
-        <p class="g-subtitle">Barang yang diarsipkan · tidak tampil di halaman lain</p>
+        <h1 class="g-title">Arsip Produk</h1>
+        <p class="g-subtitle">Produk nonaktif yang tidak tampil pada operasional harian</p>
       </div>
       <div v-if="!loading && allRows.length" class="g-header-badge">
         <i class="pi pi-inbox"></i>

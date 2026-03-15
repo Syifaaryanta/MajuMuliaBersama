@@ -258,9 +258,27 @@
 }
 
 /* ── RESPONSIVE ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .result-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .45rem;
+    padding: .7rem .82rem;
+  }
+
+  .result-meta-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .table-wrap {
+    border-radius: 10px;
+  }
+}
+
 @media (max-width: 600px) {
   .g-table {
-    min-width: 640px;
+    min-width: 560px;
   }
 
   .col-kode { 
@@ -285,5 +303,34 @@
 
   .harga-val {
     font-size: .82rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .g-table {
+    min-width: 520px;
+    font-size: .7rem;
+  }
+
+  .g-table th,
+  .g-table td {
+    padding: .48rem .42rem;
+    font-size: .68rem;
+  }
+
+  .table-wrap {
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  }
+
+  .result-meta {
+    font-size: .76rem;
+    padding: .62rem .7rem;
+  }
+
+  .stok-val,
+  .supplier-chip,
+  .kode-badge {
+    font-size: .64rem;
   }
 }

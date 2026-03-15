@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Customer</h1>
-        <p class="g-subtitle">Kelola data customer</p>
+        <h1 class="g-title">Master Customer</h1>
+        <p class="g-subtitle">Kelola profil, kontak, dan limit kredit customer</p>
       </div>
       <button class="btn-primary" @click="openAdd" title="Tambah Customer (Alt+N)">
         <i class="pi pi-plus"></i>

@@ -4,8 +4,8 @@
     <!-- ── SEARCH CARD ──────────────────────────────────── -->
     <div class="search-card" v-if="formVisible">
       <div class="form-header">
-        <h1 class="form-header-title">Edit Order Penjualan</h1>
-        <p class="form-header-subtitle">Cari dan edit order yang sudah ada </p>
+        <h1 class="form-header-title">Pemutakhiran Order Penjualan</h1>
+        <p class="form-header-subtitle">Cari dan perbarui order penjualan yang sudah tersimpan</p>
       </div>
       <div class="search-body">
         <div class="search-input-wrap">
@@ -61,8 +61,8 @@
     <div v-if="order && !loading" class="form-card">
       <div class="form-header">
         <div class="form-header-content">
-          <h1 class="form-header-title">Edit Informasi Order</h1>
-          <p class="form-header-subtitle">No. Order: {{ order.no_order }}</p>
+          <h1 class="form-header-title">Pemutakhiran Informasi Order</h1>
+          <p class="form-header-subtitle">Nomor Order: {{ order.no_order }}</p>
         </div>
         <div class="form-header-info">
           <div class="info-item">

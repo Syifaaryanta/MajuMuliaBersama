@@ -4,8 +4,8 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Manajemen Gudang</h1>
-        <p class="g-subtitle">Pengelolaan inventori & data produk</p>
+        <h1 class="g-title">Operasional Gudang</h1>
+        <p class="g-subtitle">Pengelolaan inventori, harga, dan data produk</p>
       </div>
     </div>
 
@@ -16,7 +16,7 @@
         :key="option.id"
         class="menu-card"
         :class="{ 'menu-card--active': selectedIndex === index }"
-        @click="selectOption(index)"
+        @click="onCardClick(option, index)"
         @dblclick="navigateToOption(option)"
       >
         <div class="menu-card-icon">
@@ -179,6 +179,11 @@ async function loadStats() {
 // ───────────────────────────────────────────────────────────
 function selectOption(index) {
   selectedIndex.value = index
+}
+
+function onCardClick(option, index) {
+  selectedIndex.value = index
+  navigateToOption(option)
 }
 
 function navigateToOption(option) {

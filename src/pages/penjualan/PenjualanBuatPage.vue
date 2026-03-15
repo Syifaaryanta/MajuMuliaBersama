@@ -4,8 +4,8 @@
     <!-- ── FORM CARD WITH HEADER ─────────────────────────────────────── -->
     <div class="form-card">
       <div class="form-header">
-        <h1 class="form-header-title">Buat Order Penjualan</h1>
-        <p class="form-header-subtitle">Step 1: Informasi Order & Customer</p>
+        <h1 class="form-header-title">Pembuatan Order Penjualan</h1>
+        <p class="form-header-subtitle">Tahap 1: Lengkapi informasi order dan pelanggan</p>
       </div>
       <form @submit.prevent="submitOrder" class="order-form">
         
@@ -242,9 +242,9 @@
             <i class="pi pi-times"></i>
             Batal
           </button>
-          <button type="submit" class="btn-primary" :disabled="!canProceed">
+          <button type="submit" class="btn-primary" :disabled="!canProceed || submitInProgress">
             <i class="pi pi-arrow-right"></i>
-            Lanjut ke Input Barang
+            {{ submitInProgress ? 'Menyimpan Draft...' : 'Lanjut ke Input Barang' }}
           </button>
         </div>
 
@@ -345,6 +345,7 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
+import { buildSalesDraftFingerprint } from '@/lib/orderDedupe'
 
 const router = useRouter()
 
@@ -394,6 +395,8 @@ const addCustomerModal = reactive({
   show: false,
   saving: false,
 })
+
+const submitInProgress = ref(false)
 
 const addCustomerForm = reactive({
   nama: '',
@@ -848,6 +851,8 @@ function showInfo(field) {
 // FORM SUBMIT
 // ───────────────────────────────────────────────────────────
 async function submitOrder() {
+  if (submitInProgress.value) return
+
   if (!canProceed.value) {
     alert('Mohon lengkapi data customer terlebih dahulu')
     return
@@ -864,26 +869,87 @@ async function submitOrder() {
     if (!confirm) return
   }
 
-  try {
-    // Create draft order in database
-    const { data: sale, error: saleError } = await supabase
-      .from('sales')
-      .insert([{
-        order_date: parseDateInput(form.order_date),
-        customer_id: selectedCustomer.value.id,
-        customer_nama: selectedCustomer.value.nama,
-        customer_alamat: selectedCustomer.value.alamat,
-        customer_telp: selectedCustomer.value.no_telp,
-        diantar: form.diantar,
-        limit_bulan: form.limit_bulan,
-        salesman: form.salesman,
-        subtotal: 0,
-        status: 'draft',
-      }])
-      .select()
-      .single()
+  const draftPayload = {
+    order_date: parseDateInput(form.order_date),
+    customer_id: selectedCustomer.value.id,
+    customer_nama: selectedCustomer.value.nama,
+    customer_alamat: selectedCustomer.value.alamat,
+    customer_telp: selectedCustomer.value.no_telp,
+    diantar: form.diantar,
+    limit_bulan: form.limit_bulan,
+    salesman: form.salesman,
+    subtotal: 0,
+    status: 'draft',
+  }
 
-    if (saleError) throw saleError
+  const requestFingerprint = buildSalesDraftFingerprint({
+    orderDate: draftPayload.order_date,
+    customerId: draftPayload.customer_id,
+    diantar: draftPayload.diantar,
+    limitBulan: draftPayload.limit_bulan,
+    salesman: draftPayload.salesman,
+  })
+
+  submitInProgress.value = true
+
+  try {
+    let sale = null
+    let supportsRequestFingerprint = true
+
+    const { data: existingDraft, error: existingDraftError } = await supabase
+      .from('sales')
+      .select('id, no_order, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+      .eq('request_fingerprint', requestFingerprint)
+      .eq('status', 'draft')
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (existingDraftError) {
+      if (String(existingDraftError.message || '').toLowerCase().includes('request_fingerprint')) {
+        supportsRequestFingerprint = false
+      } else {
+        throw existingDraftError
+      }
+    }
+
+    if (supportsRequestFingerprint && existingDraft) {
+      sale = existingDraft
+    } else {
+      const insertPayload = supportsRequestFingerprint
+        ? { ...draftPayload, request_fingerprint: requestFingerprint }
+        : draftPayload
+
+      const { data: newSale, error: saleError } = await supabase
+        .from('sales')
+        .insert([insertPayload])
+        .select('id, no_order, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+        .single()
+
+      if (saleError) {
+        if (
+          supportsRequestFingerprint &&
+          (saleError.code === '23505' || String(saleError.message || '').toLowerCase().includes('duplicate'))
+        ) {
+          const { data: duplicateDraft, error: duplicateError } = await supabase
+            .from('sales')
+            .select('id, no_order, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+            .eq('request_fingerprint', requestFingerprint)
+            .eq('status', 'draft')
+            .order('id', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (duplicateError) throw duplicateError
+          if (!duplicateDraft) throw saleError
+          sale = duplicateDraft
+        } else {
+          throw saleError
+        }
+      } else {
+        sale = newSale
+      }
+    }
 
     // Save to session storage with sale_id
     const orderData = {
@@ -909,6 +975,8 @@ async function submitOrder() {
   } catch (err) {
     console.error('[submitOrder]', err)
     alert('Gagal membuat draft order: ' + err.message)
+  } finally {
+    submitInProgress.value = false
   }
 }
 

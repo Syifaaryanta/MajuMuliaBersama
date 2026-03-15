@@ -68,6 +68,38 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.filter-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.filter-chip-wrap {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.btn-filter {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.75rem;
+}
+
 .search-sequential {
   display: flex;
   gap: 0.75rem;
@@ -117,6 +149,50 @@
   background: #f9fafb;
   color: #9ca3af;
   cursor: not-allowed;
+}
+
+.modal-box--filter {
+  max-width: 620px;
+}
+
+.modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.modal-helper {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.filter-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.filter-full {
+  grid-column: 1 / -1;
+}
+
+.optional-note {
+  margin-left: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  color: #94a3b8;
+}
+
+.modal-error-inline {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  padding: 0.55rem 0.7rem;
 }
 
 .search-divider {
@@ -589,4 +665,117 @@
   color: #64748b;
   font-weight: 600;
   font-size: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .75rem;
+    padding: .95rem 1rem;
+  }
+
+  .page-header-title {
+    font-size: 1.15rem;
+  }
+
+  .page-header .btn-secondary {
+    width: 100%;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  .search-bar {
+    padding: .9rem;
+  }
+
+  .filter-summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .55rem;
+  }
+
+  .filter-chip-wrap {
+    width: 100%;
+    gap: .35rem;
+  }
+
+  .filter-chip {
+    font-size: .67rem;
+    padding: .24rem .52rem;
+  }
+
+  .btn-filter {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .filter-modal-grid {
+    grid-template-columns: 1fr;
+    gap: .7rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-table {
+    font-size: .78rem;
+  }
+
+  .detail-table th,
+  .detail-table td {
+    padding: .58rem .62rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .penjualan-list-page {
+    gap: .75rem;
+  }
+
+  .page-header {
+    padding: .82rem .82rem;
+  }
+
+  .page-header-title {
+    font-size: 1rem;
+  }
+
+  .search-bar {
+    padding: .75rem;
+  }
+
+  .search-input,
+  .clear-btn,
+  .btn-filter {
+    min-height: 38px;
+    font-size: .76rem;
+  }
+
+  .search-label {
+    font-size: .64rem;
+  }
+
+  .customer-name {
+    font-size: .73rem;
+  }
+
+  .customer-addr,
+  .item-row-nama,
+  .item-more,
+  .items-empty,
+  .item-qty-val {
+    font-size: .64rem;
+  }
+
+  .order-badge,
+  .status-badge {
+    font-size: .62rem;
+    min-width: 58px;
+  }
+
+  .penjualan-list-page .result-meta {
+    padding: .62rem .72rem;
+  }
 }
