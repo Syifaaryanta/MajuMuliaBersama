@@ -197,6 +197,10 @@
   background: #f0fdf4;
 }
 
+.item-row--extra-charge {
+  background: #fffbeb;
+}
+
 .item-row--warning {
   background: #fef3c7;
 }
@@ -320,12 +324,15 @@
 
 .price-input-wrap {
   position: relative;
-  display: flex;
-  align-items: center;
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .price-input-wrap .price-input {
-  padding-right: 2.5rem;
+  padding-right: 0.75rem;
 }
 
 .price-info-btn {
@@ -381,6 +388,25 @@
   border-radius: 0.2rem;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
   font-family: 'Courier New', monospace;
+}
+
+.table-left-note {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem 0;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.table-left-note-label {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.table-left-note-value {
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .table-footer {
@@ -660,6 +686,35 @@
   opacity: 0.4;
 }
 
+.confirm-help {
+  margin-bottom: 1rem;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.confirm-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.confirm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.confirm-field label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.confirm-field-full {
+  margin-bottom: 0.25rem;
+}
+
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   .penjualan-input-page {
@@ -693,5 +748,9 @@
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-start;
+  }
+
+  .confirm-form-grid {
+    grid-template-columns: 1fr;
   }
 }

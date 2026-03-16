@@ -49,7 +49,7 @@
     <div v-else-if="!hasActiveSearch" class="empty-state">
       <i class="pi pi-search"></i>
       <p>Ketik kata kunci di search bar untuk menampilkan data barang.</p>
-      <p class="empty-sub">Contoh: calya, terios, filter udara, fitting.</p>
+      <p class="empty-sub"></p>
     </div>
 
     <!-- ── EMPTY ─────────────────────────────────────────── -->
@@ -265,22 +265,45 @@ const filteredRows = computed(() => {
   const qLoose = normalizeLooseSearch(q)
   const qTokens = qLoose.split(' ').filter(Boolean)
 
-  const startsWithRows = []
-  const containsRows = []
+  const matches = []
 
-  for (const row of allRows.value) {
+  allRows.value.forEach((row, idx) => {
     const raw = row.searchRaw
     const loose = row.searchLoose
+    const namaRaw = row.searchNamaRaw
+    const namaLoose = row.searchNamaLoose
 
-    const startsWith = raw.startsWith(q) || loose.startsWith(qLoose)
-    const contains = raw.includes(q) || loose.includes(qLoose)
-    const tokenMatch = qTokens.length > 0 && qTokens.every(t => loose.includes(t))
+    const namaStartsWith = namaRaw.startsWith(q) || namaLoose.startsWith(qLoose)
+    const allStartsWith = raw.startsWith(q) || loose.startsWith(qLoose)
+    const namaContains = namaRaw.includes(q) || namaLoose.includes(qLoose)
+    const allContains = raw.includes(q) || loose.includes(qLoose)
+    const namaTokenMatch = qTokens.length > 0 && qTokens.every(t => namaLoose.includes(t))
+    const allTokenMatch = qTokens.length > 0 && qTokens.every(t => loose.includes(t))
 
-    if (startsWith) startsWithRows.push(row)
-    else if (contains || tokenMatch) containsRows.push(row)
-  }
+    let rank = -1
+    if (namaStartsWith) rank = 0
+    else if (allStartsWith) rank = 1
+    else if (namaContains) rank = 2
+    else if (allContains) rank = 3
+    else if (namaTokenMatch) rank = 4
+    else if (allTokenMatch) rank = 5
 
-  return [...startsWithRows, ...containsRows]
+    if (rank === -1) return
+
+    const namaPos = qLoose ? namaLoose.indexOf(qLoose) : -1
+    const allPos = qLoose ? loose.indexOf(qLoose) : -1
+    const phrasePos = namaPos >= 0 ? namaPos : (allPos >= 0 ? allPos : Number.MAX_SAFE_INTEGER)
+
+    matches.push({ row, rank, phrasePos, idx })
+  })
+
+  matches.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank
+    if (a.phrasePos !== b.phrasePos) return a.phrasePos - b.phrasePos
+    return a.idx - b.idx
+  })
+
+  return matches.map(m => m.row)
 })
 
 const hasActiveSearch = computed(() => normalizeSearch(searchQuery.value).length > 0)
@@ -351,6 +374,8 @@ async function loadAllProducts() {
         foto_urls:  p.foto_urls ?? [],
         searchRaw: normalizeSearch(`${p.kode ?? ''} ${p.nama ?? ''}`),
         searchLoose: normalizeLooseSearch(`${p.kode ?? ''} ${p.nama ?? ''}`),
+        searchNamaRaw: normalizeSearch(`${p.nama ?? ''}`),
+        searchNamaLoose: normalizeLooseSearch(`${p.nama ?? ''}`),
         prices: activePrices.length
           ? activePrices.map(pp => ({
               id:            pp.id,

@@ -21,7 +21,23 @@
               v-model="form.no_order"
               type="text"
               class="form-input"
-              placeholder="Auto generate saat save"
+              placeholder="Auto generate: 26001"
+              readonly
+              disabled
+            />
+          </div>
+
+          <!-- No Fraktur -->
+          <div class="form-row">
+            <label class="form-label">
+              <i class="pi pi-receipt"></i>
+              No. Fraktur
+            </label>
+            <input
+              type="text"
+              class="form-input"
+              :value="form.no_faktur"
+              placeholder="Auto saat order disimpan final"
               readonly
               disabled
             />
@@ -370,6 +386,7 @@ const salesOptions = ['A', 'B', 'C', 'D', 'E']
 
 const form = reactive({
   no_order: '',
+  no_faktur: '',
   order_date: formatDateInput(new Date()),
   customer_id: null,
   diantar: true,
@@ -898,7 +915,7 @@ async function submitOrder() {
 
     const { data: existingDraft, error: existingDraftError } = await supabase
       .from('sales')
-      .select('id, no_order, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+      .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
       .eq('request_fingerprint', requestFingerprint)
       .eq('status', 'draft')
       .order('id', { ascending: false })
@@ -923,7 +940,7 @@ async function submitOrder() {
       const { data: newSale, error: saleError } = await supabase
         .from('sales')
         .insert([insertPayload])
-        .select('id, no_order, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+        .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
         .single()
 
       if (saleError) {
@@ -933,7 +950,7 @@ async function submitOrder() {
         ) {
           const { data: duplicateDraft, error: duplicateError } = await supabase
             .from('sales')
-            .select('id, no_order, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+            .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
             .eq('request_fingerprint', requestFingerprint)
             .eq('status', 'draft')
             .order('id', { ascending: false })
@@ -955,6 +972,7 @@ async function submitOrder() {
     const orderData = {
       sale_id: sale.id,
       no_order: sale.no_order,
+      no_faktur: sale.no_faktur,
       order_date: form.order_date,
       customer: {
         id: selectedCustomer.value.id,

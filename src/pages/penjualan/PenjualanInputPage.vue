@@ -19,6 +19,10 @@
               </strong>
             </div>
             <div class="info-col">
+              <label>No. Fraktur:</label>
+              <strong>{{ orderData.no_faktur || 'Auto saat simpan final' }}</strong>
+            </div>
+            <div class="info-col">
               <label>Tanggal:</label>
               <strong>{{ orderData.order_date }}</strong>
             </div>
@@ -120,14 +124,6 @@
                       @input="updateItemPrice(idx, $event)"
                       @keydown="handleTableKeydown($event, idx, 'price')"
                     />
-                    <button 
-                      class="price-info-btn" 
-                      @click="showPriceInfo(item)"
-                      title="Info harga (F4)"
-                      tabindex="-1"
-                    >
-                      <i class="pi pi-info-circle"></i>
-                    </button>
                   </div>
                 </td>
                 <td class="col-total">
@@ -144,9 +140,35 @@
                 </td>
               </tr>
 
+              <!-- Optional Extra Charge Row (from F10 confirmation form) -->
+              <tr v-if="showExtraChargeRow" class="item-row item-row--extra-charge">
+                <td class="col-no">{{ items.length + 1 }}</td>
+                <td class="col-kode">—</td>
+                <td class="col-nama">
+                  <div class="item-info">
+                    <span class="item-nama">{{ extraForm.chargeDescription || 'Biaya Tambahan' }}</span>
+                  </div>
+                </td>
+                <td class="col-qty">—</td>
+                <td class="col-price">
+                  <div class="price-input-wrap">
+                    <input
+                      type="text"
+                      class="price-input"
+                      :value="formatNumber(extraChargeAmount)"
+                      readonly
+                    />
+                  </div>
+                </td>
+                <td class="col-total">
+                  <span class="total-val">{{ formatRp(extraChargeAmount) }}</span>
+                </td>
+                <td class="col-action">—</td>
+              </tr>
+
               <!-- New Item Row -->
               <tr class="item-row item-row--new" ref="newItemRow">
-                <td class="col-no">{{ items.length + 1 }}</td>
+                <td class="col-no">{{ items.length + (showExtraChargeRow ? 2 : 1) }}</td>
                 <td class="col-kode" colspan="2">
                   <div class="search-input-wrap">
                     <input
@@ -188,14 +210,6 @@
                       @keydown.enter="addItem"
                       disabled
                     />
-                    <button
-                      class="price-info-btn"
-                      @click="showPriceInfoPreview"
-                      title="Info harga (F4)"
-                      tabindex="-1"
-                    >
-                      <i class="pi pi-info-circle"></i>
-                    </button>
                   </div>
                 </td>
                 <td class="col-total">
@@ -219,12 +233,13 @@
 
         <!-- Shortcut Hints -->
         <div class="shortcuts-bar">
-          <kbd>Esc</kbd>
-          <kbd>Y</kbd>
-          <kbd>F10</kbd>
-          <kbd>↑↓←→</kbd>
-          <kbd>Del</kbd>
+          <kbd>F10 Simpan</kbd>
           <kbd>F4</kbd>
+        </div>
+
+        <div v-if="showSenderNote" class="table-left-note">
+          <span class="table-left-note-label">Keterangan:</span>
+          <span class="table-left-note-value">{{ extraForm.senderName }}</span>
         </div>
 
         <!-- Subtotal -->
@@ -389,6 +404,76 @@
       </Transition>
     </Teleport>
 
+    <!-- ═══════════════════════════════════════════════════════
+         MODAL KONFIRMASI F10
+    ═══════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="confirmModal.show" class="modal-overlay" @click.self="confirmModal.show = false">
+          <div class="modal-box modal-box--md" role="dialog">
+            <div class="modal-header modal-header--blue">
+              <div class="modal-header-icon">
+                <i class="pi pi-check-circle"></i>
+              </div>
+              <h3 class="modal-title">Konfirmasi Simpan Order</h3>
+              <button class="modal-close" @click="confirmModal.show = false" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="confirm-help">Pastikan data sudah benar. Isi form di bawah opsional.</p>
+
+              <div class="confirm-form-grid">
+                <div class="confirm-field">
+                  <label>Keterangan Biaya</label>
+                  <input
+                    ref="confirmChargeDescInput"
+                    v-model="extraForm.chargeDescription"
+                    type="text"
+                    class="search-modal-input"
+                    placeholder="Contoh: Pengiriman"
+                    @keydown.enter.prevent="onConfirmDescEnter"
+                  />
+                </div>
+                <div class="confirm-field">
+                  <label>Harga Biaya</label>
+                  <input
+                    ref="confirmChargeAmountInput"
+                    :value="extraForm.chargeAmountInput"
+                    type="text"
+                    class="search-modal-input"
+                    placeholder="Contoh: 60000"
+                    @input="onChargeAmountInput"
+                    @keydown.enter.prevent="onConfirmAmountEnter"
+                  />
+                </div>
+              </div>
+
+              <div class="confirm-field confirm-field-full">
+                <label>Keterangan Pengirim</label>
+                <input
+                  ref="confirmSenderInput"
+                  v-model="extraForm.senderName"
+                  type="text"
+                  class="search-modal-input"
+                  placeholder="Contoh: Kencana"
+                  @keydown.enter.prevent="onConfirmSubmit"
+                />
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" @click="onConfirmCancel" :disabled="saving">
+                Batal (ke Draft)
+              </button>
+              <button class="btn-primary" @click="onConfirmSubmit" :disabled="saving">
+                Konfirmasi Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </div>
 </template>
 
@@ -408,6 +493,9 @@ const inputQty = ref(null)
 const inputPrice = ref(null)
 const productModalInput = ref(null)
 const newItemRow = ref(null)
+const confirmChargeDescInput = ref(null)
+const confirmChargeAmountInput = ref(null)
+const confirmSenderInput = ref(null)
 
 // ───────────────────────────────────────────────────────────
 // STATE
@@ -457,12 +545,31 @@ const supplierModal = reactive({
   selectedIndex: 0,
 })
 
+const confirmModal = reactive({
+  show: false,
+})
+
+const extraForm = reactive({
+  chargeDescription: '',
+  chargeAmountInput: '',
+  chargeAmount: 0,
+  senderName: '',
+})
+
 // ───────────────────────────────────────────────────────────
 // COMPUTED
 // ───────────────────────────────────────────────────────────
 const subtotal = computed(() => {
-  return items.value.reduce((sum, item) => sum + item.total, 0)
+  return items.value.reduce((sum, item) => sum + item.total, 0) + extraChargeAmount.value
 })
+
+const extraChargeAmount = computed(() => Number(extraForm.chargeAmount || 0))
+
+const showExtraChargeRow = computed(() => {
+  return !!extraForm.chargeDescription.trim() || extraChargeAmount.value > 0
+})
+
+const showSenderNote = computed(() => !!extraForm.senderName.trim())
 
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
@@ -477,6 +584,13 @@ onMounted(() => {
   }
 
   orderData.value = JSON.parse(savedData)
+
+  extraForm.chargeDescription = orderData.value.extra_charge_desc || ''
+  extraForm.chargeAmount = Number(orderData.value.extra_charge_amount || 0)
+  extraForm.chargeAmountInput = extraForm.chargeAmount
+    ? Number(extraForm.chargeAmount).toLocaleString('id-ID')
+    : ''
+  extraForm.senderName = orderData.value.sender_note || ''
   
   window.addEventListener('keydown', onGlobalKey)
   pageEl.value?.focus()
@@ -492,6 +606,14 @@ onUnmounted(() => {
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
   if (productModal.show || priceInfoModal.show || supplierModal.show) return
+
+  if (confirmModal.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      confirmModal.show = false
+    }
+    return
+  }
 
   // Esc: Track for double press to exit without save or single for back with draft
   if (e.key === 'Escape') {
@@ -525,20 +647,11 @@ function onGlobalKey(e) {
     clearTimeout(escTimer.value)
   }
 
-  // Y: Quick save and go to list
-  if ((e.key === 'y' || e.key === 'Y') && !document.activeElement || document.activeElement.tagName !== 'INPUT') {
-    e.preventDefault()
-    if (items.value.length > 0) {
-      submitSale(false) // false = don't print
-    }
-    return
-  }
-
-  // F10: Print and save
+  // F10: Open confirmation popup
   if (e.key === 'F10') {
     e.preventDefault()
-    if (items.value.length > 0) {
-      submitSale(true) // true = print after save
+    if (items.value.length > 0 && !saving.value) {
+      openConfirmModal()
     }
     return
   }
@@ -546,9 +659,50 @@ function onGlobalKey(e) {
   // Ctrl+S: Save
   if (e.ctrlKey && e.key === 's') {
     e.preventDefault()
-    if (items.value.length > 0) submitSale(false)
+    if (items.value.length > 0 && !saving.value) openConfirmModal()
     return
   }
+}
+
+function openConfirmModal() {
+  confirmModal.show = true
+  nextTick(() => {
+    confirmChargeDescInput.value?.focus()
+    confirmChargeDescInput.value?.select?.()
+  })
+}
+
+function onChargeAmountInput(event) {
+  const digits = String(event?.target?.value || '').replace(/\D/g, '')
+  extraForm.chargeAmountInput = digits ? Number(digits).toLocaleString('id-ID') : ''
+  extraForm.chargeAmount = digits ? Number(digits) : 0
+}
+
+async function onConfirmCancel() {
+  if (saving.value) return
+  confirmModal.show = false
+  await saveAsDraft()
+  router.push('/penjualan/draft')
+}
+
+async function onConfirmSubmit() {
+  if (saving.value) return
+  confirmModal.show = false
+  await submitSale(false)
+}
+
+function onConfirmDescEnter() {
+  nextTick(() => {
+    confirmChargeAmountInput.value?.focus()
+    confirmChargeAmountInput.value?.select?.()
+  })
+}
+
+function onConfirmAmountEnter() {
+  nextTick(() => {
+    confirmSenderInput.value?.focus()
+    confirmSenderInput.value?.select?.()
+  })
 }
 
 // ───────────────────────────────────────────────────────────
@@ -725,18 +879,30 @@ async function openProductModal() {
   }
 
   try {
-    const { data, error } = await supabase
+    const qLoose = normalizeLooseSearch(q)
+    const tokens = qLoose.split(' ').filter(Boolean)
+    const tokenConditions = (tokens.length ? tokens : [normalizeSearch(q)])
+      .filter(Boolean)
+      .flatMap(t => [`nama.ilike.%${t}%`, `kode.ilike.%${t}%`])
+
+    let query = supabase
       .from('products')
       .select('*')
-      .or(`nama.ilike.%${q}%,kode.ilike.%${q}%`)
-      .eq('aktif', true)
       .eq('is_archived', false)
       .order('nama')
+      .limit(500)
+
+    if (tokenConditions.length) {
+      query = query.or(tokenConditions.join(','))
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
 
-    productModal.results = data || []
-    productModal.filtered = data || []
+    const ranked = rankProductsByQuery(data || [], q)
+    productModal.results = ranked
+    productModal.filtered = ranked
     productModal.query = ''
     productModal.selectedIndex = 0
     productModal.show = true
@@ -750,13 +916,72 @@ async function openProductModal() {
 }
 
 function filterProductModal() {
-  const q = productModal.query.toLowerCase()
-  productModal.filtered = q
-    ? productModal.results.filter(p =>
-        p.nama.toLowerCase().includes(q) || p.kode.toLowerCase().includes(q)
-      )
-    : productModal.results
+  const q = productModal.query
+  productModal.filtered = q ? rankProductsByQuery(productModal.results, q) : productModal.results
   productModal.selectedIndex = 0
+}
+
+function rankProductsByQuery(rows, query) {
+  const q = normalizeSearch(query)
+  if (!q) return rows
+
+  const qLoose = normalizeLooseSearch(q)
+  const qTokens = qLoose.split(' ').filter(Boolean)
+  const matches = []
+
+  rows.forEach((row, idx) => {
+    const namaRaw = normalizeSearch(row.nama)
+    const namaLoose = normalizeLooseSearch(row.nama)
+    const allRaw = normalizeSearch(`${row.kode || ''} ${row.nama || ''}`)
+    const allLoose = normalizeLooseSearch(`${row.kode || ''} ${row.nama || ''}`)
+
+    const namaStartsWith = namaRaw.startsWith(q) || namaLoose.startsWith(qLoose)
+    const allStartsWith = allRaw.startsWith(q) || allLoose.startsWith(qLoose)
+    const namaContains = namaRaw.includes(q) || namaLoose.includes(qLoose)
+    const allContains = allRaw.includes(q) || allLoose.includes(qLoose)
+    const namaTokenMatch = qTokens.length > 0 && qTokens.every(t => namaLoose.includes(t))
+    const allTokenMatch = qTokens.length > 0 && qTokens.every(t => allLoose.includes(t))
+
+    let rank = -1
+    if (namaStartsWith) rank = 0
+    else if (allStartsWith) rank = 1
+    else if (namaContains) rank = 2
+    else if (allContains) rank = 3
+    else if (namaTokenMatch) rank = 4
+    else if (allTokenMatch) rank = 5
+
+    if (rank === -1) return
+
+    const namaPos = qLoose ? namaLoose.indexOf(qLoose) : -1
+    const allPos = qLoose ? allLoose.indexOf(qLoose) : -1
+    const phrasePos = namaPos >= 0 ? namaPos : (allPos >= 0 ? allPos : Number.MAX_SAFE_INTEGER)
+
+    matches.push({ row, rank, phrasePos, idx, namaLoose })
+  })
+
+  matches.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank
+    if (a.phrasePos !== b.phrasePos) return a.phrasePos - b.phrasePos
+    const namaCompare = a.namaLoose.localeCompare(b.namaLoose)
+    if (namaCompare !== 0) return namaCompare
+    return a.idx - b.idx
+  })
+
+  return matches.map(m => m.row)
+}
+
+function normalizeSearch(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFKC')
+    .trim()
+}
+
+function normalizeLooseSearch(value) {
+  return normalizeSearch(value)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function onProductModalKey(e) {
@@ -1127,6 +1352,8 @@ function focusNextRow(currentIdx, field) {
 // FORM SUBMIT
 // ───────────────────────────────────────────────────────────
 async function submitSale(shouldPrint = false) {
+  if (saving.value) return
+
   if (items.value.length === 0) {
     alert('Tambahkan minimal 1 barang')
     return
@@ -1153,24 +1380,50 @@ async function submitSale(shouldPrint = false) {
 
   try {
     const sale_id = orderData.value.sale_id
+    const normalizedItems = normalizeItemsForSave(items.value)
+    const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0) + extraChargeAmount.value
 
     if (!sale_id) {
       throw new Error('Sale ID tidak ditemukan. Silakan kembali ke Step 1.')
     }
 
-    // Update sales header (from draft to completed)
-    const { error: updateError } = await supabase
-      .from('sales')
-      .update({
-        subtotal: subtotal.value,
-        status: 'completed',
-      })
-      .eq('id', sale_id)
+    if (!normalizedItems.length) {
+      throw new Error('Tidak ada item valid untuk disimpan.')
+    }
 
-    if (updateError) throw updateError
+    // Restore stock for previously saved rows (draft or previous retries)
+    const { data: existingItems, error: existingItemsError } = await supabase
+      .from('sale_items')
+      .select('product_id, qty')
+      .eq('sale_id', sale_id)
 
-    // Insert sale items
-    const itemsPayload = items.value.map(item => ({
+    if (existingItemsError) throw existingItemsError
+
+    for (const existingItem of (existingItems || [])) {
+      const { data: product, error: getError } = await supabase
+        .from('products')
+        .select('stok')
+        .eq('id', existingItem.product_id)
+        .single()
+      if (getError) throw getError
+
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ stok: (product.stok || 0) + existingItem.qty })
+        .eq('id', existingItem.product_id)
+      if (updateError) throw updateError
+    }
+
+    // Always replace items to avoid duplicates
+    const { error: deleteError } = await supabase
+      .from('sale_items')
+      .delete()
+      .eq('sale_id', sale_id)
+
+    if (deleteError) throw deleteError
+
+    // Insert normalized sale items
+    const itemsPayload = normalizedItems.map(item => ({
       sale_id: sale_id,
       product_id: item.product_id,
       product_kode: item.product_kode,
@@ -1186,19 +1439,44 @@ async function submitSale(shouldPrint = false) {
 
     if (itemsError) throw itemsError
 
-    // Deduct stock from warehouse for each item
-    for (const item of items.value) {
+    // Deduct stock from warehouse using normalized rows
+    for (const item of normalizedItems) {
       const { data: product, error: getError } = await supabase
         .from('products')
         .select('stok')
         .eq('id', item.product_id)
         .single()
       if (getError) throw getError
+
       const { error: updateError } = await supabase
         .from('products')
         .update({ stok: Math.max(0, (product.stok || 0) - item.qty) })
         .eq('id', item.product_id)
       if (updateError) throw updateError
+    }
+
+    // Update sales header (from draft to completed)
+    const { data: updatedSale, error: updateError } = await supabase
+      .from('sales')
+      .update({
+        subtotal: normalizedSubtotal,
+        status: 'completed',
+        extra_charge_desc: extraForm.chargeDescription.trim() || null,
+        extra_charge_amount: extraChargeAmount.value || 0,
+        sender_note: extraForm.senderName.trim() || null,
+      })
+      .eq('id', sale_id)
+      .select('no_order, no_faktur, extra_charge_desc, extra_charge_amount, sender_note')
+      .single()
+
+    if (updateError) throw updateError
+
+    if (updatedSale) {
+      orderData.value.no_order = updatedSale.no_order || orderData.value.no_order
+      orderData.value.no_faktur = updatedSale.no_faktur || orderData.value.no_faktur
+      orderData.value.extra_charge_desc = updatedSale.extra_charge_desc || null
+      orderData.value.extra_charge_amount = Number(updatedSale.extra_charge_amount || 0)
+      orderData.value.sender_note = updatedSale.sender_note || null
     }
 
     // Clear session storage
@@ -1207,9 +1485,10 @@ async function submitSale(shouldPrint = false) {
     alert(
       `Order berhasil disimpan!\n\n` +
       `No. Order: ${orderData.value.no_order}\n` +
+      `No. Fraktur: ${orderData.value.no_faktur || '-'}\n` +
       `Customer: ${customer.nama}\n` +
-      `Total: ${formatRp(subtotal.value)}\n` +
-      `Items: ${items.value.length} barang`
+      `Total: ${formatRp(normalizedSubtotal)}\n` +
+      `Items: ${normalizedItems.length} barang`
     )
 
     // Print if requested (F10)
@@ -1240,21 +1519,32 @@ async function saveAsDraft() {
 
   try {
     const sale_id = orderData.value.sale_id
+    const normalizedItems = normalizeItemsForSave(items.value)
+    const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0) + extraChargeAmount.value
+
     if (!sale_id) return
+
+    if (!normalizedItems.length) {
+      sessionStorage.removeItem('penjualan_draft')
+      return
+    }
 
     // Update sales with current items as draft
     const { error: updateError } = await supabase
       .from('sales')
       .update({
-        subtotal: subtotal.value,
+        subtotal: normalizedSubtotal,
         status: 'draft',
+        extra_charge_desc: extraForm.chargeDescription.trim() || null,
+        extra_charge_amount: extraChargeAmount.value || 0,
+        sender_note: extraForm.senderName.trim() || null,
       })
       .eq('id', sale_id)
 
     if (updateError) throw updateError
 
     // Insert/update sale items
-    const itemsPayload = items.value.map(item => ({
+    const itemsPayload = normalizedItems.map(item => ({
       sale_id: sale_id,
       product_id: item.product_id,
       product_kode: item.product_kode,
@@ -1297,7 +1587,7 @@ async function saveAsDraft() {
     if (itemsError) throw itemsError
 
     // Deduct stock from warehouse for each new item
-    for (const item of items.value) {
+    for (const item of normalizedItems) {
       const { data: product, error: getError } = await supabase
         .from('products')
         .select('stok')
@@ -1324,12 +1614,40 @@ function backToStep1() {
   })
 }
 
+function normalizeItemsForSave(rawItems) {
+  const grouped = new Map()
+
+  for (const item of rawItems || []) {
+    const qty = Number(item.qty || 0)
+    const unitPrice = Number(item.unit_price || 0)
+    if (!item.product_id || qty <= 0) continue
+
+    const key = `${item.product_id}::${unitPrice}`
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        product_id: item.product_id,
+        product_kode: item.product_kode,
+        product_nama: item.product_nama,
+        qty: 0,
+        unit_price: unitPrice,
+        total: 0,
+      })
+    }
+
+    const row = grouped.get(key)
+    row.qty += qty
+    row.total = row.qty * row.unit_price
+  }
+
+  return Array.from(grouped.values())
+}
+
 // ───────────────────────────────────────────────────────────
 // HELPERS
 // ───────────────────────────────────────────────────────────
 function generatePreviewOrderNumber() {
   const year = new Date().getFullYear().toString().slice(-2)
-  return `${year}XXXXX (Auto)`
+  return `${year}001 (Auto)`
 }
 
 function parseDateInput(dateStr) {

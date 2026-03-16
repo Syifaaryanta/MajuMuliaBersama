@@ -27,11 +27,27 @@
             v-model="form.no_order"
             type="text"
             class="form-input"
-            placeholder="Auto generate saat save"
+            placeholder="Auto generate: 26001"
             readonly
             disabled
           />
-          <span class="field-hint">Nomor order akan dibuat otomatis</span>
+          <span class="field-hint">Nomor order internal akan dibuat otomatis (contoh: 26001)</span>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            <i class="pi pi-receipt"></i>
+            No. Fraktur
+          </label>
+          <input
+            v-model="form.no_faktur"
+            type="text"
+            class="form-input"
+            placeholder="Auto saat order disimpan final"
+            readonly
+            disabled
+          />
+          <span class="field-hint">Nomor fraktur nota dibuat saat order selesai/siap print</span>
         </div>
 
         <!-- Order Date -->
@@ -393,6 +409,7 @@ const salesOptions = ['A', 'B', 'C', 'D', 'E']
 
 const form = reactive({
   no_order: '',
+  no_faktur: '',
   order_date: formatDateInput(new Date()),
   customer_id: null,
   diantar: true,

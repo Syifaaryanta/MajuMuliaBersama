@@ -62,7 +62,7 @@
       <div class="form-header">
         <div class="form-header-content">
           <h1 class="form-header-title">Pemutakhiran Informasi Order</h1>
-          <p class="form-header-subtitle">Nomor Order: {{ order.no_order }}</p>
+          <p class="form-header-subtitle">No. Order: {{ order.no_order }} · No. Fraktur: {{ order.no_faktur || '-' }}</p>
         </div>
         <div class="form-header-info">
           <div class="info-item">

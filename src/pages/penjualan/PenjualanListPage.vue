@@ -96,6 +96,7 @@
             <td class="col-no">{{ (currentPage - 1) * PAGE_SIZE + idx + 1 }}</td>
             <td class="col-order">
               <span class="order-badge">{{ order.no_order }}</span>
+              <div class="customer-addr">Fraktur: {{ order.no_faktur || '-' }}</div>
             </td>
             <td class="col-date">{{ formatDate(order.order_date) }}</td>
             <td class="col-customer">
@@ -249,6 +250,10 @@
                     <strong>{{ detailModal.order.no_order }}</strong>
                   </div>
                   <div class="detail-item">
+                    <label>No. Fraktur:</label>
+                    <strong>{{ detailModal.order.no_faktur || '-' }}</strong>
+                  </div>
+                  <div class="detail-item">
                     <label>Tanggal:</label>
                     <strong>{{ formatDate(detailModal.order.order_date) }}</strong>
                   </div>
@@ -269,6 +274,17 @@
                   <div class="detail-item">
                     <label>Salesman:</label>
                     <strong>Sales {{ detailModal.order.salesman }}</strong>
+                  </div>
+                  <div class="detail-item" v-if="detailModal.order.extra_charge_desc || Number(detailModal.order.extra_charge_amount || 0) > 0">
+                    <label>Biaya Tambahan:</label>
+                    <strong>
+                      {{ detailModal.order.extra_charge_desc || 'Biaya Tambahan' }}
+                      · {{ formatRp(detailModal.order.extra_charge_amount || 0) }}
+                    </strong>
+                  </div>
+                  <div class="detail-item" v-if="detailModal.order.sender_note">
+                    <label>Keterangan Pengirim:</label>
+                    <strong>{{ detailModal.order.sender_note }}</strong>
                   </div>
                 </div>
               </div>
@@ -317,12 +333,19 @@
                     </tr>
                   </tbody>
                   <tfoot>
+                    <tr v-if="Number(detailModal.order.extra_charge_amount || 0) > 0">
+                      <td colspan="5" class="text-right"><strong>{{ detailModal.order.extra_charge_desc || 'Biaya Tambahan' }}:</strong></td>
+                      <td><strong class="total-value">{{ formatRp(detailModal.order.extra_charge_amount || 0) }}</strong></td>
+                    </tr>
                     <tr>
                       <td colspan="5" class="text-right"><strong>Subtotal:</strong></td>
                       <td><strong class="total-value">{{ formatRp(detailModal.order.subtotal) }}</strong></td>
                     </tr>
                   </tfoot>
                 </table>
+                <p v-if="detailModal.order.sender_note" style="margin-top:0.65rem;color:#475569;font-size:0.86rem;">
+                  <strong style="color:#334155;">Keterangan Pengirim:</strong> {{ detailModal.order.sender_note }}
+                </p>
               </div>
             </div>
             <div class="modal-footer">
@@ -356,6 +379,7 @@
             <div class="modal-body" v-if="printModal.order">
               <div class="print-info">
                 <p><strong>No. Order:</strong> {{ printModal.order.no_order }}</p>
+                <p><strong>No. Fraktur:</strong> {{ printModal.order.no_faktur || '-' }}</p>
                 <p><strong>Customer:</strong> {{ printModal.order.customer_nama }}</p>
                 <p><strong>Total:</strong> {{ formatRp(printModal.order.subtotal) }}</p>
               </div>
@@ -403,6 +427,10 @@
                 <div class="info-row">
                   <span class="info-label">No. Order:</span>
                   <span class="info-value">{{ deleteModal.order.no_order }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">No. Fraktur:</span>
+                  <span class="info-value">{{ deleteModal.order.no_faktur || '-' }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Customer:</span>
@@ -1022,30 +1050,20 @@ async function confirmDelete() {
 
       // Return stock for each item
       for (const item of items || []) {
-        const { error: stockError } = await supabase.rpc('increment_product_stock', {
-          p_product_id: item.product_id,
-          p_qty: item.qty
-        })
+        const { data: product, error: getError } = await supabase
+          .from('products')
+          .select('stok')
+          .eq('id', item.product_id)
+          .single()
 
-        // If RPC doesn't exist, fallback to manual update
-        if (stockError && stockError.code === '42883') {
-          const { data: product, error: getError } = await supabase
-            .from('products')
-            .select('stok')
-            .eq('id', item.product_id)
-            .single()
+        if (getError) throw getError
 
-          if (getError) throw getError
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ stok: (product.stok || 0) + item.qty })
+          .eq('id', item.product_id)
 
-          const { error: updateError } = await supabase
-            .from('products')
-            .update({ stok: (product.stok || 0) + item.qty })
-            .eq('id', item.product_id)
-
-          if (updateError) throw updateError
-        } else if (stockError) {
-          throw stockError
-        }
+        if (updateError) throw updateError
       }
     }
 
