@@ -8,11 +8,9 @@
         <p class="form-header-subtitle">Tahap 1: Lengkapi informasi order dan pelanggan</p>
       </div>
       <form @submit.prevent="submitOrder" class="order-form">
-        
-        <!-- LEFT COLUMN -->
-        <div class="form-col-left">
+        <div class="order-form-grid">
           <!-- No Order -->
-          <div class="form-row">
+          <div class="form-row form-row--compact">
             <label class="form-label">
               <i class="pi pi-hashtag"></i>
               No. Order
@@ -21,14 +19,14 @@
               v-model="form.no_order"
               type="text"
               class="form-input"
-              placeholder="Auto generate: 26001"
+              placeholder="Auto generate"
               readonly
               disabled
             />
           </div>
 
           <!-- No Fraktur -->
-          <div class="form-row">
+          <div class="form-row form-row--compact">
             <label class="form-label">
               <i class="pi pi-receipt"></i>
               No. Fraktur
@@ -44,7 +42,7 @@
           </div>
 
           <!-- Order Date -->
-          <div class="form-row">
+          <div class="form-row form-row--compact">
             <label class="form-label required">
               <i class="pi pi-calendar"></i>
               Tanggal Order
@@ -61,21 +59,20 @@
           </div>
 
           <!-- Customer Search -->
-          <div class="form-row" :class="{ 'form-row--adding': addCustomerModal.show }">
+          <div class="form-row form-row--customer" :class="{ 'form-row--adding': addCustomerModal.show }">
             <label class="form-label required">
               <i class="pi pi-user"></i>
               Customer
             </label>
             
             <!-- Search Input (when not adding customer) -->
-            <div v-if="!addCustomerModal.show && !selectedCustomer" style="position: relative; width: 100%;">
-              <i class="pi pi-search" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; font-size: 0.9rem; z-index: 1;"></i>
+            <div v-if="!addCustomerModal.show && !selectedCustomer" class="customer-search-input-wrap">
+              <i class="pi pi-search customer-search-icon"></i>
               <input
                 ref="inputCustomer"
                 v-model="searchCustomer"
                 type="text"
-                class="form-input"
-                style="padding-left: 2.75rem; width: 100%;"
+                class="form-input customer-search-input"
                 placeholder="Tekan Enter untuk pilih customer..."
                 @focus="focusedField = 'customer'"
                 @blur="onCustomerBlur"
@@ -182,12 +179,9 @@
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- RIGHT COLUMN -->
-        <div class="form-col-right">
           <!-- Pengiriman -->
-          <div class="form-row" :class="{ 'form-row--focused': focusedField === 'pengiriman' }" @click="focusedField = 'pengiriman'">
+          <div class="form-row form-row--option" :class="{ 'form-row--focused': focusedField === 'pengiriman' }" @click="focusedField = 'pengiriman'">
             <label class="form-label">
               <i class="pi pi-truck"></i>
               Pengiriman
@@ -211,7 +205,7 @@
           </div>
 
           <!-- Jatuh Tempo -->
-          <div class="form-row" :class="{ 'form-row--focused': focusedField === 'tempo' }" @click="focusedField = 'tempo'">
+          <div class="form-row form-row--option" :class="{ 'form-row--focused': focusedField === 'tempo' }" @click="focusedField = 'tempo'">
             <label class="form-label">
               <i class="pi pi-clock"></i>
               Jatuh Tempo
@@ -228,25 +222,6 @@
               <label class="radio-option" :class="{ active: form.limit_bulan === 2 }">
                 <input type="radio" :value="2" v-model="form.limit_bulan" @change="onTempoChange" />
                 <span class="radio-label">3 Bulan</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Salesman -->
-          <div class="form-row" :class="{ 'form-row--focused': focusedField === 'salesman' }" @click="focusedField = 'salesman'">
-            <label class="form-label">
-              <i class="pi pi-users"></i>
-              Salesman
-            </label>
-            <div class="radio-group radio-group-wrap">
-              <label 
-                v-for="(sales, idx) in salesOptions" 
-                :key="sales"
-                class="radio-option" 
-                :class="{ active: form.salesman === sales }"
-              >
-                <input type="radio" :value="sales" v-model="form.salesman" @change="onSalesmanChange" />
-                <span class="radio-label">Sales {{ sales }}</span>
               </label>
             </div>
           </div>
@@ -294,7 +269,7 @@
                   @keydown="onCustomerModalKey"
                 />
               </div>
-              <div class="search-modal-results">
+              <div class="search-modal-results" ref="customerModalResultsEl">
                 <div
                   v-for="(item, idx) in customerModal.filtered"
                   :key="item.id"
@@ -372,6 +347,7 @@ const pageEl = ref(null)
 const inputOrderDate = ref(null)
 const inputCustomer = ref(null)
 const customerModalInput = ref(null)
+const customerModalResultsEl = ref(null)
 const addCustomerNameInput = ref(null)
 
 // ───────────────────────────────────────────────────────────
@@ -382,8 +358,6 @@ const searchCustomer = ref('')
 const selectedCustomer = ref(null)
 const justSelectedCustomer = ref(false)
 
-const salesOptions = ['A', 'B', 'C', 'D', 'E']
-
 const form = reactive({
   no_order: '',
   no_faktur: '',
@@ -391,7 +365,6 @@ const form = reactive({
   customer_id: null,
   diantar: true,
   limit_bulan: 0,
-  salesman: 'A',
 })
 
 const customerModal = reactive({
@@ -498,8 +471,6 @@ function onGlobalKey(e) {
       e.preventDefault()
       if (focusedField.value === 'tempo') {
         form.limit_bulan = 0
-      } else if (focusedField.value === 'salesman') {
-        form.salesman = 'A'
       } else {
         form.diantar = true
         focusedField.value = 'pengiriman'
@@ -508,8 +479,6 @@ function onGlobalKey(e) {
       e.preventDefault()
       if (focusedField.value === 'tempo') {
         form.limit_bulan = 1
-      } else if (focusedField.value === 'salesman') {
-        form.salesman = 'B'
       } else {
         form.diantar = false
         focusedField.value = 'pengiriman'
@@ -518,15 +487,7 @@ function onGlobalKey(e) {
       e.preventDefault()
       if (focusedField.value === 'tempo') {
         form.limit_bulan = 2
-      } else if (focusedField.value === 'salesman') {
-        form.salesman = 'C'
       }
-    } else if (e.key === '4' && focusedField.value === 'salesman') {
-      e.preventDefault()
-      form.salesman = 'D'
-    } else if (e.key === '5' && focusedField.value === 'salesman') {
-      e.preventDefault()
-      form.salesman = 'E'
     }
   }
 
@@ -537,16 +498,12 @@ function onGlobalKey(e) {
       e.preventDefault()
       if (focusedField.value === 'pengiriman') {
         focusedField.value = 'tempo'
-      } else if (focusedField.value === 'tempo') {
-        focusedField.value = 'salesman'
       } else if (!focusedField.value && selectedCustomer.value) {
         focusedField.value = 'pengiriman'
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      if (focusedField.value === 'salesman') {
-        focusedField.value = 'tempo'
-      } else if (focusedField.value === 'tempo') {
+      if (focusedField.value === 'tempo') {
         focusedField.value = 'pengiriman'
       }
     }
@@ -560,15 +517,6 @@ function onGlobalKey(e) {
           form.limit_bulan = Math.min(form.limit_bulan + 1, 2)
         } else {
           form.limit_bulan = Math.max(form.limit_bulan - 1, 0)
-        }
-      } else if (focusedField.value === 'salesman') {
-        const salesIndex = salesOptions.indexOf(form.salesman)
-        if (e.key === 'ArrowRight') {
-          const nextIndex = (salesIndex + 1) % salesOptions.length
-          form.salesman = salesOptions[nextIndex]
-        } else {
-          const prevIndex = (salesIndex - 1 + salesOptions.length) % salesOptions.length
-          form.salesman = salesOptions[prevIndex]
         }
       }
     }
@@ -588,8 +536,6 @@ function onGlobalKey(e) {
       if (focusedField.value === 'pengiriman') {
         focusedField.value = 'tempo'
       } else if (focusedField.value === 'tempo') {
-        focusedField.value = 'salesman'
-      } else if (focusedField.value === 'salesman') {
         // Move to submit if all fields completed
         if (canProceed.value) {
           submitOrder()
@@ -669,15 +615,18 @@ function filterCustomerModal() {
       )
     : customerModal.results
   customerModal.selectedIndex = 0
+  nextTick(() => ensureCustomerModalSelectionVisible())
 }
 
 function onCustomerModalKey(e) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     customerModal.selectedIndex = Math.min(customerModal.selectedIndex + 1, customerModal.filtered.length - 1)
+    ensureCustomerModalSelectionVisible()
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     customerModal.selectedIndex = Math.max(customerModal.selectedIndex - 1, 0)
+    ensureCustomerModalSelectionVisible()
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (customerModal.filtered[customerModal.selectedIndex]) {
@@ -690,7 +639,19 @@ function onCustomerModalKey(e) {
     customerModal.show = false
     quickAddCustomer()
   }
-}justSelectedCustomer.value = true
+}
+
+function ensureCustomerModalSelectionVisible() {
+  const container = customerModalResultsEl.value
+  if (!container) return
+
+  const selectedEl = container.children?.[customerModal.selectedIndex]
+  if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+    selectedEl.scrollIntoView({ block: 'nearest' })
+  }
+}
+
+justSelectedCustomer.value = true
   
 
 function selectCustomer(customer) {
@@ -821,11 +782,6 @@ function onTempoChange() {
   pageEl.value?.focus()
 }
 
-function onSalesmanChange() {
-  focusedField.value = 'salesman'
-  pageEl.value?.focus()
-}
-
 function showInfo(field) {
   const infos = {
     pengiriman: {
@@ -841,19 +797,6 @@ function showInfo(field) {
         <p><strong>1 Bulan (0)</strong>: Jatuh tempo 30 hari dari tanggal order</p>
         <p><strong>2 Bulan (1)</strong>: Jatuh tempo 60 hari dari tanggal order</p>
         <p><strong>3 Bulan (2)</strong>: Jatuh tempo 90 hari dari tanggal order</p>
-      `
-    },
-    salesman: {
-      title: 'Info: Salesman',
-      content: `
-        <p>Pilih salesman yang bertanggung jawab untuk order ini:</p>
-        <ul>
-          <li><strong>Sales A (0)</strong></li>
-          <li><strong>Sales B (1)</strong></li>
-          <li><strong>Sales C (2)</strong></li>
-          <li><strong>Sales D (3)</strong></li>
-          <li><strong>Sales E (4)</strong></li>
-        </ul>
       `
     }
   }
@@ -894,7 +837,6 @@ async function submitOrder() {
     customer_telp: selectedCustomer.value.no_telp,
     diantar: form.diantar,
     limit_bulan: form.limit_bulan,
-    salesman: form.salesman,
     subtotal: 0,
     status: 'draft',
   }
@@ -904,7 +846,6 @@ async function submitOrder() {
     customerId: draftPayload.customer_id,
     diantar: draftPayload.diantar,
     limitBulan: draftPayload.limit_bulan,
-    salesman: draftPayload.salesman,
   })
 
   submitInProgress.value = true
@@ -915,7 +856,7 @@ async function submitOrder() {
 
     const { data: existingDraft, error: existingDraftError } = await supabase
       .from('sales')
-      .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+      .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan')
       .eq('request_fingerprint', requestFingerprint)
       .eq('status', 'draft')
       .order('id', { ascending: false })
@@ -940,7 +881,7 @@ async function submitOrder() {
       const { data: newSale, error: saleError } = await supabase
         .from('sales')
         .insert([insertPayload])
-        .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+        .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan')
         .single()
 
       if (saleError) {
@@ -950,7 +891,7 @@ async function submitOrder() {
         ) {
           const { data: duplicateDraft, error: duplicateError } = await supabase
             .from('sales')
-            .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan, salesman')
+            .select('id, no_order, no_faktur, order_date, customer_id, customer_nama, customer_alamat, customer_telp, diantar, limit_bulan')
             .eq('request_fingerprint', requestFingerprint)
             .eq('status', 'draft')
             .order('id', { ascending: false })
@@ -985,7 +926,6 @@ async function submitOrder() {
       },
       diantar: form.diantar,
       limit_bulan: form.limit_bulan,
-      salesman: form.salesman,
     }
 
     sessionStorage.setItem('penjualan_draft', JSON.stringify(orderData))

@@ -34,10 +34,6 @@
               <label>Tempo:</label>
               <strong>{{ (orderData.limit_bulan || 0) + 1 }} Bulan</strong>
             </div>
-            <div class="info-col">
-              <label>Sales:</label>
-              <strong>{{ orderData.salesman }}</strong>
-            </div>
           </div>
           <div class="info-row info-customer">
             <div class="info-col-full">
@@ -76,6 +72,7 @@
                 <th class="col-no">#</th>
                 <th class="col-kode">Kode</th>
                 <th class="col-nama">Nama Barang</th>
+                <th class="col-stock">Stok</th>
                 <th class="col-qty">Qty</th>
                 <th class="col-price">Harga Satuan</th>
                 <th class="col-total">Total</th>
@@ -103,6 +100,7 @@
                     </span>
                   </div>
                 </td>
+                <td class="col-stock">{{ item.stok_available }}</td>
                 <td class="col-qty">
                   <input
                     :ref="el => setQtyRef(el, idx)"
@@ -140,35 +138,58 @@
                 </td>
               </tr>
 
-              <!-- Optional Extra Charge Row (from F10 confirmation form) -->
-              <tr v-if="showExtraChargeRow" class="item-row item-row--extra-charge">
-                <td class="col-no">{{ items.length + 1 }}</td>
+              <!-- Adjustment Rows (Diskon/Biaya/Pengiriman) -->
+              <tr v-for="(adj, adjIdx) in adjustmentRows" :key="adj.id" class="item-row item-row--extra-charge">
+                <td class="col-no">{{ items.length + adjIdx + 1 }}</td>
                 <td class="col-kode">—</td>
                 <td class="col-nama">
                   <div class="item-info">
-                    <span class="item-nama">{{ extraForm.chargeDescription || 'Biaya Tambahan' }}</span>
+                    <span class="item-nama">{{ adj.description }}</span>
                   </div>
                 </td>
+                <td class="col-stock">—</td>
                 <td class="col-qty">—</td>
                 <td class="col-price">
                   <div class="price-input-wrap">
                     <input
                       type="text"
                       class="price-input"
-                      :value="formatNumber(extraChargeAmount)"
+                      :value="formatSignedNumber(adj.amount)"
                       readonly
                     />
                   </div>
                 </td>
                 <td class="col-total">
-                  <span class="total-val">{{ formatRp(extraChargeAmount) }}</span>
+                  <span class="total-val">{{ formatRp(adj.amount) }}</span>
                 </td>
-                <td class="col-action">—</td>
+                <td class="col-action">
+                  <div class="adjustment-actions">
+                    <button
+                      class="btn-icon"
+                      @click="moveAdjustmentUp(adjIdx)"
+                      title="Pindah ke atas"
+                      :disabled="adjIdx === 0"
+                    >
+                      <i class="pi pi-arrow-up"></i>
+                    </button>
+                    <button
+                      class="btn-icon"
+                      @click="moveAdjustmentDown(adjIdx)"
+                      title="Pindah ke bawah"
+                      :disabled="adjIdx === adjustmentRows.length - 1"
+                    >
+                      <i class="pi pi-arrow-down"></i>
+                    </button>
+                    <button class="btn-icon btn-delete" @click="removeAdjustment(adjIdx)" title="Hapus penyesuaian">
+                      <i class="pi pi-times"></i>
+                    </button>
+                  </div>
+                </td>
               </tr>
 
               <!-- New Item Row -->
               <tr class="item-row item-row--new" ref="newItemRow">
-                <td class="col-no">{{ items.length + (showExtraChargeRow ? 2 : 1) }}</td>
+                <td class="col-no">{{ items.length + adjustmentRows.length + 1 }}</td>
                 <td class="col-kode" colspan="2">
                   <div class="search-input-wrap">
                     <input
@@ -176,16 +197,23 @@
                       v-model="newItem.search"
                       type="text"
                       class="item-input"
-                      placeholder="Ketik nama barang & tekan Enter..."
-                      @keydown.enter.prevent="openProductModal"
-                      @keydown.tab.prevent="focusQty"
+                      :class="{ 'item-input--search-mode': productSearchArmed }"
+                      :placeholder="productInputPlaceholder"
+                      @keydown.enter.prevent="onNewItemSearchEnter"
+                      @keydown.tab.prevent="onNewItemSearchTab"
                       @keydown="handleNewItemKeydown($event, 'product')"
                     />
                     <i class="pi pi-search input-icon"></i>
                   </div>
                 </td>
+                <td class="col-stock">
+                  <span v-if="newItem.product_id">{{ newItem.stok_available }}</span>
+                  <span v-else>—</span>
+                </td>
                 <td class="col-qty">
+                  <span v-if="isInlineAdjustmentDraft" class="qty-na">—</span>
                   <input
+                    v-else
                     ref="inputQty"
                     v-model.number="newItem.qty"
                     type="number"
@@ -194,35 +222,40 @@
                     min="1"
                     @keydown.enter="focusPrice"
                     @keydown="handleNewItemKeydown($event, 'qty')"
-                    disabled
+                    :disabled="!newItem.product_id"
                   />
                 </td>
                 <td class="col-price">
                   <div class="price-input-wrap">
                     <input
                       ref="inputPrice"
-                      :value="newItem.unit_price ? formatNumber(newItem.unit_price) : ''"
+                      :value="newItem.unit_price ? formatSignedNumber(newItem.unit_price) : ''"
                       type="text"
                       @keydown="handleNewItemKeydown($event, 'price')"
                       class="price-input"
-                      placeholder="0"
+                      :placeholder="isInlineAdjustmentDraft ? 'Nominal +/- (contoh: -70.000)' : 'Harga satuan barang'"
                       @input="formatNewItemPrice"
-                      @keydown.enter="addItem"
-                      disabled
+                      @keydown.enter="onNewRowPriceEnter"
+                      :disabled="!canInputPrice"
                     />
                   </div>
                 </td>
                 <td class="col-total">
                   <span class="total-val total-preview">
-                    {{ newItem.qty && newItem.unit_price ? formatRp(newItem.qty * newItem.unit_price) : '—' }}
+                    {{ newItem.unit_price ? formatRp(isInlineAdjustmentDraft ? newItem.unit_price : (newItem.qty * newItem.unit_price)) : '—' }}
                   </span>
                 </td>
-                <td class="col-action">—</td>
+                <td class="col-action">
+                  <button v-if="isInlineAdjustmentDraft" class="btn-icon" @click="confirmAdjustmentFromNewRow" title="Konfirmasi penyesuaian">
+                    <i class="pi pi-check"></i>
+                  </button>
+                  <span v-else>—</span>
+                </td>
               </tr>
 
               <!-- Empty State -->
               <tr v-if="items.length === 0" class="empty-row">
-                <td colspan="6" class="empty-cell">
+                <td colspan="8" class="empty-cell">
                   <i class="pi pi-inbox"></i>
                   <p>Belum ada barang. Mulai ketik nama barang di atas.</p>
                 </td>
@@ -233,13 +266,21 @@
 
         <!-- Shortcut Hints -->
         <div class="shortcuts-bar">
-          <kbd>F10 Simpan</kbd>
+          <kbd>F1 Biaya</kbd>
+          <kbd>F2 Barang</kbd>
+          <kbd>F10 Keterangan</kbd>
           <kbd>F4</kbd>
         </div>
 
-        <div v-if="showSenderNote" class="table-left-note">
-          <span class="table-left-note-label">Keterangan:</span>
-          <span class="table-left-note-value">{{ extraForm.senderName }}</span>
+        <div class="table-note-inline">
+          <span class="table-note-inline-label">Keterangan:</span>
+          <input
+            ref="senderInlineInput"
+            v-model="extraForm.senderName"
+            type="text"
+            class="table-note-inline-input"
+            @keydown.enter.prevent="submitFromInlineNote"
+          />
         </div>
 
         <!-- Subtotal -->
@@ -249,6 +290,7 @@
             <span class="subtotal-value">{{ formatRp(subtotal) }}</span>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -257,12 +299,12 @@
     ════════════════════════════════════════════════════ -->
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="productModal.show" class="modal-overlay" @click.self="productModal.show = false">
+        <div v-if="productModal.show" class="modal-overlay" @click.self="closeProductModal">
           <div class="modal-box modal-search" role="dialog">
             <div class="modal-header">
               <i class="pi pi-search"></i>
               <h3 class="modal-title">Pilih Barang</h3>
-              <button class="modal-close" @click="productModal.show = false" tabindex="-1">
+              <button class="modal-close" @click="closeProductModal" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
@@ -279,7 +321,7 @@
                   @keydown="onProductModalKey"
                 />
               </div>
-              <div class="search-modal-results">
+              <div class="search-modal-results" ref="productModalResultsEl">
                 <div
                   v-for="(item, idx) in productModal.filtered"
                   :key="item.id"
@@ -312,12 +354,12 @@
     ════════════════════════════════════════════════════ -->
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="priceInfoModal.show" class="modal-overlay" @click.self="priceInfoModal.show = false">
+        <div v-if="priceInfoModal.show" class="modal-overlay" @click.self="closePriceInfoModal">
           <div class="modal-box modal-box--md" role="dialog">
             <div class="modal-header">
               <i class="pi pi-info-circle"></i>
               <h3 class="modal-title">Info Harga: {{ priceInfoModal.product_nama }}</h3>
-              <button class="modal-close" @click="priceInfoModal.show = false" tabindex="-1">
+              <button class="modal-close" @click="closePriceInfoModal" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
@@ -351,7 +393,7 @@
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn-primary" @click="priceInfoModal.show = false">
+              <button class="btn-primary" @click="closePriceInfoModal">
                 Tutup <kbd>Esc</kbd>
               </button>
             </div>
@@ -405,69 +447,94 @@
     </Teleport>
 
     <!-- ═══════════════════════════════════════════════════════
-         MODAL KONFIRMASI F10
+         MODAL KONFIRMASI PRINT
     ═══════════════════════════════════════════════════════ -->
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="confirmModal.show" class="modal-overlay" @click.self="confirmModal.show = false">
-          <div class="modal-box modal-box--md" role="dialog">
-            <div class="modal-header modal-header--blue">
-              <div class="modal-header-icon">
-                <i class="pi pi-check-circle"></i>
-              </div>
-              <h3 class="modal-title">Konfirmasi Simpan Order</h3>
-              <button class="modal-close" @click="confirmModal.show = false" tabindex="-1">
+        <div v-if="printConfirmModal.show" class="modal-overlay" @click.self="closePrintConfirmModal">
+          <div
+            ref="printConfirmModalBox"
+            class="modal-box modal-box--print-confirm"
+            role="dialog"
+            tabindex="0"
+            @keydown="handlePrintConfirmKeydown"
+          >
+            <div class="modal-header">
+              <i class="pi pi-print"></i>
+              <h3 class="modal-title">Konfirmasi Cetak Nota</h3>
+              <button class="modal-close" @click="closePrintConfirmModal" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
             <div class="modal-body">
-              <p class="confirm-help">Pastikan data sudah benar. Isi form di bawah opsional.</p>
+              <p class="print-confirm-help">
+                Pilih urutan item, lalu pilih aksi: Simpan sebagai Draft (Enter) atau Print (P).
+              </p>
 
-              <div class="confirm-form-grid">
-                <div class="confirm-field">
-                  <label>Keterangan Biaya</label>
-                  <input
-                    ref="confirmChargeDescInput"
-                    v-model="extraForm.chargeDescription"
-                    type="text"
-                    class="search-modal-input"
-                    placeholder="Contoh: Pengiriman"
-                    @keydown.enter.prevent="onConfirmDescEnter"
-                  />
-                </div>
-                <div class="confirm-field">
-                  <label>Harga Biaya</label>
-                  <input
-                    ref="confirmChargeAmountInput"
-                    :value="extraForm.chargeAmountInput"
-                    type="text"
-                    class="search-modal-input"
-                    placeholder="Contoh: 60000"
-                    @input="onChargeAmountInput"
-                    @keydown.enter.prevent="onConfirmAmountEnter"
-                  />
-                </div>
+              <div class="print-sort-options">
+                <button
+                  v-for="(opt, idx) in printSortOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="print-sort-btn"
+                  :class="{ active: idx === printConfirmModal.sortIndex }"
+                  @click="setPrintSortIndex(idx)"
+                >
+                  {{ opt.label }}
+                </button>
               </div>
 
-              <div class="confirm-field confirm-field-full">
-                <label>Keterangan Pengirim</label>
-                <input
-                  ref="confirmSenderInput"
-                  v-model="extraForm.senderName"
-                  type="text"
-                  class="search-modal-input"
-                  placeholder="Contoh: Kencana"
-                  @keydown.enter.prevent="onConfirmSubmit"
-                />
+              <div class="print-preview-table-wrap">
+                <table class="print-preview-table">
+                  <thead>
+                    <tr>
+                      <th>Nama Barang</th>
+                      <th class="text-right">Qty</th>
+                      <th class="text-right">Harga</th>
+                      <th class="text-right">Jumlah</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in sortedPrintItems" :key="`${item.product_id}-${item.product_kode}-${item.unit_price}`">
+                      <td>{{ item.product_nama }}</td>
+                      <td class="text-right">{{ item.qty }}</td>
+                      <td class="text-right">{{ formatRp(item.unit_price) }}</td>
+                      <td class="text-right">{{ formatRp(item.total) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn-secondary" @click="onConfirmCancel" :disabled="saving">
-                Batal (ke Draft)
+              <button class="btn-secondary" @click="closePrintConfirmModal">Batal (Esc)</button>
+              <button class="btn-secondary" @click="confirmSaveFromPrintModal">Simpan Draft (Enter)</button>
+              <button class="btn-primary" @click="printFromConfirmModal">Print (P)</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MODAL KONFIRMASI KELUAR
+    ═══════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="exitConfirmModal.show" class="modal-overlay" @click.self="closeExitConfirmModal">
+          <div class="modal-box modal-box--sm" role="dialog">
+            <div class="modal-header">
+              <i class="pi pi-exclamation-triangle"></i>
+              <h3 class="modal-title">Keluar Dari Input?</h3>
+              <button class="modal-close" @click="closeExitConfirmModal" tabindex="-1">
+                <i class="pi pi-times"></i>
               </button>
-              <button class="btn-primary" @click="onConfirmSubmit" :disabled="saving">
-                Konfirmasi Selesai
-              </button>
+            </div>
+            <div class="modal-body">
+              <p>Data yang sudah diinput akan disimpan sebagai draft. Lanjut keluar?</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" @click="closeExitConfirmModal">Batal</button>
+              <button class="btn-primary" @click="confirmExitAndSaveDraft">Ya, Simpan Draft</button>
             </div>
           </div>
         </div>
@@ -478,7 +545,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 
@@ -492,10 +559,11 @@ const inputProduct = ref(null)
 const inputQty = ref(null)
 const inputPrice = ref(null)
 const productModalInput = ref(null)
+const productModalResultsEl = ref(null)
 const newItemRow = ref(null)
-const confirmChargeDescInput = ref(null)
-const confirmChargeAmountInput = ref(null)
-const confirmSenderInput = ref(null)
+const senderInlineInput = ref(null)
+const priceInfoReturnFocusEl = ref(null)
+const printConfirmModalBox = ref(null)
 
 // ───────────────────────────────────────────────────────────
 // STATE
@@ -545,14 +613,32 @@ const supplierModal = reactive({
   selectedIndex: 0,
 })
 
-const confirmModal = reactive({
+const printConfirmModal = reactive({
+  show: false,
+  sortIndex: 0,
+  saleId: null,
+  payload: null,
+})
+
+const exitConfirmModal = reactive({
   show: false,
 })
 
+const printSortOptions = [
+  { value: 'original', label: 'Urutan Asli' },
+  { value: 'alpha', label: 'Abjad (A-Z)' },
+  { value: 'qty', label: 'Qty Terbanyak' },
+  { value: 'price', label: 'Harga Tertinggi' },
+]
+
+const SALES_HISTORY_DETAIL_KEY = 'penjualan_list_open_no_order'
+const PENJUALAN_FLASH_KEY = 'penjualan_flash_notice'
+
+const productSearchArmed = ref(false)
+const adjustmentRows = ref([])
+const WORKING_STATE_KEY = 'penjualan_input_working_state'
+
 const extraForm = reactive({
-  chargeDescription: '',
-  chargeAmountInput: '',
-  chargeAmount: 0,
   senderName: '',
 })
 
@@ -560,16 +646,54 @@ const extraForm = reactive({
 // COMPUTED
 // ───────────────────────────────────────────────────────────
 const subtotal = computed(() => {
-  return items.value.reduce((sum, item) => sum + item.total, 0) + extraChargeAmount.value
+  return items.value.reduce((sum, item) => sum + item.total, 0) + adjustmentTotal.value
 })
 
-const extraChargeAmount = computed(() => Number(extraForm.chargeAmount || 0))
-
-const showExtraChargeRow = computed(() => {
-  return !!extraForm.chargeDescription.trim() || extraChargeAmount.value > 0
+const adjustmentTotal = computed(() => {
+  return adjustmentRows.value.reduce((sum, row) => sum + Number(row.amount || 0), 0)
 })
 
-const showSenderNote = computed(() => !!extraForm.senderName.trim())
+const isInlineAdjustmentDraft = computed(() => {
+  return !productSearchArmed.value && !newItem.product_id && !!newItem.search.trim()
+})
+
+const canInputPrice = computed(() => {
+  return !!newItem.product_id || isInlineAdjustmentDraft.value
+})
+
+const productInputPlaceholder = computed(() => {
+  if (productSearchArmed.value) {
+    return 'Ketik nama barang lalu Enter'
+  }
+  return 'Ketik keterangan lalu Enter, atau tekan F2 untuk cari barang'
+})
+
+const sortedPrintItems = computed(() => {
+  const rows = (printConfirmModal.payload?.items || []).slice()
+  const sortKey = printSortOptions[printConfirmModal.sortIndex]?.value || 'original'
+
+  if (sortKey === 'original') {
+    return rows
+  }
+
+  if (sortKey === 'qty') {
+    return rows.sort((a, b) => {
+      const qDiff = Number(b.qty || 0) - Number(a.qty || 0)
+      if (qDiff !== 0) return qDiff
+      return String(a.product_nama || '').localeCompare(String(b.product_nama || ''), 'id')
+    })
+  }
+
+  if (sortKey === 'price') {
+    return rows.sort((a, b) => {
+      const pDiff = Number(b.unit_price || 0) - Number(a.unit_price || 0)
+      if (pDiff !== 0) return pDiff
+      return String(a.product_nama || '').localeCompare(String(b.product_nama || ''), 'id')
+    })
+  }
+
+  return rows.sort((a, b) => String(a.product_nama || '').localeCompare(String(b.product_nama || ''), 'id'))
+})
 
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
@@ -585,59 +709,97 @@ onMounted(() => {
 
   orderData.value = JSON.parse(savedData)
 
-  extraForm.chargeDescription = orderData.value.extra_charge_desc || ''
-  extraForm.chargeAmount = Number(orderData.value.extra_charge_amount || 0)
-  extraForm.chargeAmountInput = extraForm.chargeAmount
-    ? Number(extraForm.chargeAmount).toLocaleString('id-ID')
-    : ''
+  const existingExtraDesc = String(orderData.value.extra_charge_desc || '').trim()
+  const existingExtraAmount = Number(orderData.value.extra_charge_amount || 0)
+  if (existingExtraDesc || existingExtraAmount) {
+    adjustmentRows.value = [{
+      id: `adj-${Date.now()}`,
+      description: existingExtraDesc || 'Penyesuaian',
+      amount: existingExtraAmount,
+    }]
+  }
+
   extraForm.senderName = orderData.value.sender_note || ''
+
+  restoreWorkingState()
   
   window.addEventListener('keydown', onGlobalKey)
+  window.addEventListener('beforeunload', handleBeforeUnload)
   pageEl.value?.focus()
   nextTick(() => inputProduct.value?.focus())
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKey)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
+
+watch(
+  () => ({
+    items: items.value,
+    adjustmentRows: adjustmentRows.value,
+    senderName: extraForm.senderName,
+    productSearchArmed: productSearchArmed.value,
+    newItem: {
+      search: newItem.search,
+      product_id: newItem.product_id,
+      product_kode: newItem.product_kode,
+      product_nama: newItem.product_nama,
+      qty: newItem.qty,
+      unit_price: newItem.unit_price,
+      stok_available: newItem.stok_available,
+    },
+  }),
+  () => {
+    persistWorkingState()
+  },
+  { deep: true }
+)
 
 // ───────────────────────────────────────────────────────────
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
-  if (productModal.show || priceInfoModal.show || supplierModal.show) return
-
-  if (confirmModal.show) {
+  if (exitConfirmModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
-      confirmModal.show = false
+      closeExitConfirmModal()
+      return
+    }
+
+    if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
+      e.preventDefault()
+      confirmExitAndSaveDraft()
+      return
+    }
+
+    return
+  }
+
+  if (printConfirmModal.show) {
+    const targetEl = e.target instanceof HTMLElement ? e.target : null
+    if (targetEl && printConfirmModalBox.value?.contains(targetEl)) {
+      return
+    }
+
+    handlePrintConfirmKeydown(e)
+    return
+  }
+
+  if (priceInfoModal.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closePriceInfoModal()
     }
     return
   }
 
-  // Esc: Track for double press to exit without save or single for back with draft
+  if (productModal.show || supplierModal.show) return
+
+  // Esc: show confirm modal for save draft and exit
   if (e.key === 'Escape') {
     e.preventDefault()
-    escPressCount.value++
-    
-    if (escTimer.value) {
-      clearTimeout(escTimer.value)
-    }
-    
-    if (escPressCount.value === 1) {
-      // First Esc - go back to step 1 (save as draft)
-      escTimer.value = setTimeout(() => {
-        backToStep1() // save as draft and go back
-        escPressCount.value = 0
-      }, 300)
-    } else if (escPressCount.value === 2) {
-      // Second Esc within 300ms - save as draft and go to dashboard
-      clearTimeout(escTimer.value)
-      saveAsDraft().then(() => {
-        router.push('/dashboard')
-      })
-      escPressCount.value = 0
-    }
+    openExitConfirmModal()
     return
   }
 
@@ -647,62 +809,329 @@ function onGlobalKey(e) {
     clearTimeout(escTimer.value)
   }
 
-  // F10: Open confirmation popup
+  // F10: focus inline note field
   if (e.key === 'F10') {
     e.preventDefault()
-    if (items.value.length > 0 && !saving.value) {
-      openConfirmModal()
-    }
+    focusInlineNoteInput()
+    return
+  }
+
+  // F1: switch to adjustment mode
+  if (e.key === 'F1') {
+    e.preventDefault()
+    productSearchArmed.value = false
+    focusProductInput()
+    return
+  }
+
+  // F2: active product search mode
+  if (e.key === 'F2') {
+    e.preventDefault()
+    activateProductSearchMode()
     return
   }
 
   // Ctrl+S: Save
   if (e.ctrlKey && e.key === 's') {
     e.preventDefault()
-    if (items.value.length > 0 && !saving.value) openConfirmModal()
+    if ((items.value.length > 0 || adjustmentRows.value.length > 0) && !saving.value) {
+      submitSale(true)
+    }
     return
   }
 }
 
-function openConfirmModal() {
-  confirmModal.show = true
+function focusProductInput() {
+  nextTick(() => inputProduct.value?.focus())
+}
+
+function focusInlineNoteInput() {
   nextTick(() => {
-    confirmChargeDescInput.value?.focus()
-    confirmChargeDescInput.value?.select?.()
+    senderInlineInput.value?.focus()
+    senderInlineInput.value?.setSelectionRange?.(
+      String(extraForm.senderName || '').length,
+      String(extraForm.senderName || '').length,
+    )
   })
 }
 
-function onChargeAmountInput(event) {
-  const digits = String(event?.target?.value || '').replace(/\D/g, '')
-  extraForm.chargeAmountInput = digits ? Number(digits).toLocaleString('id-ID') : ''
-  extraForm.chargeAmount = digits ? Number(digits) : 0
+async function submitFromInlineNote() {
+  if (saving.value) return
+  await submitSale(true)
 }
 
-async function onConfirmCancel() {
+function setPrintSortIndex(index) {
+  printConfirmModal.sortIndex = index
+}
+
+function handlePrintConfirmKeydown(e) {
+  if (!printConfirmModal.show) return
+
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    closePrintConfirmModal()
+    return
+  }
+
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    e.preventDefault()
+    e.stopPropagation()
+    const next = (printConfirmModal.sortIndex + 1) % printSortOptions.length
+    printConfirmModal.sortIndex = next
+    return
+  }
+
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    e.stopPropagation()
+    const prev = (printConfirmModal.sortIndex - 1 + printSortOptions.length) % printSortOptions.length
+    printConfirmModal.sortIndex = prev
+    return
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    e.stopPropagation()
+    confirmSaveFromPrintModal()
+    return
+  }
+
+  if (e.key === 'p' || e.key === 'P') {
+    e.preventDefault()
+    e.stopPropagation()
+    printFromConfirmModal()
+  }
+}
+
+function openPrintConfirmModal(payload) {
+  printConfirmModal.payload = payload
+  printConfirmModal.sortIndex = 0
+  printConfirmModal.saleId = payload?.saleId || null
+  printConfirmModal.show = true
+  nextTick(() => {
+    printConfirmModalBox.value?.focus?.()
+  })
+}
+
+function closePrintConfirmModal() {
+  printConfirmModal.show = false
+  printConfirmModal.payload = null
+  printConfirmModal.saleId = null
+  nextTick(() => {
+    focusInlineNoteInput()
+  })
+}
+
+function goToSalesHistoryDetail(noOrder) {
+  const targetNoOrder = String(noOrder || '').trim()
+  if (!targetNoOrder) {
+    router.push('/penjualan/list')
+    return
+  }
+
+  sessionStorage.setItem(
+    SALES_HISTORY_DETAIL_KEY,
+    JSON.stringify({ noOrder: targetNoOrder, openDetail: true })
+  )
+
+  router.push({
+    path: '/penjualan/list',
+    query: { no_order: targetNoOrder, open_detail: '1' },
+  })
+}
+
+function openExitConfirmModal() {
+  exitConfirmModal.show = true
+}
+
+function closeExitConfirmModal() {
+  exitConfirmModal.show = false
+}
+
+async function confirmExitAndSaveDraft() {
   if (saving.value) return
-  confirmModal.show = false
   await saveAsDraft()
-  router.push('/penjualan/draft')
+  clearWorkingState()
+  exitConfirmModal.show = false
+  router.push('/penjualan')
 }
 
-async function onConfirmSubmit() {
+function handleBeforeUnload() {
+  persistWorkingState()
+}
+
+function persistWorkingState() {
+  if (!orderData.value?.sale_id) return
+
+  const snapshot = {
+    sale_id: orderData.value.sale_id,
+    items: items.value,
+    adjustmentRows: adjustmentRows.value,
+    senderName: extraForm.senderName,
+    productSearchArmed: productSearchArmed.value,
+    newItem: {
+      search: newItem.search,
+      product_id: newItem.product_id,
+      product_kode: newItem.product_kode,
+      product_nama: newItem.product_nama,
+      qty: newItem.qty,
+      unit_price: newItem.unit_price,
+      stok_available: newItem.stok_available,
+    },
+  }
+
+  sessionStorage.setItem(WORKING_STATE_KEY, JSON.stringify(snapshot))
+}
+
+function restoreWorkingState() {
+  const raw = sessionStorage.getItem(WORKING_STATE_KEY)
+  if (!raw) return
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || parsed.sale_id !== orderData.value.sale_id) return
+
+    items.value = Array.isArray(parsed.items) ? parsed.items : []
+    adjustmentRows.value = Array.isArray(parsed.adjustmentRows) ? parsed.adjustmentRows : []
+    extraForm.senderName = parsed.senderName || ''
+    productSearchArmed.value = Boolean(parsed.productSearchArmed)
+
+    if (parsed.newItem) {
+      newItem.search = parsed.newItem.search || ''
+      newItem.product_id = parsed.newItem.product_id || null
+      newItem.product_kode = parsed.newItem.product_kode || ''
+      newItem.product_nama = parsed.newItem.product_nama || ''
+      newItem.qty = Number(parsed.newItem.qty || 1)
+      newItem.unit_price = Number(parsed.newItem.unit_price || 0)
+      newItem.stok_available = Number(parsed.newItem.stok_available || 0)
+    }
+  } catch (err) {
+    console.error('[restoreWorkingState]', err)
+  }
+}
+
+function clearWorkingState() {
+  sessionStorage.removeItem(WORKING_STATE_KEY)
+}
+
+async function confirmSaveFromPrintModal() {
   if (saving.value) return
-  confirmModal.show = false
-  await submitSale(false)
+  const payload = printConfirmModal.payload
+  closePrintConfirmModal()
+
+  const isSaved = await saveAsDraft()
+  if (!isSaved) {
+    alert('Gagal menyimpan draft. Coba lagi.')
+    return
+  }
+
+  clearWorkingState()
+  sessionStorage.removeItem('penjualan_draft')
+  sessionStorage.setItem(
+    PENJUALAN_FLASH_KEY,
+    JSON.stringify({
+      severity: 'success',
+      summary: 'Draft Tersimpan',
+      detail: `No. Order ${payload?.header?.no_order || orderData.value?.no_order || '-'} disimpan sebagai draft.`,
+      life: 3200,
+    })
+  )
+
+  router.push('/penjualan')
 }
 
-function onConfirmDescEnter() {
+function printFromConfirmModal() {
+  const payload = printConfirmModal.payload
+  if (!payload) {
+    closePrintConfirmModal()
+    return
+  }
+
+  const sortedItems = sortedPrintItems.value
+  const html = buildNotaPrintHtml(payload, sortedItems)
+  const win = window.open('', '_blank', 'width=1200,height=760')
+  if (!win) {
+    alert('Popup print diblokir browser. Izinkan popup lalu coba lagi.')
+    return
+  }
+
+  win.document.open()
+  win.document.write(html)
+  win.document.close()
+
+  win.onload = async () => {
+    win.focus()
+    win.print()
+
+    sessionStorage.setItem(
+      PENJUALAN_FLASH_KEY,
+      JSON.stringify({
+        severity: 'success',
+        summary: 'Tersimpan ke Riwayat',
+        detail: `No. Order ${payload?.header?.no_order || orderData.value?.no_order || '-'} tersimpan di Riwayat Transaksi.`,
+        life: 3200,
+      })
+    )
+
+    await router.push('/penjualan')
+  }
+
+  closePrintConfirmModal()
+}
+
+function activateProductSearchMode() {
+  productSearchArmed.value = true
   nextTick(() => {
-    confirmChargeAmountInput.value?.focus()
-    confirmChargeAmountInput.value?.select?.()
+    inputProduct.value?.focus()
+    inputProduct.value?.select?.()
   })
 }
 
-function onConfirmAmountEnter() {
-  nextTick(() => {
-    confirmSenderInput.value?.focus()
-    confirmSenderInput.value?.select?.()
+function closeProductModal() {
+  productModal.show = false
+  productSearchArmed.value = false
+  focusProductInput()
+}
+
+function confirmAdjustmentFromNewRow() {
+  const description = newItem.search.trim()
+  const amount = Number(newItem.unit_price || 0)
+  if (!description) {
+    alert('Isi keterangan penyesuaian, contoh: Pengiriman atau Potongan')
+    return
+  }
+
+  if (!amount) {
+    alert('Isi nominal penyesuaian (boleh negatif untuk potongan)')
+    inputPrice.value?.focus()
+    return
+  }
+
+  adjustmentRows.value.push({
+    id: `adj-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    description,
+    amount,
   })
+
+  resetNewItem()
+  focusProductInput()
+}
+
+function removeAdjustment(index) {
+  adjustmentRows.value.splice(index, 1)
+}
+
+function moveAdjustmentUp(index) {
+  if (index <= 0) return
+  const rows = adjustmentRows.value
+  ;[rows[index - 1], rows[index]] = [rows[index], rows[index - 1]]
+}
+
+function moveAdjustmentDown(index) {
+  const rows = adjustmentRows.value
+  if (index < 0 || index >= rows.length - 1) return
+  ;[rows[index], rows[index + 1]] = [rows[index + 1], rows[index]]
 }
 
 // ───────────────────────────────────────────────────────────
@@ -755,12 +1184,22 @@ function handleNewItemKeydown(e, field) {
   // F4 - Show price info (only in price field)
   if (e.key === 'F4' && field === 'price') {
     e.preventDefault()
-    showPriceInfoPreview()
+    showPriceInfoPreview(e.target)
     return
   }
 
   // Arrow Right - move to next field in new item row
   if (e.key === 'ArrowRight') {
+    if (field === 'product') {
+      e.preventDefault()
+      if (newItem.product_id) {
+        inputQty.value?.focus()
+      } else if (isInlineAdjustmentDraft.value) {
+        inputPrice.value?.focus()
+      }
+      return
+    }
+
     if (field === 'qty' && (e.ctrlKey || e.target.selectionStart === e.target.value.length)) {
       e.preventDefault()
       inputPrice.value?.focus()
@@ -780,6 +1219,21 @@ function handleNewItemKeydown(e, field) {
       return
     }
   }
+
+  // Arrow Down - move to next form in new row
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    if (field === 'product') {
+      if (newItem.product_id) {
+        inputQty.value?.focus()
+      } else if (isInlineAdjustmentDraft.value) {
+        inputPrice.value?.focus()
+      }
+    } else if (field === 'qty') {
+      inputPrice.value?.focus()
+    }
+    return
+  }
 }
 
 function handleTableKeydown(e, rowIdx, field) {
@@ -795,7 +1249,7 @@ function handleTableKeydown(e, rowIdx, field) {
   // F4 - Show price info (only in price field)
   if (e.key === 'F4' && field === 'price') {
     e.preventDefault()
-    showPriceInfo(items.value[rowIdx])
+    showPriceInfo(items.value[rowIdx], e.target)
     return
   }
 
@@ -872,6 +1326,8 @@ function handleTableKeydown(e, rowIdx, field) {
 // PRODUCT SEARCH
 // ───────────────────────────────────────────────────────────
 async function openProductModal() {
+  if (!productSearchArmed.value) return
+
   const q = newItem.search.trim()
   if (!q) {
     alert('Ketik nama barang terlebih dahulu')
@@ -919,6 +1375,7 @@ function filterProductModal() {
   const q = productModal.query
   productModal.filtered = q ? rankProductsByQuery(productModal.results, q) : productModal.results
   productModal.selectedIndex = 0
+  nextTick(() => ensureProductModalSelectionVisible())
 }
 
 function rankProductsByQuery(rows, query) {
@@ -988,21 +1445,34 @@ function onProductModalKey(e) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     productModal.selectedIndex = Math.min(productModal.selectedIndex + 1, productModal.filtered.length - 1)
+    ensureProductModalSelectionVisible()
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     productModal.selectedIndex = Math.max(productModal.selectedIndex - 1, 0)
+    ensureProductModalSelectionVisible()
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (productModal.filtered[productModal.selectedIndex]) {
       selectProduct(productModal.filtered[productModal.selectedIndex])
     }
   } else if (e.key === 'Escape') {
-    productModal.show = false
+    closeProductModal()
+  }
+}
+
+function ensureProductModalSelectionVisible() {
+  const container = productModalResultsEl.value
+  if (!container) return
+
+  const selectedEl = container.children?.[productModal.selectedIndex]
+  if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+    selectedEl.scrollIntoView({ block: 'nearest' })
   }
 }
 
 async function selectProduct(product) {
   productModal.show = false
+  productSearchArmed.value = false
 
   try {
     // Check how many active suppliers this product has
@@ -1074,9 +1544,6 @@ function fillNewItem(product, price) {
   newItem.unit_price = price
   newItem.stok_available = product.stok
   newItem.search = product.nama
-
-  inputQty.value?.removeAttribute('disabled')
-  inputPrice.value?.removeAttribute('disabled')
 
   nextTick(() => {
     inputQty.value?.focus()
@@ -1212,9 +1679,7 @@ function resetNewItem() {
   newItem.qty = 1
   newItem.unit_price = 0
   newItem.stok_available = 0
-  
-  inputQty.value?.setAttribute('disabled', 'disabled')
-  inputPrice.value?.setAttribute('disabled', 'disabled')
+  productSearchArmed.value = false
 }
 
 function removeItem(index) {
@@ -1253,16 +1718,43 @@ function updateItemPrice(index, event) {
 }
 
 function formatNewItemPrice(event) {
-  const rawValue = event.target.value.replace(/\./g, '')
-  const numValue = parseInt(rawValue) || 0
-  event.target.value = formatNumber(numValue)
-  newItem.unit_price = numValue
+  const parsed = parseSignedAmountInput(event.target.value)
+  event.target.value = parsed.display
+  newItem.unit_price = parsed.amount
 }
 
 // Helper functions for price formatting
 function formatNumber(num) {
   if (!num) return '0'
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+function formatSignedNumber(num) {
+  const n = Number(num || 0)
+  if (!n) return ''
+  const absVal = Math.abs(n).toLocaleString('id-ID')
+  return n < 0 ? `-${absVal}` : absVal
+}
+
+function parseSignedAmountInput(raw) {
+  const text = String(raw || '').trim()
+  const isNegative = text.startsWith('-')
+  const digits = text.replace(/\D/g, '')
+
+  if (!digits) {
+    return {
+      amount: 0,
+      display: isNegative ? '-' : '',
+    }
+  }
+
+  const number = Number(digits)
+  const amount = isNegative ? -number : number
+
+  return {
+    amount,
+    display: formatSignedNumber(amount),
+  }
 }
 
 function parseFormattedNumber(str) {
@@ -1274,7 +1766,8 @@ function parseFormattedNumber(str) {
 // ───────────────────────────────────────────────────────────
 // PRICE INFO
 // ───────────────────────────────────────────────────────────
-async function showPriceInfo(item) {
+async function showPriceInfo(item, returnFocusEl = null) {
+  priceInfoReturnFocusEl.value = returnFocusEl || document.activeElement
   priceInfoModal.product_nama = item.product_nama
   priceInfoModal.loading = true
   priceInfoModal.show = true
@@ -1316,7 +1809,7 @@ async function showPriceInfo(item) {
   }
 }
 
-async function showPriceInfoPreview() {
+async function showPriceInfoPreview(returnFocusEl = null) {
   if (!newItem.product_id) {
     alert('Pilih barang terlebih dahulu')
     return
@@ -1324,6 +1817,13 @@ async function showPriceInfoPreview() {
   showPriceInfo({
     product_id: newItem.product_id,
     product_nama: newItem.product_nama,
+  }, returnFocusEl)
+}
+
+function closePriceInfoModal() {
+  priceInfoModal.show = false
+  nextTick(() => {
+    priceInfoReturnFocusEl.value?.focus?.()
   })
 }
 
@@ -1331,11 +1831,66 @@ async function showPriceInfoPreview() {
 // NAVIGATION
 // ───────────────────────────────────────────────────────────
 function focusQty() {
-  inputQty.value?.focus()
+  if (newItem.product_id) {
+    inputQty.value?.focus()
+    return
+  }
+
+  if (isInlineAdjustmentDraft.value) {
+    focusPrice()
+  }
 }
 
 function focusPrice() {
-  inputPrice.value?.focus()
+  if (canInputPrice.value) {
+    inputPrice.value?.focus()
+  }
+}
+
+function onNewItemSearchTab() {
+  if (productSearchArmed.value) {
+    openProductModal()
+    return
+  }
+
+  if (newItem.product_id) {
+    focusQty()
+    return
+  }
+
+  if (isInlineAdjustmentDraft.value) {
+    focusPrice()
+    return
+  }
+
+  if (isInlineAdjustmentDraft.value) {
+    focusPrice()
+  }
+}
+
+function onNewItemSearchEnter() {
+  if (productSearchArmed.value) {
+    openProductModal()
+    return
+  }
+
+  if (isInlineAdjustmentDraft.value && Number(newItem.unit_price || 0) !== 0) {
+    confirmAdjustmentFromNewRow()
+    return
+  }
+
+  if (isInlineAdjustmentDraft.value) {
+    focusPrice()
+  }
+}
+
+function onNewRowPriceEnter() {
+  if (isInlineAdjustmentDraft.value) {
+    confirmAdjustmentFromNewRow()
+    return
+  }
+
+  addItem()
 }
 
 function focusNextRow(currentIdx, field) {
@@ -1381,7 +1936,8 @@ async function submitSale(shouldPrint = false) {
   try {
     const sale_id = orderData.value.sale_id
     const normalizedItems = normalizeItemsForSave(items.value)
-    const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0) + extraChargeAmount.value
+    const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0) + adjustmentTotal.value
+    const extraChargeSnapshot = buildExtraChargeSnapshot()
 
     if (!sale_id) {
       throw new Error('Sale ID tidak ditemukan. Silakan kembali ke Step 1.')
@@ -1461,8 +2017,8 @@ async function submitSale(shouldPrint = false) {
       .update({
         subtotal: normalizedSubtotal,
         status: 'completed',
-        extra_charge_desc: extraForm.chargeDescription.trim() || null,
-        extra_charge_amount: extraChargeAmount.value || 0,
+        extra_charge_desc: extraChargeSnapshot.description,
+        extra_charge_amount: extraChargeSnapshot.amount,
         sender_note: extraForm.senderName.trim() || null,
       })
       .eq('id', sale_id)
@@ -1481,22 +2037,38 @@ async function submitSale(shouldPrint = false) {
 
     // Clear session storage
     sessionStorage.removeItem('penjualan_draft')
+    clearWorkingState()
 
-    alert(
-      `Order berhasil disimpan!\n\n` +
-      `No. Order: ${orderData.value.no_order}\n` +
-      `No. Fraktur: ${orderData.value.no_faktur || '-'}\n` +
-      `Customer: ${customer.nama}\n` +
-      `Total: ${formatRp(normalizedSubtotal)}\n` +
-      `Items: ${normalizedItems.length} barang`
-    )
-
-    // Print if requested (F10)
     if (shouldPrint) {
-      printOrder(sale_id)
+      openPrintConfirmModal({
+        saleId: sale_id,
+        header: {
+          no_order: orderData.value.no_order,
+          no_faktur: orderData.value.no_faktur,
+          order_date: orderData.value.order_date,
+          limit_bulan: Number(orderData.value.limit_bulan || 0),
+        },
+        customer: {
+          nama: customer.nama,
+          kode: customer.kode,
+          alamat: customer.alamat,
+        },
+        senderNote: extraForm.senderName || '',
+        items: normalizedItems,
+        adjustmentRows: adjustmentRows.value.slice(),
+        subtotal: normalizedSubtotal,
+      })
+    } else {
+      alert(
+        `Order berhasil disimpan!\n\n` +
+        `No. Order: ${orderData.value.no_order}\n` +
+        `No. Fraktur: ${orderData.value.no_faktur || '-'}\n` +
+        `Customer: ${customer.nama}\n` +
+        `Total: ${formatRp(normalizedSubtotal)}\n` +
+        `Items: ${normalizedItems.length} barang`
+      )
+      router.push('/penjualan')
     }
-
-    router.push('/penjualan')
   } catch (err) {
     console.error('[submitSale]', err)
     alert('Gagal menyimpan order: ' + err.message)
@@ -1506,27 +2078,26 @@ async function submitSale(shouldPrint = false) {
 }
 
 function printOrder(sale_id) {
-  // TODO: Implement print functionality
-  // For now, just open print dialog
-  window.print()
+  console.log('[printOrder] gunakan alur print modal', sale_id)
 }
 
 async function saveAsDraft() {
-  if (items.value.length === 0) {
+  if (items.value.length === 0 && adjustmentRows.value.length === 0) {
     sessionStorage.removeItem('penjualan_draft')
-    return
+    return true
   }
 
   try {
     const sale_id = orderData.value.sale_id
     const normalizedItems = normalizeItemsForSave(items.value)
-    const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0) + extraChargeAmount.value
+    const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0) + adjustmentTotal.value
+    const extraChargeSnapshot = buildExtraChargeSnapshot()
 
     if (!sale_id) return
 
     if (!normalizedItems.length) {
       sessionStorage.removeItem('penjualan_draft')
-      return
+      return true
     }
 
     // Update sales with current items as draft
@@ -1535,8 +2106,8 @@ async function saveAsDraft() {
       .update({
         subtotal: normalizedSubtotal,
         status: 'draft',
-        extra_charge_desc: extraForm.chargeDescription.trim() || null,
-        extra_charge_amount: extraChargeAmount.value || 0,
+        extra_charge_desc: extraChargeSnapshot.description,
+        extra_charge_amount: extraChargeSnapshot.amount,
         sender_note: extraForm.senderName.trim() || null,
       })
       .eq('id', sale_id)
@@ -1602,8 +2173,10 @@ async function saveAsDraft() {
     }
 
     console.log('Draft saved successfully')
+    return true
   } catch (err) {
     console.error('[saveAsDraft]', err)
+    return false
   }
 }
 
@@ -1640,6 +2213,202 @@ function normalizeItemsForSave(rawItems) {
   }
 
   return Array.from(grouped.values())
+}
+
+function buildExtraChargeSnapshot() {
+  const validRows = adjustmentRows.value
+    .map(row => ({
+      description: String(row.description || '').trim(),
+      amount: Number(row.amount || 0),
+    }))
+    .filter(row => row.description && row.amount !== 0)
+
+  if (!validRows.length) {
+    return {
+      description: null,
+      amount: 0,
+    }
+  }
+
+  return {
+    description: validRows.map((row, idx) => `${idx + 1}. ${row.description}`).join(' | '),
+    amount: validRows.reduce((sum, row) => sum + row.amount, 0),
+  }
+}
+
+function paymentTermLabel(limitBulan) {
+  const bulan = Number(limitBulan || 0) + 1
+  return `${bulan} BULAN`
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function chunkItems(itemsList, size = 15) {
+  const chunks = []
+  for (let i = 0; i < itemsList.length; i += size) {
+    chunks.push(itemsList.slice(i, i + size))
+  }
+  return chunks.length ? chunks : [[]]
+}
+
+function buildNotaPrintHtml(payload, sortedItems) {
+  const adjustmentLines = (payload.adjustmentRows || []).map(row => ({
+    product_kode: '-',
+    product_nama: row.description,
+    qty: '-',
+    unit_price: row.amount,
+    total: row.amount,
+  }))
+
+  const allRows = sortedItems.concat(adjustmentLines)
+  const pages = chunkItems(allRows, 15)
+
+  const pageHtml = pages.map((pageRows, idx) => {
+    const rows = pageRows.map(row => `
+      <tr>
+        <td>${escapeHtml(row.product_kode || '-')}</td>
+        <td>${escapeHtml(row.product_nama || '-')}</td>
+        <td class="text-right">${escapeHtml(row.qty)}</td>
+        <td class="text-right">${escapeHtml(formatRp(Number(row.unit_price || 0)).replace('Rp ', ''))}</td>
+        <td class="text-right">${escapeHtml(formatRp(Number(row.total || 0)).replace('Rp ', ''))}</td>
+      </tr>
+    `).join('')
+
+    return `
+      <section class="nota-page">
+        <div class="nota-head">
+          <div class="title-left">
+            <div class="nama-toko">MAJU MULIA BERSAMA</div>
+            <div class="kota">SEMARANG</div>
+          </div>
+          <div class="title-center">FAKTUR</div>
+          <div class="title-right">
+            <div>No. Faktur: ${escapeHtml(payload.header.no_faktur || '-')}</div>
+            <div>Tanggal: ${escapeHtml(payload.header.order_date || '-')}</div>
+            <div>No. Order: ${escapeHtml(payload.header.no_order || '-')}</div>
+            <div>Salesmen: -</div>
+            <div>Halaman: ${idx + 1}</div>
+          </div>
+        </div>
+
+        <div class="meta-left">
+          <div>Kepada: ${escapeHtml(payload.customer.nama || '-')} (${escapeHtml(payload.customer.kode || '-')})</div>
+          <div>${escapeHtml(payload.customer.alamat || '-')}</div>
+          <div>Pembayaran: ${escapeHtml(paymentTermLabel(payload.header.limit_bulan))}</div>
+        </div>
+
+        <table class="nota-table">
+          <thead>
+            <tr>
+              <th class="col-kode">Kode Barang</th>
+              <th class="col-nama">Nama Barang</th>
+              <th class="col-qty">Qty</th>
+              <th class="col-harga">Harga</th>
+              <th class="col-jumlah">Jumlah</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div class="nota-bottom">
+          <div class="bottom-left">
+            <div>Keterangan: ${escapeHtml(payload.senderNote || '')}</div>
+          </div>
+          <div class="bottom-sign">
+            <div>Dikirim Oleh</div>
+            <div class="sign-line"></div>
+          </div>
+          <div class="bottom-sign">
+            <div>Diterima Oleh</div>
+            <div class="sign-line"></div>
+          </div>
+          <div class="subtotal-box">
+            <div class="subtotal-label">Subtotal</div>
+            <div class="subtotal-val">${escapeHtml(formatRp(payload.subtotal || 0).replace('Rp ', ''))}</div>
+          </div>
+        </div>
+      </section>
+    `
+  }).join('')
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <title>Print Nota ${escapeHtml(payload.header.no_order || '')}</title>
+        <style>
+          @page { size: 23.5cm 14cm; margin: 0; }
+          body {
+            margin: 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12pt;
+            font-weight: bold;
+            color: black;
+          }
+          .nota-page {
+            width: 23.5cm;
+            height: 14cm;
+            box-sizing: border-box;
+            padding: 0.8cm 0.8cm 0.55cm;
+            page-break-after: always;
+          }
+          .nota-page:last-child { page-break-after: auto; }
+          .nota-head {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            align-items: start;
+            margin-bottom: 0.35cm;
+          }
+          .title-center { text-align: center; letter-spacing: 0.22em; }
+          .title-right { justify-self: end; text-align: left; font-size: 9.5pt; }
+          .nama-toko { letter-spacing: 0.08em; }
+          .kota { letter-spacing: 0.32em; font-size: 10pt; }
+          .meta-left { margin-bottom: 0.24cm; font-size: 10pt; line-height: 1.25; }
+          .nota-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+          .nota-table th, .nota-table td { border: 1px solid #000; padding: 0.08cm 0.1cm; }
+          .nota-table td { height: 0.42cm; }
+          .col-kode { width: 18%; }
+          .col-nama { width: 45%; }
+          .col-qty { width: 9%; }
+          .col-harga { width: 14%; }
+          .col-jumlah { width: 14%; }
+          .text-right { text-align: right; }
+          .nota-bottom {
+            margin-top: 0.18cm;
+            display: grid;
+            grid-template-columns: 1.25fr 0.8fr 0.8fr 0.55fr;
+            align-items: end;
+            gap: 0.2cm;
+          }
+          .bottom-left { font-size: 10pt; min-height: 1.1cm; }
+          .bottom-sign { text-align: center; font-size: 10pt; }
+          .sign-line { border-bottom: 1px solid #000; margin-top: 0.65cm; }
+          .subtotal-box {
+            border: 1px solid #000;
+            min-height: 1.1cm;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: right;
+            padding: 0.05cm 0.08cm;
+            font-size: 10pt;
+          }
+          .subtotal-label { font-size: 8.5pt; }
+        </style>
+      </head>
+      <body>${pageHtml}</body>
+    </html>
+  `
 }
 
 // ───────────────────────────────────────────────────────────

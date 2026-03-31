@@ -61,7 +61,6 @@ export function buildSalesDraftFingerprint(payload, bucket = secondBucket()) {
     customer_id: payload.customer_id || null,
     diantar: Boolean(payload.diantar),
     limit_bulan: Number(payload.limit_bulan || 0),
-    salesman: payload.salesman || 'A',
     subtotal: Number(payload.subtotal || 0),
     status: payload.status || 'draft',
   }, bucket)

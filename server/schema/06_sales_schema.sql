@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS sales (
   customer_telp TEXT,                 -- Snapshot telp saat order
   diantar       BOOLEAN       NOT NULL DEFAULT TRUE,  -- TRUE=diantar, FALSE=diambil
   limit_bulan   INTEGER       NOT NULL DEFAULT 0,     -- 0=1 bulan, 1=2 bulan, 2=3 bulan
-  salesman      TEXT          NOT NULL DEFAULT 'A',   -- A, B, C, D, E (hardcoded dulu)
   extra_charge_desc TEXT,
   extra_charge_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
   sender_note   TEXT,
@@ -195,7 +194,6 @@ SELECT
   s.customer_alamat,
   s.diantar,
   s.limit_bulan,
-  s.salesman,
   s.subtotal,
   s.status,
   COUNT(si.id) as total_items,

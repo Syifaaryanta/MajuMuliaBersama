@@ -1,5 +1,6 @@
 <template>
   <div class="penjualan-menu-page" ref="pageEl" tabindex="-1">
+    <Toast position="top-right" />
     
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
@@ -76,10 +77,14 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
+import { useToast } from 'primevue/usetoast'
+import Toast from 'primevue/toast'
 
 const router = useRouter()
+const toast = useToast()
 const pageEl = ref(null)
 const selectedIndex = ref(0)
+const PENJUALAN_FLASH_KEY = 'penjualan_flash_notice'
 
 const menuOptions = [
   {
@@ -252,6 +257,23 @@ function handleKeydown(e) {
 onMounted(() => {
   pageEl.value?.focus()
   window.addEventListener('keydown', handleKeydown)
+  const flashRaw = sessionStorage.getItem(PENJUALAN_FLASH_KEY)
+  if (flashRaw) {
+    try {
+      const flash = JSON.parse(flashRaw)
+      if (flash?.summary) {
+        toast.add({
+          severity: flash.severity || 'success',
+          summary: flash.summary,
+          detail: flash.detail || '',
+          life: Number(flash.life || 3000),
+        })
+      }
+    } catch (err) {
+      console.error('[parse PENJUALAN_FLASH_KEY menu]', err)
+    }
+    sessionStorage.removeItem(PENJUALAN_FLASH_KEY)
+  }
   loadStats()
 })
 

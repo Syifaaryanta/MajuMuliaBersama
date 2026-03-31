@@ -1,5 +1,6 @@
 <template>
   <div class="penjualan-page" ref="pageEl" tabindex="-1">
+    <Toast position="top-right" />
 
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
@@ -179,27 +180,6 @@
             <label class="radio-option" :class="{ active: form.limit_bulan === 2 }">
               <input type="radio" :value="2" v-model="form.limit_bulan" />
               <span class="radio-label">3 Bulan <kbd>2</kbd></span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Salesman -->
-        <div class="form-row" :class="{ 'form-row--focused': focusedField === 'salesman' }">
-          <label class="form-label">
-            <i class="pi pi-users"></i>
-            Salesman
-            <kbd class="label-kbd">↑↓ 0-4</kbd>
-            <kbd class="label-kbd">F4 = Info</kbd>
-          </label>
-          <div class="radio-group">
-            <label 
-              v-for="(sales, idx) in salesOptions" 
-              :key="sales"
-              class="radio-option" 
-              :class="{ active: form.salesman === sales }"
-            >
-              <input type="radio" :value="sales" v-model="form.salesman" />
-              <span class="radio-label">Sales {{ sales }} <kbd>{{ idx }}</kbd></span>
             </label>
           </div>
         </div>
@@ -386,8 +366,12 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
+import { useToast } from 'primevue/usetoast'
+import Toast from 'primevue/toast'
 
 const router = useRouter()
+const toast = useToast()
+const PENJUALAN_FLASH_KEY = 'penjualan_flash_notice'
 
 // ───────────────────────────────────────────────────────────
 // REFS
@@ -405,8 +389,6 @@ const focusedField = ref('')
 const searchCustomer = ref('')
 const selectedCustomer = ref(null)
 
-const salesOptions = ['A', 'B', 'C', 'D', 'E']
-
 const form = reactive({
   no_order: '',
   no_faktur: '',
@@ -414,7 +396,6 @@ const form = reactive({
   customer_id: null,
   diantar: true,
   limit_bulan: 0,
-  salesman: 'A',
 })
 
 const customerModal = reactive({
@@ -461,6 +442,23 @@ const remainingCredit = computed(() => {
 onMounted(() => {
   window.addEventListener('keydown', onGlobalKey)
   pageEl.value?.focus()
+  const flashRaw = sessionStorage.getItem(PENJUALAN_FLASH_KEY)
+  if (flashRaw) {
+    try {
+      const flash = JSON.parse(flashRaw)
+      if (flash?.summary) {
+        toast.add({
+          severity: flash.severity || 'success',
+          summary: flash.summary,
+          detail: flash.detail || '',
+          life: Number(flash.life || 3000),
+        })
+      }
+    } catch (err) {
+      console.error('[parse PENJUALAN_FLASH_KEY]', err)
+    }
+    sessionStorage.removeItem(PENJUALAN_FLASH_KEY)
+  }
   nextTick(() => inputOrderDate.value?.focus())
 })
 
@@ -519,8 +517,6 @@ function onGlobalKey(e) {
       e.preventDefault()
       if (focusedField.value === 'tempo') {
         form.limit_bulan = 0
-      } else if (focusedField.value === 'salesman') {
-        form.salesman = 'A'
       } else {
         form.diantar = false
         focusedField.value = 'pengiriman'
@@ -529,8 +525,6 @@ function onGlobalKey(e) {
       e.preventDefault()
       if (focusedField.value === 'tempo') {
         form.limit_bulan = 1
-      } else if (focusedField.value === 'salesman') {
-        form.salesman = 'B'
       } else {
         form.diantar = true
         focusedField.value = 'pengiriman'
@@ -539,15 +533,7 @@ function onGlobalKey(e) {
       e.preventDefault()
       if (focusedField.value === 'tempo') {
         form.limit_bulan = 2
-      } else if (focusedField.value === 'salesman') {
-        form.salesman = 'C'
       }
-    } else if (e.key === '3' && focusedField.value === 'salesman') {
-      e.preventDefault()
-      form.salesman = 'D'
-    } else if (e.key === '4' && focusedField.value === 'salesman') {
-      e.preventDefault()
-      form.salesman = 'E'
     }
   }
 
@@ -557,16 +543,12 @@ function onGlobalKey(e) {
       e.preventDefault()
       if (focusedField.value === 'pengiriman') {
         focusedField.value = 'tempo'
-      } else if (focusedField.value === 'tempo') {
-        focusedField.value = 'salesman'
       } else if (!focusedField.value && selectedCustomer.value) {
         focusedField.value = 'pengiriman'
       }
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       e.preventDefault()
-      if (focusedField.value === 'salesman') {
-        focusedField.value = 'tempo'
-      } else if (focusedField.value === 'tempo') {
+      if (focusedField.value === 'tempo') {
         focusedField.value = 'pengiriman'
       }
     }
@@ -795,19 +777,6 @@ function showInfo(field) {
         <p><strong>2 Bulan (1)</strong>: Jatuh tempo 60 hari dari tanggal order</p>
         <p><strong>3 Bulan (2)</strong>: Jatuh tempo 90 hari dari tanggal order</p>
       `
-    },
-    salesman: {
-      title: 'Info: Salesman',
-      content: `
-        <p>Pilih salesman yang bertanggung jawab untuk order ini:</p>
-        <ul>
-          <li><strong>Sales A (0)</strong></li>
-          <li><strong>Sales B (1)</strong></li>
-          <li><strong>Sales C (2)</strong></li>
-          <li><strong>Sales D (3)</strong></li>
-          <li><strong>Sales E (4)</strong></li>
-        </ul>
-      `
     }
   }
   
@@ -851,7 +820,6 @@ async function submitOrder() {
     },
     diantar: form.diantar,
     limit_bulan: form.limit_bulan,
-    salesman: form.salesman,
   }
 
   sessionStorage.setItem('penjualan_draft', JSON.stringify(orderData))

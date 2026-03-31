@@ -181,6 +181,11 @@
   overflow: hidden;
 }
 
+.detail-container {
+  border: 1px solid #dbeafe;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.12);
+}
+
 .history-table {
   font-size: 0.8rem;
 }
@@ -198,6 +203,19 @@
   outline: 2px solid #93c5fd;
   outline-offset: -2px;
   background: #eff6ff;
+}
+
+.history-table--master tbody tr {
+  cursor: pointer;
+  transition: background-color 0.16s ease;
+}
+
+.history-table--master tbody tr:hover {
+  background: #f8fbff;
+}
+
+.history-table--master tbody tr.row-selected {
+  background: #dbeafe;
 }
 
 .history-table tbody tr:focus {
@@ -224,6 +242,25 @@
 
 .col-subtotal {
   width: 150px;
+  text-align: right;
+}
+
+.col-item-code {
+  width: 120px;
+}
+
+.col-price {
+  width: 150px;
+  text-align: right;
+}
+
+.col-qty {
+  width: 90px;
+  text-align: center;
+}
+
+.col-total {
+  width: 160px;
   text-align: right;
 }
 
@@ -444,6 +481,10 @@
   padding: 0.75rem 1rem;
 }
 
+.result-meta--detail {
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+}
+
 .table-wrap {
   border: none;
   border-radius: 0;
@@ -499,6 +540,234 @@
 
 .status-badge {
   min-width: 118px;
+}
+
+.history-table--detail th,
+.history-table--detail td {
+  vertical-align: middle;
+}
+
+.history-table--detail .cell-merge {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.cell-money {
+  text-align: right;
+  color: #065f46;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+}
+
+.detail-subtotal-row td {
+  background: #eff6ff;
+  border-top: 2px solid #bfdbfe;
+}
+
+.detail-subtotal-row .subtotal-label {
+  text-align: right;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+/* Purchase history visual refinements */
+.pembelian-history-page {
+  gap: 1.1rem;
+  padding: 0.35rem 0 1.6rem;
+}
+
+.pembelian-history-page .page-header-card {
+  border-radius: 14px;
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.16);
+  overflow: hidden;
+}
+
+.pembelian-history-page .page-header {
+  padding: 1.05rem 1.35rem;
+  align-items: center;
+}
+
+.pembelian-history-page .btn-secondary {
+  border-radius: 10px;
+  border: 1px solid #c7d2fe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.pembelian-history-page .btn-secondary:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.pembelian-history-page .table-container {
+  border-radius: 12px;
+  border: 1px solid #dbe5f3;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.pembelian-history-page .detail-container {
+  border: 1px solid #c7dcff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.14);
+}
+
+.pembelian-history-page .result-meta {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 0.82rem 1rem;
+}
+
+.pembelian-history-page .result-meta--detail {
+  background: linear-gradient(180deg, #e8f1ff 0%, #ffffff 100%);
+}
+
+.pembelian-history-page .result-count {
+  color: #0f172a;
+  font-size: 0.98rem;
+}
+
+.pembelian-history-page .history-table {
+  font-size: 0.84rem;
+  width: 100%;
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+.pembelian-history-page .history-table th,
+.pembelian-history-page .history-table td {
+  padding: 0.72rem 0.82rem;
+  border-bottom: 1px solid #e6edf7;
+}
+
+.pembelian-history-page .history-table thead th {
+  background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%);
+  color: #1e3a8a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+}
+
+.pembelian-history-page .history-table--master .col-no {
+  width: 4%;
+}
+
+.pembelian-history-page .history-table--master .col-order {
+  width: 15%;
+}
+
+.pembelian-history-page .history-table--master .col-date {
+  width: 13%;
+}
+
+.pembelian-history-page .history-table--master .col-supplier-name {
+  width: 24%;
+}
+
+.pembelian-history-page .history-table--master .col-items {
+  width: 12%;
+}
+
+.pembelian-history-page .history-table--master .col-subtotal {
+  width: 17%;
+}
+
+.pembelian-history-page .history-table--master .col-status {
+  width: 15%;
+}
+
+.pembelian-history-page .history-table--detail .col-order {
+  width: 13%;
+}
+
+.pembelian-history-page .history-table--detail .col-item-code {
+  width: 11%;
+}
+
+.pembelian-history-page .history-table--detail .col-supplier-name {
+  width: 20%;
+}
+
+.pembelian-history-page .history-table--detail .col-date {
+  width: 11%;
+}
+
+.pembelian-history-page .history-table--detail .col-price {
+  width: 14%;
+}
+
+.pembelian-history-page .history-table--detail .col-qty {
+  width: 8%;
+}
+
+.pembelian-history-page .history-table--detail .col-total {
+  width: 12%;
+}
+
+.pembelian-history-page .history-table--master tbody tr.row-selected {
+  background: linear-gradient(180deg, #e7f0ff 0%, #dbeafe 100%);
+}
+
+.pembelian-history-page .order-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  border: 1px solid #93c5fd;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.18rem 0.6rem;
+}
+
+.pembelian-history-page .date-chip {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.56rem;
+}
+
+.pembelian-history-page .supplier-name {
+  font-size: 0.86rem;
+}
+
+.pembelian-history-page .item-count {
+  font-size: 0.75rem;
+}
+
+.pembelian-history-page .status-badge {
+  min-width: 126px;
+  border-radius: 9px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+  padding: 0.26rem 0.62rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pembelian-history-page .status-received {
+  border-color: #86efac;
+}
+
+.pembelian-history-page .status-ordered {
+  border-color: #f59e0b;
+}
+
+.pembelian-history-page .subtotal-cell,
+.pembelian-history-page .cell-money {
+  font-size: 0.9rem;
+}
+
+.pembelian-history-page .history-table--detail tbody tr:hover {
+  background: #f9fbff;
+}
+
+.pembelian-history-page .history-table--detail .cell-merge {
+  background: #f8fafc;
+}
+
+.pembelian-history-page .detail-subtotal-row td {
+  background: #eaf2ff;
 }
 
 @media (max-width: 768px) {

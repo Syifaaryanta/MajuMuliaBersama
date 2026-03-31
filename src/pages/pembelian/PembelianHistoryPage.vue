@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <div class="search-bar" v-if="hasSubmittedFilter">
+    <div v-if="showResults" class="search-bar">
       <div class="filter-summary">
         <div class="filter-chip-wrap">
           <span class="filter-chip">
@@ -24,19 +24,15 @@
             Supplier: {{ activeFilterSupplier }}
           </span>
         </div>
-        <button class="btn-secondary btn-filter" @click="openFilterModal" title="Esc">
-          <i class="pi pi-filter"></i>
-          <span>Ubah Filter</span>
-        </button>
       </div>
     </div>
 
-    <div class="table-container" v-if="hasSubmittedFilter">
+    <div v-if="showResults" class="table-container">
       <div class="result-meta">
-        <span class="result-count"><b>{{ filteredRows.length }}</b> order pembelian</span>
+        <span class="result-count"><b>{{ visibleRows.length }}</b> order pembelian</span>
       </div>
       <div class="table-wrap">
-        <table class="g-table history-table">
+        <table class="g-table history-table history-table--master">
           <thead>
             <tr>
               <th class="col-no">#</th>
@@ -48,7 +44,7 @@
               <th class="col-status">Status</th>
             </tr>
           </thead>
-          <tbody v-if="filteredRows.length === 0">
+          <tbody v-if="visibleRows.length === 0">
             <tr>
               <td colspan="7" class="empty-cell">
                 <i class="pi pi-inbox"></i>
@@ -58,12 +54,16 @@
           </tbody>
           <tbody v-else>
             <tr
-              v-for="(row, idx) in filteredRows"
+              v-for="(row, idx) in visibleRows"
               :key="row.no_order"
               :ref="el => setRowRef(el, idx)"
-              :class="{ 'row-focused': focusedRowIndex === idx }"
+              :class="{
+                'row-focused': focusedRowIndex === idx,
+                'row-selected': selectedOrder?.no_order === row.no_order,
+              }"
               :tabindex="focusedRowIndex === idx ? 0 : -1"
               @focus="focusedRowIndex = idx"
+              @click="onMasterRowClick(row, idx)"
             >
               <td class="col-no">{{ idx + 1 }}</td>
               <td><span class="order-badge">{{ row.no_order }}</span></td>
@@ -86,6 +86,52 @@
       </div>
     </div>
 
+    <div v-if="showResults && selectedOrder" class="table-container detail-container">
+      <div class="result-meta result-meta--detail">
+        <span class="result-count"><b>Detail Pembelian:</b> {{ selectedOrder.no_order }}</span>
+      </div>
+      <div class="table-wrap">
+        <table class="g-table history-table history-table--detail">
+          <thead>
+            <tr>
+              <th class="col-order">No. Order</th>
+              <th class="col-item-code">Kode Item</th>
+              <th class="col-supplier-name">Nama Supplier</th>
+              <th class="col-date">Order Date</th>
+              <th class="col-date">Receive Date</th>
+              <th class="col-price">Harga/Pcs</th>
+              <th class="col-qty">QTY</th>
+              <th class="col-total">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, idx) in selectedOrderItems" :key="`${selectedOrder.no_order}-${item.product_id}-${idx}`">
+              <template v-if="idx === 0">
+                <td :rowspan="selectedOrderItems.length" class="cell-merge"><span class="order-badge">{{ selectedOrder.no_order }}</span></td>
+              </template>
+              <td>{{ item.product_kode || '-' }}</td>
+              <template v-if="idx === 0">
+                <td :rowspan="selectedOrderItems.length" class="cell-merge">{{ selectedOrder.supplier?.nama || '-' }}</td>
+              </template>
+              <template v-if="idx === 0">
+                <td :rowspan="selectedOrderItems.length" class="cell-merge"><span class="date-chip">{{ toDateOnly(selectedOrder.order_date) || '-' }}</span></td>
+              </template>
+              <template v-if="idx === 0">
+                <td :rowspan="selectedOrderItems.length" class="cell-merge"><span class="date-chip">{{ toDateOnly(selectedOrder.received_at) || '-' }}</span></td>
+              </template>
+              <td class="cell-money">{{ formatRp(item.unit_cost) }}</td>
+              <td class="cell-center">{{ item.qty || 0 }}</td>
+              <td class="cell-money">{{ formatRp(item.total) }}</td>
+            </tr>
+            <tr class="detail-subtotal-row">
+              <td colspan="7" class="subtotal-label">Subtotal</td>
+              <td class="subtotal-cell">{{ formatRp(selectedOrder.subtotal) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="showFilterModal" class="modal-overlay" @click.self="onFilterOverlayClick">
@@ -100,7 +146,7 @@
             </div>
 
             <div class="modal-body">
-              <p class="modal-helper">Pilih tanggal awal, tanggal akhir, lalu supplier (opsional).</p>
+              <p class="modal-helper">Pilih tanggal awal, tanggal akhir, lalu supplier.</p>
 
               <div class="filter-modal-grid">
                 <div class="search-field">
@@ -111,7 +157,9 @@
                     type="date"
                     class="search-input"
                     required
-                    @keydown.enter.prevent="onStartDateEnter"
+                    @keydown.enter.prevent="focusFilterField(1)"
+                    @keydown.down.prevent="focusFilterField(1)"
+                    @keydown.up.prevent="focusFilterField(2)"
                   />
                 </div>
                 <div class="search-field">
@@ -122,11 +170,13 @@
                     type="date"
                     class="search-input"
                     required
-                    @keydown.enter.prevent="onEndDateEnter"
+                    @keydown.enter.prevent="focusFilterField(2)"
+                    @keydown.down.prevent="focusFilterField(2)"
+                    @keydown.up.prevent="focusFilterField(0)"
                   />
                 </div>
                 <div class="search-field filter-full">
-                  <label class="search-label">Supplier <span class="optional-note">opsional</span></label>
+                  <label class="search-label">Supplier <span class="optional-note"></span></label>
                   <input
                     ref="inputSupplier"
                     v-model="supplierFilter"
@@ -134,6 +184,8 @@
                     class="search-input"
                     placeholder="Contoh: Denso"
                     @keydown.enter.prevent="submitFilter"
+                    @keydown.down.prevent="focusFilterField(0)"
+                    @keydown.up.prevent="focusFilterField(1)"
                   />
                 </div>
               </div>
@@ -170,43 +222,64 @@ const inputSupplier = ref(null)
 const startDate = ref('')
 const endDate = ref('')
 const supplierFilter = ref('')
-const showFilterModal = ref(true)
+const showFilterModal = ref(false)
 const filterError = ref('')
 const activeFilter = ref(null)
 
 const rowRefs = ref([])
 const focusedRowIndex = ref(0)
+const selectedOrderNo = ref('')
 
-const hasSubmittedFilter = computed(() => !!activeFilter.value)
+const showResults = computed(() => !!activeFilter.value)
 const activeFilterSupplier = computed(() => activeFilter.value?.supplier || '')
 const activeFilterLabel = computed(() => {
   if (!activeFilter.value) return ''
   return `${activeFilter.value.startDate} s/d ${activeFilter.value.endDate}`
 })
 
-const dateFilteredRows = computed(() => {
+const filteredRows = computed(() => {
   if (!activeFilter.value) return []
 
   const start = activeFilter.value.startDate
   const end = activeFilter.value.endDate
   const supplier = activeFilter.value.supplier.toLowerCase()
 
-  return orders.value.filter(row => {
-    const orderDate = toDateOnly(row.order_date)
-    const inRange = orderDate >= start && orderDate <= end
-    if (!inRange) return false
-
-    if (!supplier) return true
-    const supplierName = (row.supplier?.nama || '').toLowerCase()
-    return supplierName.includes(supplier)
-  })
-})
-
-const filteredRows = computed(() => {
-  return dateFilteredRows.value
+  return orders.value
+    .filter(row => {
+      const orderDate = toDateOnly(row.order_date)
+      const inRange = orderDate >= start && orderDate <= end
+      if (!inRange) return false
+      if (!supplier) return true
+      const supplierName = (row.supplier?.nama || '').toLowerCase()
+      return supplierName.includes(supplier)
+    })
     .slice()
-    .sort((a, b) => String(toDateOnly(b.order_date)).localeCompare(String(toDateOnly(a.order_date))))
+    .sort((a, b) => {
+      const timeA = new Date(a.order_date || a.created_at || 0).getTime()
+      const timeB = new Date(b.order_date || b.created_at || 0).getTime()
+      return timeB - timeA
+    })
 })
+
+const visibleRows = computed(() => {
+  if (!selectedOrderNo.value) return filteredRows.value
+  return filteredRows.value.filter(row => row.no_order === selectedOrderNo.value)
+})
+
+const selectedOrder = computed(() => {
+  if (!selectedOrderNo.value) return null
+  return filteredRows.value.find(row => row.no_order === selectedOrderNo.value) || null
+})
+
+const selectedOrderItems = computed(() => selectedOrder.value?.items || [])
+
+function toDateOnly(value) {
+  return String(value || '').slice(0, 10)
+}
+
+function formatRp(val) {
+  return 'Rp ' + Number(val || 0).toLocaleString('id-ID')
+}
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
@@ -219,14 +292,6 @@ function setDefaultDateRange() {
   endDate.value = todayIso()
 }
 
-function toDateOnly(value) {
-  return String(value || '').slice(0, 10)
-}
-
-function formatRp(val) {
-  return 'Rp ' + Number(val || 0).toLocaleString('id-ID')
-}
-
 function goToMenu() {
   router.push('/pembelian')
 }
@@ -237,8 +302,8 @@ function setRowRef(el, idx) {
 }
 
 function focusRow(index) {
-  if (!filteredRows.value.length) return
-  const safeIndex = Math.max(0, Math.min(index, filteredRows.value.length - 1))
+  if (!visibleRows.value.length) return
+  const safeIndex = Math.max(0, Math.min(index, visibleRows.value.length - 1))
   focusedRowIndex.value = safeIndex
   nextTick(() => rowRefs.value[safeIndex]?.focus())
 }
@@ -248,18 +313,22 @@ function focusFirstRow() {
   focusRow(0)
 }
 
+function focusFilterField(index) {
+  if (index === 0) {
+    inputStartDate.value?.focus()
+    return
+  }
+  if (index === 1) {
+    inputEndDate.value?.focus()
+    return
+  }
+  inputSupplier.value?.focus()
+}
+
 function openFilterModal() {
   filterError.value = ''
   showFilterModal.value = true
   nextTick(() => inputStartDate.value?.focus())
-}
-
-function onStartDateEnter() {
-  inputEndDate.value?.focus()
-}
-
-function onEndDateEnter() {
-  inputSupplier.value?.focus()
 }
 
 function submitFilter() {
@@ -282,11 +351,12 @@ function submitFilter() {
   }
 
   showFilterModal.value = false
+  selectedOrderNo.value = ''
   focusFirstRow()
 }
 
 function onFilterCancel() {
-  if (!hasSubmittedFilter.value) {
+  if (!showResults.value) {
     goToMenu()
     return
   }
@@ -295,6 +365,20 @@ function onFilterCancel() {
 
 function onFilterOverlayClick() {
   onFilterCancel()
+}
+
+function selectFocusedOrder() {
+  const row = visibleRows.value[focusedRowIndex.value]
+  if (!row) return
+  selectedOrderNo.value = row.no_order
+  focusedRowIndex.value = 0
+}
+
+function onMasterRowClick(row, idx) {
+  focusedRowIndex.value = idx
+  if (!row?.no_order) return
+  selectedOrderNo.value = row.no_order
+  focusedRowIndex.value = 0
 }
 
 function handleKeydown(e) {
@@ -308,12 +392,18 @@ function handleKeydown(e) {
 
   if (e.key === 'Escape') {
     e.preventDefault()
-    openFilterModal()
+    if (selectedOrder.value) {
+      selectedOrderNo.value = ''
+      focusFirstRow()
+      return
+    }
+    goToMenu()
     return
   }
 
   if (e.key === 'F1') {
     e.preventDefault()
+    openFilterModal()
     return
   }
 
@@ -327,6 +417,11 @@ function handleKeydown(e) {
     e.preventDefault()
     focusRow(focusedRowIndex.value - 1)
     return
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    selectFocusedOrder()
   }
 }
 

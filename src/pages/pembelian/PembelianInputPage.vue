@@ -154,8 +154,6 @@
           </table>
         </div>
 
-        <p class="row-delete-hint">Klik Del di row untuk menghapus 1 row.</p>
-
         <div class="table-footer">
           <div class="subtotal-row">
             <span class="subtotal-label">Subtotal:</span>

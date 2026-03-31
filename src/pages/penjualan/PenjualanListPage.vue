@@ -271,10 +271,6 @@
                     <label>Jatuh Tempo:</label>
                     <strong>{{ detailModal.order.limit_bulan + 1 }} Bulan</strong>
                   </div>
-                  <div class="detail-item">
-                    <label>Salesman:</label>
-                    <strong>Sales {{ detailModal.order.salesman }}</strong>
-                  </div>
                   <div class="detail-item" v-if="detailModal.order.extra_charge_desc || Number(detailModal.order.extra_charge_amount || 0) > 0">
                     <label>Biaya Tambahan:</label>
                     <strong>
@@ -478,10 +474,13 @@
 
 <script setup>
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 
 const router = useRouter()
+const route = useRoute()
+
+const SALES_HISTORY_DETAIL_KEY = 'penjualan_list_open_no_order'
 
 // ───────────────────────────────────────────────────────────
 // REFS
@@ -596,9 +595,45 @@ const activeFilterLabel = computed(() => {
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   pageEl.value?.focus()
+
+  const noOrderFromQuery = String(route.query.no_order || '').trim()
+  const openDetailFromQuery = String(route.query.open_detail || '') === '1'
+
+  let noOrderFromSession = ''
+  let openDetailFromSession = false
+  const rawHistoryIntent = sessionStorage.getItem(SALES_HISTORY_DETAIL_KEY)
+  if (rawHistoryIntent) {
+    try {
+      const parsed = JSON.parse(rawHistoryIntent)
+      noOrderFromSession = String(parsed?.noOrder || '').trim()
+      openDetailFromSession = Boolean(parsed?.openDetail)
+    } catch (err) {
+      console.error('[parse SALES_HISTORY_DETAIL_KEY]', err)
+    }
+    sessionStorage.removeItem(SALES_HISTORY_DETAIL_KEY)
+  }
+
+  const targetNoOrder = noOrderFromQuery || noOrderFromSession
+  const shouldOpenDetail = openDetailFromQuery || openDetailFromSession
+
+  if (targetNoOrder) {
+    searchOrderNo.value = targetNoOrder
+    await searchByOrderNo()
+
+    if (shouldOpenDetail) {
+      const exact = orders.value.find(o => String(o.no_order || '').trim() === targetNoOrder)
+      const fallback = orders.value[0]
+      if (exact || fallback) {
+        await viewOrder(exact || fallback)
+      }
+    }
+
+    return
+  }
+
   nextTick(() => {
     inputTglAwal.value?.focus()
   })

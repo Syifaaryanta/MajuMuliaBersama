@@ -7,15 +7,11 @@
         <div class="page-header-left">
           <h1 class="page-header-title">Draft Order Penjualan</h1>
         </div>
-        <button class="btn-secondary" @click="$router.push('/penjualan')" title="Kembali ke Menu (Esc)">
-          <i class="pi pi-arrow-left"></i>
-          <span>Menu</span>
-        </button>
       </div>
     </div>
 
     <!-- ── SEARCH & FILTER BAR ──────────────────────────── -->
-    <div class="search-bar" v-if="formVisible">
+    <div class="search-bar">
       <div class="search-sequential">
         <div class="search-field">
           <label class="search-label">
@@ -27,7 +23,7 @@
             v-model="searchOrderNo"
             type="text"
             class="search-input"
-            placeholder="Kosongkan untuk filter tanggal"
+            placeholder="Tekan F1 lalu ketik no order"
             @keydown.enter="onNoOrderEnter"
             @keydown.esc="clearSearch"
             autocomplete="off"
@@ -44,7 +40,7 @@
             v-model="searchDateStart"
             type="text"
             class="search-input"
-            placeholder="05/03/26"
+            placeholder="Tekan F2 untuk isi default"
             @keydown.enter="onDateStartEnter"
             @keydown.esc="focusNoOrder"
             autocomplete="off"
@@ -61,22 +57,13 @@
             v-model="searchDateEnd"
             type="text"
             class="search-input"
-            placeholder="06/03/26"
+            placeholder="Tekan F2 untuk isi default"
             @keydown.enter="onDateEndEnter"
             @keydown.esc="focusDateStart"
             autocomplete="off"
             :disabled="!!searchOrderNo"
           />
         </div>
-        <button 
-          v-if="searchOrderNo || searchDateStart || searchDateEnd" 
-          class="clear-btn" 
-          @click="clearSearch" 
-          title="Clear (Esc)"
-        >
-          <i class="pi pi-times"></i>
-          Clear
-        </button>
       </div>
     </div>
 
@@ -90,15 +77,6 @@
             (dari {{ orders.length }} total)
           </span>
         </span>
-        <div class="result-meta-right">
-          <span class="page-info">Hal {{ currentPage }} / {{ totalPages }}</span>
-          <button class="icon-btn" :disabled="currentPage <= 1" @click="prevPage" title="PgUp">
-            <i class="pi pi-chevron-left"></i>
-          </button>
-          <button class="icon-btn" :disabled="currentPage >= totalPages" @click="nextPage" title="PgDn">
-            <i class="pi pi-chevron-right"></i>
-          </button>
-        </div>
       </div>
 
       <!-- ── ORDERS TABLE ─────────────────────────────────── -->
@@ -232,10 +210,6 @@
                   <div class="detail-item">
                     <label>Jatuh Tempo:</label>
                     <strong>{{ detailModal.order.limit_bulan + 1 }} Bulan</strong>
-                  </div>
-                  <div class="detail-item">
-                    <label>Salesman:</label>
-                    <strong>Sales {{ detailModal.order.salesman }}</strong>
                   </div>
                   <div class="detail-item" v-if="detailModal.order.extra_charge_desc || Number(detailModal.order.extra_charge_amount || 0) > 0">
                     <label>Biaya Tambahan:</label>
@@ -449,25 +423,25 @@ const btnConfirmDelete = ref(null)
 // ───────────────────────────────────────────────────────────
 // DEFAULT MONTH RANGE
 // ───────────────────────────────────────────────────────────
-function getDefaultMonthRange() {
+function getDefaultF2DateRange() {
   const now = new Date()
   const yy = String(now.getFullYear()).slice(-2)
   const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const today = String(now.getDate()).padStart(2, '0')
   return {
     start: `01/${mm}/${yy}`,
-    end: `${String(lastDay).padStart(2, '0')}/${mm}/${yy}`
+    end: `${today}/${mm}/${yy}`
   }
 }
-const _defaultRange = getDefaultMonthRange()
+const _defaultRange = getDefaultF2DateRange()
 
 // STATE
 // ───────────────────────────────────────────────────────────
 const loading = ref(false)
 const orders = ref([])
 const searchOrderNo = ref('')
-const searchDateStart = ref(_defaultRange.start)
-const searchDateEnd = ref(_defaultRange.end)
+const searchDateStart = ref('')
+const searchDateEnd = ref('')
 const showResults = ref(false)
 const formVisible = ref(true)
 const selectedRowIndex = ref(0)
@@ -541,9 +515,7 @@ const pagedOrders = computed(() => {
 onMounted(() => {
   window.addEventListener('keydown', onGlobalKey)
   pageEl.value?.focus()
-  nextTick(() => {
-    inputNoOrder.value?.focus()
-  })
+  loadAllDrafts()
 })
 
 onUnmounted(() => {
@@ -553,6 +525,50 @@ onUnmounted(() => {
 // ───────────────────────────────────────────────────────────
 // DATA LOADING
 // ───────────────────────────────────────────────────────────
+async function withItemsPreview(ordersData) {
+  return Promise.all(
+    (ordersData || []).map(async (order) => {
+      const { data: items } = await supabase
+        .from('sale_items')
+        .select('product_nama, qty')
+        .eq('sale_id', order.id)
+        .order('created_at')
+        .limit(3)
+
+      return {
+        ...order,
+        items: items || [],
+        total_items: items?.length || 0,
+      }
+    })
+  )
+}
+
+async function loadAllDrafts() {
+  loading.value = true
+  showResults.value = false
+  try {
+    const { data: ordersData, error: ordersError } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('status', 'draft')
+      .order('order_date', { ascending: false })
+      .order('created_at', { ascending: false })
+
+    if (ordersError) throw ordersError
+
+    orders.value = await withItemsPreview(ordersData)
+    showResults.value = true
+    currentPage.value = 1
+    selectedRowIndex.value = 0
+  } catch (err) {
+    console.error('[loadAllDrafts]', err)
+    alert('Gagal memuat draft: ' + err.message)
+  } finally {
+    loading.value = false
+  }
+}
+
 async function searchByOrderNo() {
   loading.value = true
   showResults.value = false
@@ -566,26 +582,8 @@ async function searchByOrderNo() {
 
     if (ordersError) throw ordersError
 
-    const ordersWithItems = await Promise.all(
-      (ordersData || []).map(async (order) => {
-        const { data: items } = await supabase
-          .from('sale_items')
-          .select('product_nama, qty')
-          .eq('sale_id', order.id)
-          .order('created_at')
-          .limit(3)
-
-        return {
-          ...order,
-          items: items || [],
-          total_items: items?.length || 0
-        }
-      })
-    )
-
-    orders.value = ordersWithItems
+    orders.value = await withItemsPreview(ordersData)
     showResults.value = true
-    formVisible.value = false
     currentPage.value = 1
     selectedRowIndex.value = 0
 
@@ -628,26 +626,8 @@ async function searchByDateRange() {
 
     if (ordersError) throw ordersError
 
-    const ordersWithItems = await Promise.all(
-      (ordersData || []).map(async (order) => {
-        const { data: items } = await supabase
-          .from('sale_items')
-          .select('product_nama, qty')
-          .eq('sale_id', order.id)
-          .order('created_at')
-          .limit(3)
-
-        return {
-          ...order,
-          items: items || [],
-          total_items: items?.length || 0
-        }
-      })
-    )
-
-    orders.value = ordersWithItems
+    orders.value = await withItemsPreview(ordersData)
     showResults.value = true
-    formVisible.value = false
     currentPage.value = 1
     selectedRowIndex.value = 0
 
@@ -670,18 +650,37 @@ async function onNoOrderEnter() {
   if (searchOrderNo.value.trim()) {
     await searchByOrderNo()
   } else {
-    focusDateStart()
+    await loadAllDrafts()
   }
 }
 
 function onDateStartEnter() {
+  if (!searchDateStart.value.trim()) {
+    searchDateStart.value = _defaultRange.start
+  }
+  if (!searchDateEnd.value.trim()) {
+    searchDateEnd.value = _defaultRange.end
+  }
   focusDateEnd()
 }
 
 async function onDateEndEnter() {
   if (searchDateStart.value || searchDateEnd.value) {
     await searchByDateRange()
+  } else {
+    await loadAllDrafts()
   }
+}
+
+function activateDateFilterByShortcut() {
+  searchOrderNo.value = ''
+  if (!searchDateStart.value.trim()) {
+    searchDateStart.value = _defaultRange.start
+  }
+  if (!searchDateEnd.value.trim()) {
+    searchDateEnd.value = _defaultRange.end
+  }
+  focusDateStart()
 }
 
 function focusNoOrder() {
@@ -706,8 +705,7 @@ function clearSearch() {
   searchOrderNo.value = ''
   searchDateStart.value = ''
   searchDateEnd.value = ''
-  orders.value = []
-  showResults.value = false
+  loadAllDrafts()
   formVisible.value = true
   currentPage.value = 1
   selectedRowIndex.value = 0
@@ -764,6 +762,31 @@ function onGlobalKey(e) {
     return
   }
 
+  const target = e.target
+  const isInputActive = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')
+
+  if (e.key === 'F1') {
+    e.preventDefault()
+    searchDateStart.value = ''
+    searchDateEnd.value = ''
+    focusNoOrder()
+    return
+  }
+
+  if (e.key === 'F2') {
+    e.preventDefault()
+    activateDateFilterByShortcut()
+    return
+  }
+
+  if (isInputActive) {
+    if (e.key === 'Escape' && !searchOrderNo.value && !searchDateStart.value && !searchDateEnd.value) {
+      e.preventDefault()
+      router.push('/penjualan')
+    }
+    return
+  }
+
   if (!showResults.value) {
     if (e.key === 'Escape' && formVisible.value && !searchOrderNo.value && !searchDateStart.value && !searchDateEnd.value) {
       e.preventDefault()
@@ -774,11 +797,7 @@ function onGlobalKey(e) {
 
   if (e.key === 'Escape') {
     e.preventDefault()
-    showResults.value = false
-    formVisible.value = true
-    nextTick(() => {
-      inputNoOrder.value?.focus()
-    })
+    clearSearch()
     return
   }
 
@@ -918,7 +937,7 @@ async function confirmDelete() {
     } else if (searchDateStart.value || searchDateEnd.value) {
       await searchByDateRange()
     } else {
-      clearSearch()
+      await loadAllDrafts()
     }
   } catch (err) {
     console.error('[confirmDelete]', err)
