@@ -7,15 +7,6 @@
         <h1 class="g-title">Master Data Perusahaan</h1>
         <p class="g-subtitle">Kelola data customer, supplier, dan referensi bisnis inti</p>
       </div>
-      <button
-        class="btn-primary"
-        @click="openAdd"
-        :disabled="!hasDataTabSelected"
-        :title="hasDataTabSelected ? `Tambah ${activeEntityLabel}` : 'Pilih menu Customer atau Supplier dulu'"
-      >
-        <i class="pi pi-plus"></i>
-        <span>Tambah {{ activeEntityLabel }}</span>
-      </button>
     </div>
 
     <!-- ── QUICK MENU (3 OPTIONS) ────────────────────────── -->
@@ -52,10 +43,25 @@
 
       <button
         class="md-menu-card"
-        :class="{ 'md-menu-card--focus': focusedMenuIndex === 2 }"
+        :class="{ 'md-menu-card--focus': focusedMenuIndex === 2, 'md-menu-card--active-soft': showAddPicker }"
         @click="chooseMenu(2)"
         @dblclick="chooseMenu(2, true)"
-        :title="'Ubah/Edit Data'"
+        :title="'Tambah Data Baru (3)'"
+      >
+        <div class="md-menu-icon md-menu-icon--indigo"><i class="pi pi-plus"></i></div>
+        <div class="md-menu-body">
+          <h3>Tambah Data</h3>
+          <p>Pilih tambah customer atau supplier</p>
+        </div>
+        <span class="md-menu-count">Pilih</span>
+      </button>
+
+      <button
+        class="md-menu-card"
+        :class="{ 'md-menu-card--focus': focusedMenuIndex === 3 }"
+        @click="chooseMenu(3)"
+        @dblclick="chooseMenu(3, true)"
+        :title="'Ubah/Edit Data (4)'"
       >
         <div class="md-menu-icon md-menu-icon--amber"><i class="pi pi-pencil"></i></div>
         <div class="md-menu-body">
@@ -66,6 +72,47 @@
       </button>
     </div>
 
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showAddPicker" class="modal-overlay" @click.self="closeAddPicker">
+          <div class="modal-box modal-box--sm add-choice-modal" role="dialog" aria-label="Pilih jenis data baru">
+            <div class="modal-header">
+              <h3 class="modal-title">Pilih Data Yang Akan Ditambah</h3>
+              <button class="modal-close" @click="closeAddPicker" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+
+            <div class="modal-body add-choice-body">
+              <button
+                class="add-choice-option"
+                :class="{ 'add-choice-option--active': addPickerIndex === 0 }"
+                @click="setAddPickerIndex(0)"
+                @dblclick="confirmAddPickerChoice()"
+              >
+                <i class="pi pi-users"></i>
+                <span>Tambah Customer</span>
+              </button>
+
+              <button
+                class="add-choice-option"
+                :class="{ 'add-choice-option--active': addPickerIndex === 1 }"
+                @click="setAddPickerIndex(1)"
+                @dblclick="confirmAddPickerChoice()"
+              >
+                <i class="pi pi-truck"></i>
+                <span>Tambah Supplier</span>
+              </button>
+
+              <p class="add-choice-hint">
+                Gunakan Arrow untuk pilih, lalu Enter untuk lanjut isi form.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- ── SEARCH BAR ───────────────────────────────────── -->
     <div v-if="hasDataTabSelected" class="search-bar">
       <div class="search-input-wrap">
@@ -75,7 +122,7 @@
           v-model="searchQuery"
           type="text"
           class="search-input"
-          :placeholder="`Cari ${activeTab === 'customer' ? 'customer' : 'supplier'} berdasarkan kode atau nama...`"
+          :placeholder="activeTab === 'customer' ? 'Cari customer berdasarkan nama atau kode...' : 'Cari supplier berdasarkan nama atau kode...'"
           autocomplete="off"
           @keydown.esc="handleSearchEsc"
         />
@@ -103,15 +150,6 @@
             (dari {{ customerRows.length }} total)
           </span>
         </span>
-        <div class="result-meta-right">
-          <span class="page-info">Hal {{ currentCustomerPage }} / {{ totalCustomerPages }}</span>
-          <button class="icon-btn" :disabled="currentCustomerPage <= 1" @click="prevCustomerPage" title="Sebelumnya">
-            <i class="pi pi-chevron-left"></i>
-          </button>
-          <button class="icon-btn" :disabled="currentCustomerPage >= totalCustomerPages" @click="nextCustomerPage" title="Selanjutnya">
-            <i class="pi pi-chevron-right"></i>
-          </button>
-        </div>
       </div>
 
       <!-- Table -->
@@ -125,8 +163,8 @@
               <th class="col-alamat">Alamat</th>
               <th class="col-telp">No. Telp</th>
               <th class="col-kredit">Limit Kredit</th>
+              <th class="col-tempo">Jatuh Tempo</th>
               <th class="col-piutang">Saldo Piutang</th>
-              <th class="col-aksi">Aksi</th>
             </tr>
           </thead>
           <tbody v-if="loading">
@@ -151,7 +189,6 @@
               class="data-row"
               :class="{ 'data-row--active': selectedRowIndex === i }"
               @click="selectedRowIndex = i"
-              @dblclick="openEdit(row, 'customer')"
             >
               <td class="col-no">{{ (currentCustomerPage - 1) * PAGE_SIZE + i + 1 }}</td>
               <td class="col-kode"><span class="kode-badge">{{ row.kode }}</span></td>
@@ -159,17 +196,8 @@
               <td class="col-alamat">{{ row.alamat || '—' }}</td>
               <td class="col-telp">{{ row.no_telp || '—' }}</td>
               <td class="col-kredit"><span class="harga-val">{{ formatRp(row.limit_kredit) }}</span></td>
+              <td class="col-tempo">{{ formatJatuhTempo(row.jatuh_tempo_bulan) }}</td>
               <td class="col-piutang"><span class="harga-val">{{ formatRp(row.saldo_piutang) }}</span></td>
-              <td class="col-aksi">
-                <div class="aksi-wrap">
-                  <button class="aksi-btn aksi-edit" @click.stop="openEdit(row, 'customer')" title="Edit">
-                    <i class="pi pi-pencil"></i>
-                  </button>
-                  <button class="aksi-btn aksi-del" @click.stop="openDelete(row, 'customer')" title="Hapus">
-                    <i class="pi pi-trash"></i>
-                  </button>
-                </div>
-              </td>
             </tr>
           </tbody>
         </table>
@@ -186,15 +214,6 @@
             (dari {{ supplierRows.length }} total)
           </span>
         </span>
-        <div class="result-meta-right">
-          <span class="page-info">Hal {{ currentSupplierPage }} / {{ totalSupplierPages }}</span>
-          <button class="icon-btn" :disabled="currentSupplierPage <= 1" @click="prevSupplierPage" title="Sebelumnya">
-            <i class="pi pi-chevron-left"></i>
-          </button>
-          <button class="icon-btn" :disabled="currentSupplierPage >= totalSupplierPages" @click="nextSupplierPage" title="Selanjutnya">
-            <i class="pi pi-chevron-right"></i>
-          </button>
-        </div>
       </div>
 
       <!-- Table -->
@@ -207,7 +226,7 @@
               <th class="col-nama">Nama Supplier</th>
               <th class="col-alamat">Alamat</th>
               <th class="col-telp">No. Telp</th>
-              <th class="col-aksi">Aksi</th>
+              <th class="col-tempo">Jatuh Tempo</th>
             </tr>
           </thead>
           <tbody v-if="loading">
@@ -232,23 +251,13 @@
               class="data-row"
               :class="{ 'data-row--active': selectedRowIndex === i }"
               @click="selectedRowIndex = i"
-              @dblclick="openEdit(row, 'supplier')"
             >
               <td class="col-no">{{ (currentSupplierPage - 1) * PAGE_SIZE + i + 1 }}</td>
               <td class="col-kode"><span class="kode-badge">{{ row.kode }}</span></td>
               <td class="col-nama">{{ row.nama }}</td>
               <td class="col-alamat">{{ row.alamat || '—' }}</td>
               <td class="col-telp">{{ row.no_telp || '—' }}</td>
-              <td class="col-aksi">
-                <div class="aksi-wrap">
-                  <button class="aksi-btn aksi-edit" @click.stop="openEdit(row, 'supplier')" title="Edit">
-                    <i class="pi pi-pencil"></i>
-                  </button>
-                  <button class="aksi-btn aksi-del" @click.stop="openDelete(row, 'supplier')" title="Hapus">
-                    <i class="pi pi-trash"></i>
-                  </button>
-                </div>
-              </td>
+              <td class="col-tempo">{{ formatJatuhTempo(row.jatuh_tempo_bulan) }}</td>
             </tr>
           </tbody>
         </table>
@@ -261,7 +270,7 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="modal.show" class="modal-overlay" @click.self="closeModal">
-          <div class="modal-box" role="dialog" :aria-label="modal.title">
+          <div class="modal-box modal-box--orderlike" role="dialog" :aria-label="modal.title">
             <div class="modal-header">
               <h3 class="modal-title">{{ modal.title }}</h3>
               <button class="modal-close" @click="closeModal" tabindex="-1">
@@ -280,7 +289,8 @@
                     class="mfield-input"
                     :placeholder="modal.type === 'customer' ? 'Contoh: CUST001' : 'Contoh: SUP001'"
                     required
-                    :disabled="modal.mode === 'edit'"
+                    @keydown.enter.prevent="focusModalField('nama')"
+                    @keydown.down.prevent="moveModalLinear('kode', 1)"
                   />
                 </div>
 
@@ -288,10 +298,14 @@
                   <label class="mfield-label">Nama {{ modal.type === 'customer' ? 'Customer' : 'Supplier' }} <span class="required">*</span></label>
                   <input
                     v-model="form.nama"
+                    ref="inputNama"
                     type="text"
                     class="mfield-input"
                     :placeholder="`Nama ${modal.type === 'customer' ? 'customer' : 'supplier'}`"
                     required
+                    @keydown.enter.prevent="focusModalField('alamat')"
+                    @keydown.up.prevent="moveModalLinear('nama', -1)"
+                    @keydown.down.prevent="moveModalLinear('nama', 1)"
                   />
                 </div>
 
@@ -299,9 +313,13 @@
                   <label class="mfield-label">Alamat</label>
                   <textarea
                     v-model="form.alamat"
+                    ref="inputAlamat"
                     class="mfield-textarea"
                     :placeholder="`Alamat lengkap ${modal.type === 'customer' ? 'customer' : 'supplier'}`"
                     rows="3"
+                    @keydown.enter.prevent="focusModalField('telp')"
+                    @keydown.up.prevent="moveModalLinear('alamat', -1)"
+                    @keydown.down.prevent="moveModalLinear('alamat', 1)"
                   ></textarea>
                 </div>
 
@@ -309,21 +327,53 @@
                   <label class="mfield-label">No. Telp</label>
                   <input
                     v-model="form.no_telp"
+                    ref="inputTelp"
                     type="text"
                     class="mfield-input"
                     placeholder="08xxxxxxxxxx"
+                    @keydown.enter.prevent="focusModalField('tempo')"
+                    @keydown.up.prevent="moveModalLinear('telp', -1)"
+                    @keydown.down.prevent="moveModalLinear('telp', 1)"
                   />
+                </div>
+
+                <div class="mfield mfield-full mfield-tempo-center">
+                  <label class="mfield-label">Jatuh Tempo</label>
+                  <div class="choice-group" ref="tempoGroupRef" tabindex="0" @keydown.enter.prevent="onTempoEnter" @keydown.left.prevent="moveTempoChoice(-1)" @keydown.right.prevent="moveTempoChoice(1)" @keydown.up.prevent="moveModalLinear('tempo', -1)" @keydown.down.prevent="moveModalLinear('tempo', 1)">
+                    <button type="button" class="choice-btn" :class="{ 'choice-btn--active': form.jatuh_tempo_bulan === 1 }" @click="form.jatuh_tempo_bulan = 1">1 Bulan</button>
+                    <button type="button" class="choice-btn" :class="{ 'choice-btn--active': form.jatuh_tempo_bulan === 2 }" @click="form.jatuh_tempo_bulan = 2">2 Bulan</button>
+                    <button type="button" class="choice-btn" :class="{ 'choice-btn--active': form.jatuh_tempo_bulan === 3 }" @click="form.jatuh_tempo_bulan = 3">3 Bulan</button>
+                  </div>
                 </div>
 
                 <div v-if="modal.type === 'customer'" class="mfield">
                   <label class="mfield-label">Limit Kredit</label>
                   <input
-                    v-model="form.limit_kredit"
-                    type="number"
+                    :value="formatNumberId(form.limit_kredit)"
+                    ref="inputLimit"
+                    type="text"
+                    inputmode="numeric"
                     class="mfield-input"
-                    placeholder="10000000"
-                    min="0"
-                    step="1000"
+                    placeholder="10.000.000"
+                    @input="onCurrencyInput('limit_kredit', $event)"
+                    @keydown.enter.prevent="focusModalField('saldo')"
+                    @keydown.up.prevent="moveModalLinear('limit', -1)"
+                    @keydown.down.prevent="moveModalLinear('limit', 1)"
+                  />
+                </div>
+
+                <div v-if="modal.type === 'customer'" class="mfield">
+                  <label class="mfield-label">Saldo Piutang</label>
+                  <input
+                    :value="formatNumberId(form.saldo_piutang)"
+                    ref="inputSaldo"
+                    type="text"
+                    inputmode="numeric"
+                    class="mfield-input"
+                    placeholder="0"
+                    @input="onCurrencyInput('saldo_piutang', $event)"
+                    @keydown.enter.prevent="submitModal"
+                    @keydown.up.prevent="moveModalLinear('saldo', -1)"
                   />
                 </div>
               </div>
@@ -338,35 +388,6 @@
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- ═══════════════════════════════════════════════════
-         MODAL DELETE CONFIRMATION
-    ════════════════════════════════════════════════════ -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="deleteModal.show" class="modal-overlay" @click.self="deleteModal.show = false">
-          <div class="modal-box modal-box--sm" role="alertdialog">
-            <div class="modal-header modal-header--danger">
-              <i class="pi pi-exclamation-triangle"></i>
-              <h3 class="modal-title">Hapus {{ deleteModal.type === 'customer' ? 'Customer' : 'Supplier' }}?</h3>
-            </div>
-            <div class="modal-body">
-              <p>Yakin ingin menghapus {{ deleteModal.type === 'customer' ? 'customer' : 'supplier' }} <b>{{ deleteModal.row?.nama }}</b>?</p>
-              <p class="warn-text">Data yang sudah dihapus tidak bisa dikembalikan.</p>
-            </div>
-            <div class="modal-footer">
-              <button class="btn-secondary" @click="deleteModal.show = false">
-                Batal
-              </button>
-              <button class="btn-danger" @click="confirmDelete" :disabled="deleting">
-                <i class="pi pi-trash"></i>
-                <span>{{ deleting ? 'Menghapus...' : 'Hapus' }}</span>
-              </button>
-            </div>
           </div>
         </div>
       </Transition>
@@ -391,6 +412,12 @@ const router = useRouter()
 // ───────────────────────────────────────────────────────────
 const pageEl = ref(null)
 const inputKode = ref(null)
+const inputNama = ref(null)
+const inputAlamat = ref(null)
+const inputTelp = ref(null)
+const inputLimit = ref(null)
+const inputSaldo = ref(null)
+const tempoGroupRef = ref(null)
 const searchInput = ref(null)
 const tableWrap = ref(null)
 
@@ -399,6 +426,8 @@ const tableWrap = ref(null)
 // ───────────────────────────────────────────────────────────
 const activeTab = ref('')
 const focusedMenuIndex = ref(0)
+const showAddPicker = ref(false)
+const addPickerIndex = ref(0)
 const searchQuery = ref('')
 const loading = ref(false)
 const saving = ref(false)
@@ -426,13 +455,9 @@ const form = reactive({
   nama: '',
   alamat: '',
   no_telp: '',
+  jatuh_tempo_bulan: 1,
   limit_kredit: 10000000,
-})
-
-const deleteModal = reactive({
-  show: false,
-  row: null,
-  type: '', // 'customer' | 'supplier'
+  saldo_piutang: 0,
 })
 
 // ───────────────────────────────────────────────────────────
@@ -480,12 +505,6 @@ const currentPagedRows = computed(() => {
 
 const selectedRowData = computed(() => currentPagedRows.value[selectedRowIndex.value] || null)
 const hasDataTabSelected = computed(() => activeTab.value === 'customer' || activeTab.value === 'supplier')
-const activeEntityLabel = computed(() => {
-  if (activeTab.value === 'customer') return 'Customer'
-  if (activeTab.value === 'supplier') return 'Supplier'
-  return 'Data'
-})
-
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
@@ -516,6 +535,7 @@ onUnmounted(() => {
 watch(activeTab, () => {
   selectedRowIndex.value = 0
   searchQuery.value = ''
+  showAddPicker.value = false
 })
 
 // ───────────────────────────────────────────────────────────
@@ -574,16 +594,24 @@ function chooseMenu(index, shouldRunAction = false) {
   focusedMenuIndex.value = index
 
   if (index === 0) {
+    showAddPicker.value = false
     switchTab('customer')
     return
   }
 
   if (index === 1) {
+    showAddPicker.value = false
     switchTab('supplier')
     return
   }
 
-  if (index === 2 && (shouldRunAction || selectedRowData.value)) {
+  if (index === 2) {
+    openAddPicker()
+    return
+  }
+
+  showAddPicker.value = false
+  if (index === 3 && (shouldRunAction || selectedRowData.value)) {
     if (selectedRowData.value) {
       openEdit(selectedRowData.value, activeTab.value)
     }
@@ -591,12 +619,34 @@ function chooseMenu(index, shouldRunAction = false) {
 }
 
 function moveMenu(delta) {
-  const max = 2
+  const max = 3
   if (delta > 0) {
     focusedMenuIndex.value = focusedMenuIndex.value >= max ? 0 : focusedMenuIndex.value + 1
   } else {
     focusedMenuIndex.value = focusedMenuIndex.value <= 0 ? max : focusedMenuIndex.value - 1
   }
+}
+
+function openAddPicker() {
+  addPickerIndex.value = activeTab.value === 'supplier' ? 1 : 0
+  showAddPicker.value = true
+}
+
+function closeAddPicker() {
+  showAddPicker.value = false
+}
+
+function setAddPickerIndex(index) {
+  addPickerIndex.value = index === 1 ? 1 : 0
+}
+
+function moveAddPicker(delta) {
+  if (delta === 0) return
+  addPickerIndex.value = addPickerIndex.value === 0 ? 1 : 0
+}
+
+function confirmAddPickerChoice() {
+  openAddFor(addPickerIndex.value === 0 ? 'customer' : 'supplier')
 }
 
 function isTypingTarget(target) {
@@ -609,7 +659,30 @@ function isTypingTarget(target) {
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
-  if (modal.show || deleteModal.show) return
+  if (showAddPicker.value) {
+    switch (e.key) {
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        e.preventDefault()
+        moveAddPicker(-1)
+        return
+      case 'ArrowRight':
+      case 'ArrowDown':
+        e.preventDefault()
+        moveAddPicker(1)
+        return
+      case 'Enter':
+        e.preventDefault()
+        confirmAddPickerChoice()
+        return
+      case 'Escape':
+        e.preventDefault()
+        closeAddPicker()
+        return
+    }
+  }
+
+  if (modal.show) return
   const typing = isTypingTarget(e.target)
 
   switch (e.key) {
@@ -619,7 +692,8 @@ function onGlobalKey(e) {
       break
     case 'F2':
       e.preventDefault()
-      openAdd()
+      openAddPicker()
+      focusedMenuIndex.value = 2
       break
     case 'F3':
       if (selectedRowData.value) {
@@ -636,7 +710,7 @@ function onGlobalKey(e) {
     case 'Delete':
       if (selectedRowData.value) {
         e.preventDefault()
-        openDelete(selectedRowData.value, activeTab.value)
+        deleteSelectedRow()
       }
       break
     case 'ArrowLeft':
@@ -661,7 +735,7 @@ function onGlobalKey(e) {
       break
     case 'Enter':
       if (typing) break
-      if (focusedMenuIndex.value === 2) {
+      if (focusedMenuIndex.value === 3) {
         if (selectedRowData.value) {
           e.preventDefault()
           openEdit(selectedRowData.value, activeTab.value)
@@ -696,6 +770,11 @@ function onGlobalKey(e) {
       e.preventDefault()
       chooseMenu(2, true)
       break
+    case '4':
+      if (typing) break
+      e.preventDefault()
+      chooseMenu(3, true)
+      break
     case 'Escape':
       e.preventDefault()
       router.push('/dashboard')
@@ -705,7 +784,7 @@ function onGlobalKey(e) {
 
 function onModalEscKey(e) {
   if (e.key !== 'Escape') return
-  if (deleteModal.show) deleteModal.show = false
+  if (showAddPicker.value) closeAddPicker()
   else if (modal.show) closeModal()
 }
 
@@ -769,28 +848,36 @@ function setRowRef(el, index) {
 // ───────────────────────────────────────────────────────────
 // MODAL ADD / EDIT
 // ───────────────────────────────────────────────────────────
-function openAdd() {
-  const type = activeTab.value === 'customer' || activeTab.value === 'supplier'
+function openAdd(type = null) {
+  const resolvedType = type || (activeTab.value === 'customer' || activeTab.value === 'supplier'
     ? activeTab.value
     : focusedMenuIndex.value === 1
       ? 'supplier'
-      : 'customer'
+      : 'customer')
   if (!hasDataTabSelected.value) {
-    switchTab(type)
+    switchTab(resolvedType)
   }
   modal.mode = 'add'
-  modal.type = type
-  modal.title = `Tambah ${type === 'customer' ? 'Customer' : 'Supplier'}`
+  modal.type = resolvedType
+  modal.title = `Tambah ${resolvedType === 'customer' ? 'Customer' : 'Supplier'}`
   Object.assign(form, {
     id: null,
     kode: '',
     nama: '',
     alamat: '',
     no_telp: '',
+    jatuh_tempo_bulan: 1,
     limit_kredit: 10000000,
+    saldo_piutang: 0,
   })
+  showAddPicker.value = false
   modal.show = true
   nextTick(() => inputKode.value?.focus())
+}
+
+function openAddFor(type) {
+  switchTab(type)
+  openAdd(type)
 }
 
 function openEdit(row, type) {
@@ -803,8 +890,11 @@ function openEdit(row, type) {
     nama: row.nama,
     alamat: row.alamat || '',
     no_telp: row.no_telp || '',
-    limit_kredit: row.limit_kredit || 10000000,
+    jatuh_tempo_bulan: clampTempo(row.jatuh_tempo_bulan),
+    limit_kredit: Number(row.limit_kredit || 10000000),
+    saldo_piutang: Number(row.saldo_piutang || 0),
   })
+  showAddPicker.value = false
   modal.show = true
   nextTick(() => inputKode.value?.focus())
 }
@@ -823,11 +913,13 @@ async function submitModal() {
       nama: form.nama.trim(),
       alamat: form.alamat.trim() || null,
       no_telp: form.no_telp.trim() || null,
+      jatuh_tempo_bulan: clampTempo(form.jatuh_tempo_bulan),
       aktif: true,
     }
 
     if (modal.type === 'customer') {
       payload.limit_kredit = Number(form.limit_kredit) || 10000000
+      payload.saldo_piutang = Number(form.saldo_piutang) || 0
     }
 
     const table = modal.type === 'customer' ? 'customers' : 'suppliers'
@@ -856,36 +948,39 @@ async function submitModal() {
   }
 }
 
-// ───────────────────────────────────────────────────────────
-// DELETE
-// ───────────────────────────────────────────────────────────
-function openDelete(row, type) {
-  deleteModal.row = row
-  deleteModal.type = type
-  deleteModal.show = true
-}
-
-async function confirmDelete() {
+async function deleteSelectedRow() {
+  if (!selectedRowData.value || !hasDataTabSelected.value) return
   if (deleting.value) return
+
+  const row = selectedRowData.value
+  const type = activeTab.value
+  const entityLabel = type === 'customer' ? 'customer' : 'supplier'
+  const confirmed = window.confirm(`Hapus ${entityLabel} ${row.nama}?`)
+  if (!confirmed) return
+
   deleting.value = true
 
   try {
-    const table = deleteModal.type === 'customer' ? 'customers' : 'suppliers'
+    const table = type === 'customer' ? 'customers' : 'suppliers'
     const { error } = await supabase
       .from(table)
       .update({ aktif: false })
-      .eq('id', deleteModal.row.id)
+      .eq('id', row.id)
 
     if (error) throw error
 
-    alert(`${deleteModal.type === 'customer' ? 'Customer' : 'Supplier'} berhasil dihapus!`)
-    deleteModal.show = false
+    alert(`${type === 'customer' ? 'Customer' : 'Supplier'} berhasil dihapus!`)
     
-    if (deleteModal.type === 'customer') loadCustomers()
-    else loadSuppliers()
+    if (type === 'customer') {
+      await loadCustomers()
+      selectedRowIndex.value = Math.min(selectedRowIndex.value, Math.max(0, pagedCustomerRows.value.length - 1))
+    } else {
+      await loadSuppliers()
+      selectedRowIndex.value = Math.min(selectedRowIndex.value, Math.max(0, pagedSupplierRows.value.length - 1))
+    }
   } catch (err) {
-    console.error('[confirmDelete]', err)
-    alert(`Gagal menghapus ${deleteModal.type === 'customer' ? 'customer' : 'supplier'}: ` + err.message)
+    console.error('[deleteSelectedRow]', err)
+    alert(`Gagal menghapus ${entityLabel}: ` + err.message)
   } finally {
     deleting.value = false
   }
@@ -897,6 +992,88 @@ async function confirmDelete() {
 function formatRp(val) {
   if (val == null || isNaN(val)) return 'Rp 0'
   return 'Rp ' + Number(val).toLocaleString('id-ID')
+}
+
+function formatNumberId(val) {
+  const num = Number(val || 0)
+  if (!Number.isFinite(num)) return '0'
+  return Math.max(0, Math.trunc(num)).toLocaleString('id-ID')
+}
+
+function onCurrencyInput(field, e) {
+  const raw = String(e?.target?.value || '').replace(/\D/g, '')
+  const parsed = raw ? Number(raw) : 0
+  form[field] = Number.isFinite(parsed) ? parsed : 0
+}
+
+function clampTempo(val) {
+  const tempo = Number(val)
+  if (![1, 2, 3].includes(tempo)) return 1
+  return tempo
+}
+
+function moveTempoChoice(delta) {
+  const options = [1, 2, 3]
+  const current = options.indexOf(clampTempo(form.jatuh_tempo_bulan))
+  const next = Math.max(0, Math.min(options.length - 1, current + delta))
+  form.jatuh_tempo_bulan = options[next]
+}
+
+function focusModalField(field) {
+  if (field === 'nama') {
+    inputNama.value?.focus()
+    return
+  }
+  if (field === 'alamat') {
+    inputAlamat.value?.focus()
+    return
+  }
+  if (field === 'telp') {
+    inputTelp.value?.focus()
+    return
+  }
+  if (field === 'limit' && modal.type === 'customer') {
+    inputLimit.value?.focus()
+    inputLimit.value?.select?.()
+    return
+  }
+  if (field === 'saldo' && modal.type === 'customer') {
+    inputSaldo.value?.focus()
+    inputSaldo.value?.select?.()
+    return
+  }
+  if (field === 'tempo') {
+    tempoGroupRef.value?.focus()
+    return
+  }
+}
+
+function getModalFieldOrder() {
+  if (modal.type === 'customer') {
+    return ['kode', 'nama', 'alamat', 'telp', 'tempo', 'limit', 'saldo']
+  }
+  return ['kode', 'nama', 'alamat', 'telp', 'tempo']
+}
+
+function moveModalLinear(currentField, direction) {
+  const order = getModalFieldOrder()
+  const idx = order.indexOf(currentField)
+  if (idx < 0) return
+  const nextIdx = Math.max(0, Math.min(order.length - 1, idx + direction))
+  if (nextIdx === idx) return
+  focusModalField(order[nextIdx])
+}
+
+function onTempoEnter() {
+  if (modal.type === 'customer') {
+    focusModalField('limit')
+    return
+  }
+  submitModal()
+}
+
+function formatJatuhTempo(val) {
+  return `${clampTempo(val)} Bulan`
 }
 </script>
 
