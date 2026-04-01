@@ -644,10 +644,18 @@ function onCustomerModalKey(e) {
   }
 }
 
+function mapCustomerTempoToLimitBulan(jatuhTempoBulan) {
+  const tempo = Number(jatuhTempoBulan)
+  if (tempo === 2) return 1
+  if (tempo === 3) return 2
+  return 0
+}
+
 function selectCustomer(customer) {
   selectedCustomer.value = customer
   searchCustomer.value = customer.nama
   form.customer_id = customer.id
+  form.limit_bulan = mapCustomerTempoToLimitBulan(customer?.jatuh_tempo_bulan)
   customerModal.show = false
   
   // Auto focus to page element so keyboard shortcuts work

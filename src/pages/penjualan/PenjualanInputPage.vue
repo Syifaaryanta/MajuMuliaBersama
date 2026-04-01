@@ -32,7 +32,7 @@
             </div>
             <div class="info-col">
               <label>Tempo:</label>
-              <strong>{{ (orderData.limit_bulan || 0) + 1 }} Bulan</strong>
+              <strong>{{ paymentTermLabel(orderData.limit_bulan) }}</strong>
             </div>
           </div>
           <div class="info-row info-customer">
@@ -57,6 +57,14 @@
 
     <!-- ── ITEMS TABLE ──────────────────────────────────── -->
     <div class="items-section">
+      <!-- Shortcut Hints -->
+      <div class="shortcuts-bar">
+        <kbd>F1 Lain-Lain</kbd>
+        <kbd>F2 Barang</kbd>
+        <kbd>F10 Keterangan</kbd>
+        <kbd>F4 Info</kbd>
+      </div>
+
       <div class="table-card">
         <div class="table-header">
           <h3 class="table-title">
@@ -254,7 +262,7 @@
               </tr>
 
               <!-- Empty State -->
-              <tr v-if="items.length === 0" class="empty-row">
+              <tr v-if="items.length === 0 && adjustmentRows.length === 0 && !newItem.product_id && !newItem.search.trim()" class="empty-row">
                 <td colspan="8" class="empty-cell">
                   <i class="pi pi-inbox"></i>
                   <p>Belum ada barang. Mulai ketik nama barang di atas.</p>
@@ -262,14 +270,6 @@
               </tr>
             </tbody>
           </table>
-        </div>
-
-        <!-- Shortcut Hints -->
-        <div class="shortcuts-bar">
-          <kbd>F1 Biaya</kbd>
-          <kbd>F2 Barang</kbd>
-          <kbd>F10 Keterangan</kbd>
-          <kbd>F4</kbd>
         </div>
 
         <div class="table-note-inline">
@@ -356,14 +356,15 @@
       <Transition name="modal">
         <div v-if="priceInfoModal.show" class="modal-overlay" @click.self="closePriceInfoModal">
           <div class="modal-box modal-box--md" role="dialog">
-            <div class="modal-header">
+            <div class="modal-header modal-header--blue">
               <i class="pi pi-info-circle"></i>
-              <h3 class="modal-title">Info Harga: {{ priceInfoModal.product_nama }}</h3>
+              <h3 class="modal-title">Info Harga</h3>
               <button class="modal-close" @click="closePriceInfoModal" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
             <div class="modal-body">
+              <p class="price-info-product-name"><strong>{{ priceInfoModal.product_nama }}</strong></p>
               <div class="price-info-grid" v-if="priceInfoModal.loading">
                 <div class="skeleton-box"></div>
                 <div class="skeleton-box"></div>
@@ -408,20 +409,21 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="supplierModal.show" class="modal-overlay" @click.self="supplierModal.show = false" @keydown="onSupplierModalKey">
-          <div class="modal-box modal-search" role="dialog">
-            <div class="modal-header">
+          <div ref="supplierModalBox" class="modal-box modal-search" role="dialog" tabindex="0">
+            <div class="modal-header modal-header--blue">
               <i class="pi pi-truck"></i>
-              <h3 class="modal-title">Pilih Supplier &mdash; {{ supplierModal.product?.nama }}</h3>
+              <h3 class="modal-title">Pilih Supplier</h3>
               <button class="modal-close" @click="supplierModal.show = false" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
             <div class="modal-body">
+              <p class="supplier-product-name"> <strong>{{ supplierModal.product?.nama }}</strong></p>
               <p class="supplier-select-hint">
                 <i class="pi pi-info-circle"></i>
                 Barang ini tersedia dari beberapa supplier dengan harga berbeda. Pilih supplier yang akan digunakan.
               </p>
-              <div class="search-modal-results">
+              <div class="search-modal-results" ref="supplierModalResultsEl">
                 <div
                   v-for="(entry, idx) in supplierModal.prices"
                   :key="entry.id"
@@ -434,9 +436,7 @@
                     <span class="smi-nama">{{ entry.supplier_nama }}</span>
                   </div>
                   <div class="smi-sub">
-                    <span>Stok: <strong>{{ entry.stok }}</strong></span>
-                    <span class="smi-price-sep">&nbsp;&middot;&nbsp;</span>
-                    <span>Harga Beli: <strong>{{ formatRp(entry.harga_beli) }}</strong></span>
+                    <span>Modal: <strong>{{ formatRp(entry.harga_beli) }}</strong></span>
                   </div>
                 </div>
               </div>
@@ -516,6 +516,86 @@
     </Teleport>
 
     <!-- ═══════════════════════════════════════════════════════
+         MODAL KONFIRMASI LIMIT KREDIT
+    ═══════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="creditLimitConfirmModal.show" class="modal-overlay" @click.self="closeCreditLimitConfirmModal">
+          <div class="modal-box modal-box--sm" role="dialog" aria-modal="true" aria-label="Konfirmasi limit kredit">
+            <div class="modal-header modal-header--danger">
+              <i class="pi pi-exclamation-triangle"></i>
+              <h3 class="modal-title">Peringatan Limit Kredit</h3>
+              <button class="modal-close" @click="closeCreditLimitConfirmModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="confirm-text">Total order melebihi sisa limit kredit customer.</p>
+              <p class="confirm-subtext">Customer: <strong>{{ creditLimitConfirmModal.customerName }}</strong></p>
+              <div class="credit-summary-grid">
+                <div class="credit-summary-item">
+                  <span class="credit-summary-label">Limit Kredit</span>
+                  <strong class="credit-summary-value">{{ formatRp(creditLimitConfirmModal.limitKredit) }}</strong>
+                </div>
+                <div class="credit-summary-item">
+                  <span class="credit-summary-label">Saldo Piutang</span>
+                  <strong class="credit-summary-value">{{ formatRp(creditLimitConfirmModal.saldoPiutang) }}</strong>
+                </div>
+                <div class="credit-summary-item" :class="{ 'credit-summary-item--danger': creditLimitConfirmModal.remainingCredit < 0 }">
+                  <span class="credit-summary-label">Sisa Limit</span>
+                  <strong class="credit-summary-value">{{ formatRp(creditLimitConfirmModal.remainingCredit) }}</strong>
+                </div>
+                <div class="credit-summary-item">
+                  <span class="credit-summary-label">Total Order</span>
+                  <strong class="credit-summary-value">{{ formatRp(creditLimitConfirmModal.totalOrder) }}</strong>
+                </div>
+              </div>
+              <p class="confirm-subtext confirm-subtext--danger">
+                Total Limit: {{ formatRp(creditLimitConfirmModal.totalLimit) }}
+              </p>
+              <p class="confirm-subtext">Tekan <strong>Y</strong> untuk tetap lanjut, atau <strong>N</strong> untuk batal.</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" @click="closeCreditLimitConfirmModal">
+                Batal <kbd>N</kbd>
+              </button>
+              <button class="btn-primary" @click="confirmCreditLimitAndSubmit" :disabled="saving">
+                Tetap Lanjutkan <kbd>Y</kbd>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MODAL STOK KOSONG
+    ═══════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="stockEmptyModal.show" class="modal-overlay modal-overlay--stock-empty" @click.self="closeStockEmptyModal">
+          <div ref="stockEmptyModalBox" class="modal-box modal-box--sm modal-box--stock-empty" role="dialog" tabindex="0" aria-modal="true" aria-label="Peringatan stok kosong" @keydown="onStockEmptyModalKey">
+            <div class="modal-header modal-header--danger">
+              <i class="pi pi-ban"></i>
+              <h3 class="modal-title">Stok Gudang Kosong</h3>
+              <button class="modal-close" @click="closeStockEmptyModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="confirm-text">Item ini tidak bisa diinput karena stok gudang kosong.</p>
+              <p class="confirm-subtext">Item: <strong>{{ stockEmptyModal.productName }}</strong></p>
+              <p class="confirm-subtext">Tekan <strong>Enter</strong> untuk batalkan dan cari item lain.</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-primary" @click="closeStockEmptyModal">Batal &amp; Cari Lagi <kbd>Enter</kbd></button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ═══════════════════════════════════════════════════════
          MODAL KONFIRMASI KELUAR
     ═══════════════════════════════════════════════════════ -->
     <Teleport to="body">
@@ -560,10 +640,14 @@ const inputQty = ref(null)
 const inputPrice = ref(null)
 const productModalInput = ref(null)
 const productModalResultsEl = ref(null)
+const supplierModalResultsEl = ref(null)
+const supplierModalBox = ref(null)
 const newItemRow = ref(null)
 const senderInlineInput = ref(null)
 const priceInfoReturnFocusEl = ref(null)
 const printConfirmModalBox = ref(null)
+const stockEmptyModalBox = ref(null)
+const suppressNextProductModalEnter = ref(false)
 
 // ───────────────────────────────────────────────────────────
 // STATE
@@ -611,6 +695,7 @@ const supplierModal = reactive({
   product: null,
   prices: [],        // [{ id, supplier_id, supplier_nama, stok, harga_beli }]
   selectedIndex: 0,
+  defaultUnitPrice: 0,
 })
 
 const printConfirmModal = reactive({
@@ -624,6 +709,22 @@ const exitConfirmModal = reactive({
   show: false,
 })
 
+const creditLimitConfirmModal = reactive({
+  show: false,
+  shouldPrint: false,
+  customerName: '',
+  limitKredit: 0,
+  saldoPiutang: 0,
+  remainingCredit: 0,
+  totalOrder: 0,
+  totalLimit: 0,
+})
+
+const stockEmptyModal = reactive({
+  show: false,
+  productName: '',
+})
+
 const printSortOptions = [
   { value: 'original', label: 'Urutan Asli' },
   { value: 'alpha', label: 'Abjad (A-Z)' },
@@ -634,7 +735,7 @@ const printSortOptions = [
 const SALES_HISTORY_DETAIL_KEY = 'penjualan_list_open_no_order'
 const PENJUALAN_FLASH_KEY = 'penjualan_flash_notice'
 
-const productSearchArmed = ref(false)
+const productSearchArmed = ref(true)
 const adjustmentRows = ref([])
 const WORKING_STATE_KEY = 'penjualan_input_working_state'
 const senderNoteAutofilled = ref(false)
@@ -724,6 +825,7 @@ onMounted(() => {
 
   restoreWorkingState()
   
+  window.addEventListener('keydown', onStockEmptyCaptureKey, true)
   window.addEventListener('keydown', onGlobalKey)
   window.addEventListener('beforeunload', handleBeforeUnload)
   pageEl.value?.focus()
@@ -731,6 +833,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onStockEmptyCaptureKey, true)
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
@@ -761,6 +864,31 @@ watch(
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
+  if (stockEmptyModal.show) {
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      e.preventDefault()
+      closeStockEmptyModal()
+      return
+    }
+    return
+  }
+
+  if (creditLimitConfirmModal.show) {
+    if (e.key === 'Escape' || e.key === 'n' || e.key === 'N') {
+      e.preventDefault()
+      closeCreditLimitConfirmModal()
+      return
+    }
+
+    if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
+      e.preventDefault()
+      confirmCreditLimitAndSubmit()
+      return
+    }
+
+    return
+  }
+
   if (exitConfirmModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -839,6 +967,17 @@ function onGlobalKey(e) {
       submitSale(true)
     }
     return
+  }
+}
+
+function onStockEmptyCaptureKey(e) {
+  if (!stockEmptyModal.show) return
+
+  const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
+  if (isEnter || e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    closeStockEmptyModal(isEnter ? 'enter' : 'escape')
   }
 }
 
@@ -955,6 +1094,65 @@ function openExitConfirmModal() {
 
 function closeExitConfirmModal() {
   exitConfirmModal.show = false
+}
+
+function openStockEmptyModal(productName) {
+  stockEmptyModal.productName = String(productName || '-').trim() || '-'
+  stockEmptyModal.show = true
+  nextTick(() => {
+    stockEmptyModalBox.value?.focus?.()
+  })
+}
+
+function closeStockEmptyModal(source = 'manual') {
+  if (source === 'enter') {
+    suppressNextProductModalEnter.value = true
+  }
+
+  stockEmptyModal.show = false
+  nextTick(() => {
+    if (productModal.show) {
+      productModalInput.value?.focus()
+      productModalInput.value?.select?.()
+      ensureProductModalSelectionVisible()
+    } else {
+      inputProduct.value?.focus()
+      inputProduct.value?.select?.()
+    }
+  })
+}
+
+function onStockEmptyModalKey(e) {
+  const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
+  if (isEnter || e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    closeStockEmptyModal(isEnter ? 'enter' : 'escape')
+  }
+}
+
+function openCreditLimitConfirmModal({ customer, remainingCredit, totalOrder, shouldPrint }) {
+  const saldoPiutang = Number(customer.saldo_piutang || 0)
+  const totalOrderNumber = Number(totalOrder || 0)
+  creditLimitConfirmModal.customerName = customer.nama || '-'
+  creditLimitConfirmModal.limitKredit = Number(customer.limit_kredit || 0)
+  creditLimitConfirmModal.saldoPiutang = saldoPiutang
+  creditLimitConfirmModal.remainingCredit = Number(remainingCredit || 0)
+  creditLimitConfirmModal.totalOrder = totalOrderNumber
+  creditLimitConfirmModal.totalLimit = saldoPiutang + totalOrderNumber
+  creditLimitConfirmModal.shouldPrint = Boolean(shouldPrint)
+  creditLimitConfirmModal.show = true
+}
+
+function closeCreditLimitConfirmModal() {
+  creditLimitConfirmModal.show = false
+}
+
+async function confirmCreditLimitAndSubmit() {
+  if (saving.value) return
+  const shouldPrint = Boolean(creditLimitConfirmModal.shouldPrint)
+  closeCreditLimitConfirmModal()
+  await submitSale(shouldPrint, true)
 }
 
 async function confirmExitAndSaveDraft() {
@@ -1098,7 +1296,7 @@ function activateProductSearchMode() {
 
 function closeProductModal() {
   productModal.show = false
-  productSearchArmed.value = false
+  productSearchArmed.value = true
   focusProductInput()
 }
 
@@ -1450,6 +1648,24 @@ function normalizeLooseSearch(value) {
 }
 
 function onProductModalKey(e) {
+  const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
+
+  if (suppressNextProductModalEnter.value && isEnter) {
+    e.preventDefault()
+    e.stopPropagation()
+    suppressNextProductModalEnter.value = false
+    return
+  }
+
+  if (stockEmptyModal.show) {
+    if (isEnter || e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      closeStockEmptyModal(isEnter ? 'enter' : 'escape')
+    }
+    return
+  }
+
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     productModal.selectedIndex = Math.min(productModal.selectedIndex + 1, productModal.filtered.length - 1)
@@ -1458,7 +1674,7 @@ function onProductModalKey(e) {
     e.preventDefault()
     productModal.selectedIndex = Math.max(productModal.selectedIndex - 1, 0)
     ensureProductModalSelectionVisible()
-  } else if (e.key === 'Enter') {
+  } else if (isEnter) {
     e.preventDefault()
     if (productModal.filtered[productModal.selectedIndex]) {
       selectProduct(productModal.filtered[productModal.selectedIndex])
@@ -1479,10 +1695,18 @@ function ensureProductModalSelectionVisible() {
 }
 
 async function selectProduct(product) {
+  if (Number(product?.stok || 0) <= 0) {
+    openStockEmptyModal(product?.nama)
+    productSearchArmed.value = true
+    return
+  }
+
   productModal.show = false
   productSearchArmed.value = false
 
   try {
+    const defaultUnitPrice = await getDefaultPrice(product.id)
+
     // Check how many active suppliers this product has
     const { data: prices, error } = await supabase
       .from('product_prices')
@@ -1505,17 +1729,18 @@ async function selectProduct(product) {
         stok: p.stok,
         harga_beli: p.harga_beli,
       }))
+      supplierModal.defaultUnitPrice = defaultUnitPrice
       supplierModal.selectedIndex = 0
       supplierModal.show = true
+      nextTick(() => {
+        supplierModalBox.value?.focus?.()
+        ensureSupplierModalSelectionVisible()
+      })
       return
     }
 
-    // Single or no supplier — use harga_beli directly if available, else historical
-    const fallbackPrice = activePrices.length === 1
-      ? activePrices[0].harga_beli
-      : await getDefaultPrice(product.id)
-
-    fillNewItem(product, fallbackPrice)
+    // Single/no supplier tetap default ke histori harga customer (jika tidak ada maka 0).
+    fillNewItem(product, defaultUnitPrice)
   } catch (err) {
     console.error('[selectProduct]', err)
     const price = await getDefaultPrice(product.id)
@@ -1525,16 +1750,18 @@ async function selectProduct(product) {
 
 function selectSupplierPrice(entry) {
   supplierModal.show = false
-  fillNewItem(supplierModal.product, entry.harga_beli)
+  fillNewItem(supplierModal.product, supplierModal.defaultUnitPrice)
 }
 
 function onSupplierModalKey(e) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     supplierModal.selectedIndex = Math.min(supplierModal.selectedIndex + 1, supplierModal.prices.length - 1)
+    ensureSupplierModalSelectionVisible()
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     supplierModal.selectedIndex = Math.max(supplierModal.selectedIndex - 1, 0)
+    ensureSupplierModalSelectionVisible()
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (supplierModal.prices[supplierModal.selectedIndex]) {
@@ -1542,6 +1769,16 @@ function onSupplierModalKey(e) {
     }
   } else if (e.key === 'Escape') {
     supplierModal.show = false
+  }
+}
+
+function ensureSupplierModalSelectionVisible() {
+  const container = supplierModalResultsEl.value
+  if (!container) return
+
+  const selectedEl = container.children?.[supplierModal.selectedIndex]
+  if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+    selectedEl.scrollIntoView({ block: 'nearest' })
   }
 }
 
@@ -1563,19 +1800,21 @@ async function getDefaultPrice(productId) {
   try {
     const customerId = orderData.value.customer.id
 
-    // Priority 1: Last Unit Price dari customer yang sama
-    // First, get the last sale_id for this customer and product
+    // Default harga satuan: last unit price customer ini untuk item yang sama.
     const { data: customerSales, error: error1 } = await supabase
       .from('sales')
       .select('id')
       .eq('customer_id', customerId)
+      .eq('status', 'completed')
       .order('order_date', { ascending: false })
-      .limit(10)
+      .limit(200)
+
+    if (error1) throw error1
 
     if (customerSales && customerSales.length > 0) {
       const saleIds = customerSales.map(s => s.id)
       
-      const { data: saleItems } = await supabase
+      const { data: saleItems, error: saleItemsError } = await supabase
         .from('sale_items')
         .select('unit_price')
         .eq('product_id', productId)
@@ -1583,37 +1822,13 @@ async function getDefaultPrice(productId) {
         .order('created_at', { ascending: false })
         .limit(1)
 
+      if (saleItemsError) throw saleItemsError
+
       if (saleItems && saleItems.length > 0) {
         return saleItems[0].unit_price
       }
     }
-
-    // Priority 2: Last Unit Price dari customer lain
-    const { data: otherSales } = await supabase
-      .from('sale_items')
-      .select('unit_price')
-      .eq('product_id', productId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    if (otherSales && otherSales.length > 0) {
-      return otherSales[0].unit_price
-    }
-
-    // Priority 3: New Unit Cost (dari product_prices)
-    const { data: prices } = await supabase
-      .from('product_prices')
-      .select('harga_beli')
-      .eq('product_id', productId)
-      .eq('aktif', true)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-
-    if (prices && prices.length > 0) {
-      // Add markup 20% for selling price
-      return Math.round(prices[0].harga_beli * 1.2)
-    }
-
+    // Jika customer belum pernah beli item ini, default 0.
     return 0
   } catch (err) {
     console.error('[getDefaultPrice]', err)
@@ -1627,6 +1842,11 @@ async function getDefaultPrice(productId) {
 function addItem() {
   if (!newItem.product_id) {
     alert('Pilih barang terlebih dahulu')
+    return
+  }
+
+  if (Number(newItem.stok_available || 0) <= 0) {
+    openStockEmptyModal(newItem.product_nama)
     return
   }
 
@@ -1687,7 +1907,7 @@ function resetNewItem() {
   newItem.qty = 1
   newItem.unit_price = 0
   newItem.stok_available = 0
-  productSearchArmed.value = false
+  productSearchArmed.value = true
 }
 
 function removeItem(index) {
@@ -1784,15 +2004,33 @@ async function showPriceInfo(item, returnFocusEl = null) {
     const customerId = orderData.value.customer.id
     const productId = item.product_id
 
-    // Get last sale from this customer
-    const { data: customerSale } = await supabase
-      .from('sale_items')
-      .select('unit_price, qty, sale:sales(order_date)')
-      .eq('product_id', productId)
-      .eq('sale.customer_id', customerId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+    // Ambil histori order customer untuk item ini secara global (lintas supplier).
+    const { data: customerSales, error: customerSalesError } = await supabase
+      .from('sales')
+      .select('id, order_date')
+      .eq('customer_id', customerId)
+      .eq('status', 'completed')
+      .order('order_date', { ascending: false })
+      .limit(200)
+
+    if (customerSalesError) throw customerSalesError
+
+    const customerSaleIds = (customerSales || []).map(row => row.id)
+    const salesDateById = new Map((customerSales || []).map(row => [row.id, row.order_date]))
+
+    let customerSaleItem = null
+    if (customerSaleIds.length > 0) {
+      const { data: saleItems, error: saleItemsError } = await supabase
+        .from('sale_items')
+        .select('sale_id, unit_price, qty, created_at')
+        .eq('product_id', productId)
+        .in('sale_id', customerSaleIds)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (saleItemsError) throw saleItemsError
+      customerSaleItem = saleItems?.[0] || null
+    }
 
     // Get last unit cost
     const { data: price } = await supabase
@@ -1805,16 +2043,43 @@ async function showPriceInfo(item, returnFocusEl = null) {
       .single()
 
     priceInfoModal.data = {
-      last_unit_price: customerSale?.unit_price || 0,
+      last_unit_price: customerSaleItem?.unit_price || 0,
       last_unit_cost: price?.harga_beli || 0,
-      last_sale_qty: customerSale?.qty || 0,
-      last_order_date: customerSale?.sale?.order_date || null,
+      last_sale_qty: customerSaleItem?.qty || 0,
+      last_order_date: customerSaleItem?.sale_id ? (salesDateById.get(customerSaleItem.sale_id) || null) : null,
     }
   } catch (err) {
     console.error('[showPriceInfo]', err)
   } finally {
     priceInfoModal.loading = false
   }
+}
+
+async function refreshOrderCustomerFinancials() {
+  const customerId = orderData.value?.customer?.id
+  if (!customerId) return
+
+  const { data, error } = await supabase
+    .from('customers')
+    .select('limit_kredit, saldo_piutang')
+    .eq('id', customerId)
+    .single()
+
+  if (error) {
+    console.error('[refreshOrderCustomerFinancials]', error)
+    return
+  }
+
+  orderData.value.customer = {
+    ...orderData.value.customer,
+    limit_kredit: Number(data?.limit_kredit || 0),
+    saldo_piutang: Number(data?.saldo_piutang || 0),
+  }
+}
+
+function calculateCreditExposure(limitBulan, subtotal) {
+  if (Number(limitBulan) === -1) return 0
+  return Math.max(0, Number(subtotal || 0))
 }
 
 async function showPriceInfoPreview(returnFocusEl = null) {
@@ -1914,7 +2179,7 @@ function focusNextRow(currentIdx, field) {
 // ───────────────────────────────────────────────────────────
 // FORM SUBMIT
 // ───────────────────────────────────────────────────────────
-async function submitSale(shouldPrint = false) {
+async function submitSale(shouldPrint = false, bypassLimitConfirm = false) {
   if (saving.value) return
 
   if (items.value.length === 0) {
@@ -1922,21 +2187,20 @@ async function submitSale(shouldPrint = false) {
     return
   }
 
+  await refreshOrderCustomerFinancials()
+
   // Final credit limit check
   const customer = orderData.value.customer
-  const remainingCredit = customer.limit_kredit - customer.saldo_piutang
+  const remainingCredit = Number(customer.limit_kredit || 0) - Number(customer.saldo_piutang || 0)
   
-  if (subtotal.value > remainingCredit) {
-    const confirm = window.confirm(
-      `Total order melebihi sisa limit kredit customer!\n\n` +
-      `Customer: ${customer.nama}\n` +
-      `Limit Kredit: ${formatRp(customer.limit_kredit)}\n` +
-      `Saldo Piutang: ${formatRp(customer.saldo_piutang)}\n` +
-      `Sisa Limit: ${formatRp(remainingCredit)}\n` +
-      `Total Order: ${formatRp(subtotal.value)}\n\n` +
-      `Tetap lanjutkan?`
-    )
-    if (!confirm) return
+  if (!bypassLimitConfirm && subtotal.value > remainingCredit) {
+    openCreditLimitConfirmModal({
+      customer,
+      remainingCredit,
+      totalOrder: subtotal.value,
+      shouldPrint,
+    })
+    return
   }
 
   saving.value = true
@@ -1954,6 +2218,18 @@ async function submitSale(shouldPrint = false) {
     if (!normalizedItems.length) {
       throw new Error('Tidak ada item valid untuk disimpan.')
     }
+
+    const { data: existingSale, error: existingSaleError } = await supabase
+      .from('sales')
+      .select('customer_id, subtotal, status, limit_bulan')
+      .eq('id', sale_id)
+      .single()
+
+    if (existingSaleError) throw existingSaleError
+
+    const oldExposure = calculateCreditExposure(existingSale?.limit_bulan, existingSale?.subtotal)
+    const newExposure = calculateCreditExposure(orderData.value?.limit_bulan, normalizedSubtotal)
+    const exposureDelta = newExposure - oldExposure
 
     // Restore stock for previously saved rows (draft or previous retries)
     const { data: existingItems, error: existingItemsError } = await supabase
@@ -2043,6 +2319,8 @@ async function submitSale(shouldPrint = false) {
       orderData.value.sender_note = updatedSale.sender_note || null
     }
 
+    await refreshOrderCustomerFinancials()
+
     // Clear session storage
     sessionStorage.removeItem('penjualan_draft')
     clearWorkingState()
@@ -2090,23 +2368,23 @@ function printOrder(sale_id) {
 }
 
 async function saveAsDraft() {
-  if (items.value.length === 0 && adjustmentRows.value.length === 0) {
-    sessionStorage.removeItem('penjualan_draft')
-    return true
-  }
-
   try {
     const sale_id = orderData.value.sale_id
     const normalizedItems = normalizeItemsForSave(items.value)
     const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0) + adjustmentTotal.value
     const extraChargeSnapshot = buildExtraChargeSnapshot()
 
-    if (!sale_id) return
-
-    if (!normalizedItems.length) {
-      sessionStorage.removeItem('penjualan_draft')
+    if (!sale_id) {
       return true
     }
+
+    const { data: existingSale, error: existingSaleError } = await supabase
+      .from('sales')
+      .select('customer_id, subtotal, status, limit_bulan')
+      .eq('id', sale_id)
+      .single()
+
+    if (existingSaleError) throw existingSaleError
 
     // Update sales with current items as draft
     const { error: updateError } = await supabase
@@ -2159,11 +2437,13 @@ async function saveAsDraft() {
       .eq('sale_id', sale_id)
 
     // Insert new items
-    const { error: itemsError } = await supabase
-      .from('sale_items')
-      .insert(itemsPayload)
+    if (itemsPayload.length > 0) {
+      const { error: itemsError } = await supabase
+        .from('sale_items')
+        .insert(itemsPayload)
 
-    if (itemsError) throw itemsError
+      if (itemsError) throw itemsError
+    }
 
     // Deduct stock from warehouse for each new item
     for (const item of normalizedItems) {
@@ -2179,6 +2459,8 @@ async function saveAsDraft() {
         .eq('id', item.product_id)
       if (updateError) throw updateError
     }
+
+    await refreshOrderCustomerFinancials()
 
     console.log('Draft saved successfully')
     return true
@@ -2245,6 +2527,7 @@ function buildExtraChargeSnapshot() {
 }
 
 function paymentTermLabel(limitBulan) {
+  if (Number(limitBulan) === -1) return 'TUNAI'
   const bulan = Number(limitBulan || 0) + 1
   return `${bulan} BULAN`
 }

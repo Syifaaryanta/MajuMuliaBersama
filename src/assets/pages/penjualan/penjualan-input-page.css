@@ -419,6 +419,69 @@
   color: #9ca3af;
 }
 
+.confirm-text {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.confirm-subtext {
+  margin: 0.55rem 0 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.confirm-subtext--danger {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.modal-header--danger {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: #ffffff;
+}
+
+.modal-header--danger .modal-title,
+.modal-header--danger i,
+.modal-header--danger .modal-close {
+  color: #ffffff;
+}
+
+.credit-summary-grid {
+  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.credit-summary-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  background: #f9fafb;
+}
+
+.credit-summary-label {
+  display: block;
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-bottom: 0.2rem;
+}
+
+.credit-summary-value {
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.credit-summary-item--danger .credit-summary-value {
+  color: #dc2626;
+}
+
+.supplier-product-name {
+    text-align: center;
+}
+
 /* ── SHORTCUTS BAR ──────────────────────────────────────── */
 .shortcuts-bar {
   display: flex;
@@ -427,7 +490,7 @@
   gap: 0.5rem;
   padding: 0.5rem;
   background: #f9fafb;
-  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .shortcuts-bar kbd {
@@ -881,13 +944,33 @@
   line-height: 1.4;
 }
 
+.supplier-product-name {
+  margin: 0 0 0.55rem;
+  color: #1f2937;
+  font-size: 0.92rem;
+}
+
+.price-info-product-name {
+  margin: 0 0 0.85rem;
+  text-align: center;
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+.modal-header--blue {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+}
+
+.modal-header--blue .modal-title,
+.modal-header--blue i,
+.modal-header--blue .modal-close {
+  color: #ffffff;
+}
+
 .supplier-select-hint i {
   flex-shrink: 0;
   margin-top: 1px;
-}
-
-.smi-price-sep {
-  color: #9ca3af;
 }
 
 .search-modal-empty i {
@@ -924,6 +1007,24 @@
 
 .confirm-field-full {
   margin-bottom: 0.25rem;
+}
+
+.modal-overlay--stock-empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-box--stock-empty {
+  max-width: 440px;
+}
+
+.modal-box--stock-empty .modal-body {
+  text-align: center;
+  align-items: center;
+}
+
+.modal-box--stock-empty .modal-footer {
+  justify-content: center;
 }
 
 /* ── RESPONSIVE ──────────────────────────────────────────── */
@@ -973,6 +1074,10 @@
   }
 
   .confirm-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-summary-grid {
     grid-template-columns: 1fr;
   }
 }

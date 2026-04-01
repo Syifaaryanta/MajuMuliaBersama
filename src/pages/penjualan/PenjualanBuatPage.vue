@@ -7,7 +7,7 @@
         <h1 class="form-header-title">Pembuatan Order Penjualan</h1>
         <p class="form-header-subtitle">Tahap 1: Lengkapi informasi order dan pelanggan</p>
       </div>
-      <form @submit.prevent="submitOrder" class="order-form">
+      <form @submit.prevent="attemptSubmitOrder" class="order-form">
         <div class="order-form-grid">
           <!-- No Order -->
           <div class="form-row form-row--compact">
@@ -59,7 +59,7 @@
           </div>
 
           <!-- Customer Search -->
-          <div class="form-row form-row--customer" :class="{ 'form-row--adding': addCustomerModal.show }">
+          <div class="form-row form-row--customer" :class="{ 'form-row--adding': addCustomerModal.show, 'form-row--focused': focusedField === 'customer' && !addCustomerModal.show }">
             <label class="form-label required">
               <i class="pi pi-user"></i>
               Customer
@@ -79,6 +79,7 @@
                 @input="onCustomerInput"
                 @keydown.enter.prevent="openCustomerModal"
                 @keydown.f2.prevent="quickAddCustomer"
+                @keydown.backspace="onCustomerBackspace"
               />
             </div>
             
@@ -103,8 +104,8 @@
                   <span class="ci-separator">|</span>
                   <span>Piutang: {{ formatRp(selectedCustomer.saldo_piutang) }}</span>
                   <span class="ci-separator">|</span>
-                  <span :class="{'text-danger': remainingCredit <= 0, 'text-success': remainingCredit > 0}">
-                    Sisa: {{ formatRp(remainingCredit) }}
+                  <span :class="remainingCreditClass">
+                    Sisa: {{ remainingCreditLabel }}
                   </span>
                 </div>
               </div>
@@ -210,7 +211,11 @@
               <i class="pi pi-clock"></i>
               Jatuh Tempo
             </label>
-            <div class="radio-group">
+            <div class="radio-group radio-group--tempo">
+              <label class="radio-option" :class="{ active: form.limit_bulan === -1 }">
+                <input type="radio" :value="-1" v-model="form.limit_bulan" @change="onTempoChange" />
+                <span class="radio-label">Tunai</span>
+              </label>
               <label class="radio-option" :class="{ active: form.limit_bulan === 0 }">
                 <input type="radio" :value="0" v-model="form.limit_bulan" @change="onTempoChange" />
                 <span class="radio-label">1 Bulan</span>
@@ -329,6 +334,48 @@
       </Transition>
     </Teleport>
 
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="overLimitConfirm.show" class="modal-overlay" @click.self="cancelOverLimitConfirm">
+          <div class="modal-box modal-box--sm" role="dialog" aria-modal="true" aria-label="Konfirmasi limit kredit customer">
+            <div class="modal-header modal-header--danger">
+              <i class="pi pi-exclamation-triangle"></i>
+              <h3 class="modal-title">Peringatan Limit Kredit</h3>
+              <button class="modal-close" @click="cancelOverLimitConfirm" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="confirm-text">Customer <strong>{{ selectedCustomer?.nama }}</strong> sudah melewati limit kredit.</p>
+              <div class="credit-summary-grid">
+                <div class="credit-summary-item">
+                  <span class="credit-summary-label">Limit Kredit</span>
+                  <strong class="credit-summary-value">{{ formatRp(selectedCustomer?.limit_kredit) }}</strong>
+                </div>
+                <div class="credit-summary-item">
+                  <span class="credit-summary-label">Saldo Piutang</span>
+                  <strong class="credit-summary-value">{{ formatRp(selectedCustomer?.saldo_piutang) }}</strong>
+                </div>
+                <div class="credit-summary-item" :class="{ 'credit-summary-item--danger': remainingCredit < 0 }">
+                  <span class="credit-summary-label">Sisa Limit</span>
+                  <strong class="credit-summary-value">{{ formatRp(remainingCredit) }}</strong>
+                </div>
+              </div>
+              <p class="confirm-subtext">Tekan <strong>Y</strong> untuk tetap lanjut, atau <strong>N</strong> untuk batal.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-secondary" @click="cancelOverLimitConfirm">
+                Batal <kbd>N</kbd>
+              </button>
+              <button type="button" class="btn-primary" @click="confirmOverLimitAndSubmit" :disabled="submitInProgress">
+                Tetap Lanjutkan <kbd>Y</kbd>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </div>
 </template>
 
@@ -386,6 +433,10 @@ const addCustomerModal = reactive({
   saving: false,
 })
 
+const overLimitConfirm = reactive({
+  show: false,
+})
+
 const submitInProgress = ref(false)
 
 const addCustomerForm = reactive({
@@ -407,6 +458,21 @@ const remainingCredit = computed(() => {
   return selectedCustomer.value.limit_kredit - selectedCustomer.value.saldo_piutang
 })
 
+const remainingCreditLabel = computed(() => {
+  if (!selectedCustomer.value) return 'Rp 0'
+  if (remainingCredit.value < 0) {
+    return 'Overlimit'
+  }
+  if (remainingCredit.value === 0) {
+    return 'Limit Habis'
+  }
+  return formatRp(remainingCredit.value)
+})
+
+const remainingCreditClass = computed(() => {
+  return remainingCredit.value <= 0 ? 'text-danger' : 'text-success'
+})
+
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
@@ -424,6 +490,17 @@ onUnmounted(() => {
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
+  if (overLimitConfirm.show) {
+    if (e.key === 'Escape' || e.key === 'n' || e.key === 'N') {
+      e.preventDefault()
+      cancelOverLimitConfirm()
+    } else if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
+      e.preventDefault()
+      confirmOverLimitAndSubmit()
+    }
+    return
+  }
+
   if (customerModal.show || infoModal.show || addCustomerModal.show) {
     // Esc in modals
     if (e.key === 'Escape') {
@@ -453,7 +530,7 @@ function onGlobalKey(e) {
   if (e.key === 'y' || e.key === 'Y') {
     if (canProceed.value && !customerModal.show) {
       e.preventDefault()
-      submitOrder()
+      attemptSubmitOrder()
     }
     return
   }
@@ -488,6 +565,11 @@ function onGlobalKey(e) {
       if (focusedField.value === 'tempo') {
         form.limit_bulan = 2
       }
+    } else if (e.key === '0') {
+      e.preventDefault()
+      if (focusedField.value === 'tempo') {
+        form.limit_bulan = -1
+      }
     }
   }
 
@@ -516,7 +598,25 @@ function onGlobalKey(e) {
         if (e.key === 'ArrowRight') {
           form.limit_bulan = Math.min(form.limit_bulan + 1, 2)
         } else {
-          form.limit_bulan = Math.max(form.limit_bulan - 1, 0)
+          form.limit_bulan = Math.max(form.limit_bulan - 1, -1)
+        }
+      }
+    }
+  }
+
+  if (!customerModal.show && !addCustomerModal.show && document.activeElement?.tagName !== 'INPUT') {
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      if (focusedField.value === 'tempo') {
+        focusedField.value = 'pengiriman'
+      } else if (focusedField.value === 'pengiriman') {
+        focusedField.value = 'customer'
+      } else if (focusedField.value === 'customer') {
+        if (selectedCustomer.value) {
+          clearCustomer()
+        } else {
+          focusedField.value = ''
+          nextTick(() => inputOrderDate.value?.focus())
         }
       }
     }
@@ -538,7 +638,7 @@ function onGlobalKey(e) {
       } else if (focusedField.value === 'tempo') {
         // Move to submit if all fields completed
         if (canProceed.value) {
-          submitOrder()
+          attemptSubmitOrder()
         }
       } else if (!focusedField.value && selectedCustomer.value) {
         focusedField.value = 'pengiriman'
@@ -559,7 +659,9 @@ function onCustomerInput() {
 }
 
 function onCustomerBlur() {
-  focusedField.value = ''
+  if (!selectedCustomer.value) {
+    focusedField.value = ''
+  }
 }
 
 function onCustomerKey(e) {
@@ -569,6 +671,36 @@ function onCustomerKey(e) {
   } else if (e.key === 'F2') {
     e.preventDefault()
     quickAddCustomer()
+  }
+}
+
+function onCustomerBackspace(e) {
+  if (!searchCustomer.value?.trim() && !selectedCustomer.value) {
+    e.preventDefault()
+    focusedField.value = ''
+    nextTick(() => inputOrderDate.value?.focus())
+  }
+}
+
+async function refreshSelectedCustomerFinancials() {
+  if (!selectedCustomer.value?.id) return
+
+  const { data, error } = await supabase
+    .from('customers')
+    .select('limit_kredit, saldo_piutang, jatuh_tempo_bulan')
+    .eq('id', selectedCustomer.value.id)
+    .single()
+
+  if (error) {
+    console.error('[refreshSelectedCustomerFinancials]', error)
+    return
+  }
+
+  selectedCustomer.value = {
+    ...selectedCustomer.value,
+    limit_kredit: Number(data?.limit_kredit || 0),
+    saldo_piutang: Number(data?.saldo_piutang || 0),
+    jatuh_tempo_bulan: data?.jatuh_tempo_bulan,
   }
 }
 
@@ -651,14 +783,22 @@ function ensureCustomerModalSelectionVisible() {
   }
 }
 
-justSelectedCustomer.value = true
+function mapCustomerTempoToLimitBulan(jatuhTempoBulan) {
+  const tempo = Number(jatuhTempoBulan)
+  if (tempo === 2) return 1
+  if (tempo === 3) return 2
+  return 0
+}
   
 
-function selectCustomer(customer) {
+async function selectCustomer(customer) {
   selectedCustomer.value = customer
   searchCustomer.value = customer.nama
   form.customer_id = customer.id
+  form.limit_bulan = mapCustomerTempoToLimitBulan(customer?.jatuh_tempo_bulan)
+  await refreshSelectedCustomerFinancials()
   customerModal.show = false
+  justSelectedCustomer.value = true
   
   // Auto focus to page element so keyboard shortcuts work
   nextTick(() => {
@@ -671,6 +811,8 @@ function clearCustomer() {
   selectedCustomer.value = null
   searchCustomer.value = ''
   form.customer_id = null
+  justSelectedCustomer.value = false
+  focusedField.value = 'customer'
   nextTick(() => inputCustomer.value?.focus())
 }
 
@@ -794,9 +936,10 @@ function showInfo(field) {
     tempo: {
       title: 'Info: Jatuh Tempo',
       content: `
-        <p><strong>1 Bulan (0)</strong>: Jatuh tempo 30 hari dari tanggal order</p>
-        <p><strong>2 Bulan (1)</strong>: Jatuh tempo 60 hari dari tanggal order</p>
-        <p><strong>3 Bulan (2)</strong>: Jatuh tempo 90 hari dari tanggal order</p>
+        <p><strong>Tunai (0)</strong>: Pembayaran langsung saat transaksi</p>
+        <p><strong>1 Bulan (1)</strong>: Jatuh tempo 30 hari dari tanggal order</p>
+        <p><strong>2 Bulan (2)</strong>: Jatuh tempo 60 hari dari tanggal order</p>
+        <p><strong>3 Bulan (3)</strong>: Jatuh tempo 90 hari dari tanggal order</p>
       `
     }
   }
@@ -810,7 +953,7 @@ function showInfo(field) {
 // ───────────────────────────────────────────────────────────
 // FORM SUBMIT
 // ───────────────────────────────────────────────────────────
-async function submitOrder() {
+async function attemptSubmitOrder() {
   if (submitInProgress.value) return
 
   if (!canProceed.value) {
@@ -818,16 +961,30 @@ async function submitOrder() {
     return
   }
 
+  await refreshSelectedCustomerFinancials()
+
   // Validate credit limit
   if (remainingCredit.value < 0) {
-    const confirm = window.confirm(
-      `Customer ${selectedCustomer.value.nama} telah melebihi limit kredit!\n\n` +
-      `Limit: ${formatRp(selectedCustomer.value.limit_kredit)}\n` +
-      `Piutang: ${formatRp(selectedCustomer.value.saldo_piutang)}\n\n` +
-      `Tetap lanjutkan?`
-    )
-    if (!confirm) return
+    overLimitConfirm.show = true
+    return
   }
+
+  await submitOrderCore()
+}
+
+function cancelOverLimitConfirm() {
+  overLimitConfirm.show = false
+  nextTick(() => pageEl.value?.focus())
+}
+
+async function confirmOverLimitAndSubmit() {
+  if (submitInProgress.value) return
+  overLimitConfirm.show = false
+  await submitOrderCore()
+}
+
+async function submitOrderCore() {
+  if (submitInProgress.value) return
 
   const draftPayload = {
     order_date: parseDateInput(form.order_date),
@@ -931,7 +1088,7 @@ async function submitOrder() {
     sessionStorage.setItem('penjualan_draft', JSON.stringify(orderData))
     router.push('/penjualan/input')
   } catch (err) {
-    console.error('[submitOrder]', err)
+    console.error('[submitOrderCore]', err)
     alert('Gagal membuat draft order: ' + err.message)
   } finally {
     submitInProgress.value = false

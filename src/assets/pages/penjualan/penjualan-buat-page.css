@@ -403,6 +403,16 @@
   flex-wrap: wrap;
 }
 
+.radio-group--tempo {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+}
+
+.radio-group--tempo .radio-option {
+  min-width: 0;
+}
+
 .radio-group-wrap {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -636,6 +646,64 @@
   margin: 0.25rem 0;
 }
 
+.confirm-text {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.confirm-subtext {
+  margin: 0.65rem 0 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.confirm-subtext--danger {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.modal-header--danger {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: #ffffff;
+}
+
+.modal-header--danger .modal-title,
+.modal-header--danger i,
+.modal-header--danger .modal-close {
+  color: #ffffff;
+}
+
+.credit-summary-grid {
+  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.credit-summary-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  background: #f9fafb;
+}
+
+.credit-summary-label {
+  display: block;
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-bottom: 0.2rem;
+}
+
+.credit-summary-value {
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.credit-summary-item--danger .credit-summary-value {
+  color: #dc2626;
+}
+
 /* ── ADD CUSTOMER MODAL ──────────────────────────────────── */
 .mfield-grid {
   display: grid;
@@ -746,6 +814,15 @@
 
   .radio-group {
     gap: 0.5rem;
+  }
+
+  .radio-group--tempo {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .credit-summary-grid {
+    grid-template-columns: 1fr;
   }
 
   .radio-option {

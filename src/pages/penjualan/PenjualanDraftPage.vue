@@ -209,7 +209,7 @@
                     </div>
                     <div class="detail-item">
                       <label>Jatuh Tempo:</label>
-                      <strong>{{ detailModal.order.limit_bulan + 1 }} Bulan</strong>
+                      <strong>{{ paymentTermLabel(detailModal.order.limit_bulan) }}</strong>
                     </div>
                   </div>
                 </div>
@@ -1332,6 +1332,7 @@ async function editDraft(order) {
 }
 
 function paymentTermLabel(limitBulan) {
+  if (Number(limitBulan) === -1) return 'TUNAI'
   const bulan = Number(limitBulan || 0) + 1
   return `${bulan} BULAN`
 }

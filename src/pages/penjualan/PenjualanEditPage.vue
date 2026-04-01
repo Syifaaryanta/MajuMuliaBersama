@@ -112,6 +112,14 @@
           </div>
         </div>
 
+        <!-- Shortcuts Bar -->
+        <div class="shortcuts-bar">
+          <kbd>F1 Lain-Lain</kbd>
+          <kbd>F2 Barang</kbd>
+          <kbd>F10 Keterangan</kbd>
+          <kbd>F4 Info</kbd>
+        </div>
+
         <!-- Items Table -->
         <div class="table-section">
           <div class="table-header">
@@ -300,14 +308,6 @@
             </table>
           </div>
 
-          <!-- Shortcuts Bar -->
-          <div class="shortcuts-bar">
-            <kbd>F1 Biaya</kbd>
-            <kbd>F2 Barang</kbd>
-            <kbd>F10 Keterangan</kbd>
-            <kbd>F4</kbd>
-          </div>
-
           <div class="table-note-inline">
             <span class="table-note-inline-label">Keterangan:</span>
             <input
@@ -446,6 +446,33 @@
       </Transition>
     </Teleport>
 
+    <!-- ═══════════════════════════════════════════════════
+         MODAL STOK KOSONG
+    ════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="stockEmptyModal.show" class="modal-overlay modal-overlay--stock-empty" @click.self="closeStockEmptyModal">
+          <div ref="stockEmptyModalBox" class="modal-box modal-box--sm modal-box--stock-empty" role="dialog" tabindex="0" aria-modal="true" aria-label="Peringatan stok kosong" @keydown="onStockEmptyModalKey">
+            <div class="modal-header modal-header--danger">
+              <i class="pi pi-ban"></i>
+              <h3 class="modal-title">Stok Gudang Kosong</h3>
+              <button class="modal-close" @click="closeStockEmptyModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="confirm-text">Item ini tidak bisa diinput karena stok gudang kosong.</p>
+              <p class="confirm-subtext">Item: <strong>{{ stockEmptyModal.productName }}</strong></p>
+              <p class="confirm-subtext">Tekan <strong>Enter</strong> untuk batalkan dan cari item lain.</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-primary" @click="closeStockEmptyModal">Batal & Cari Lagi <kbd>Enter</kbd></button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- ═══════════════════════════════════════════════════════
          MODAL KONFIRMASI PRINT
     ═══════════════════════════════════════════════════════ -->
@@ -561,6 +588,8 @@ const productModalResultsEl = ref(null)
 const senderInlineInput = ref(null)
 const priceInfoReturnFocusEl = ref(null)
 const printConfirmModalBox = ref(null)
+const stockEmptyModalBox = ref(null)
+const suppressNextProductModalEnter = ref(false)
 
 // ───────────────────────────────────────────────────────────
 // STATE
@@ -629,6 +658,11 @@ const deleteConfirmModal = reactive({
   label: '',
 })
 
+const stockEmptyModal = reactive({
+  show: false,
+  productName: '',
+})
+
 const printSortOptions = [
   { value: 'original', label: 'Urutan Asli' },
   { value: 'alpha', label: 'Abjad (A-Z)' },
@@ -649,7 +683,7 @@ function normalizeAdjustmentDescription(text) {
     .join(' | ')
 }
 
-const productSearchArmed = ref(false)
+const productSearchArmed = ref(true)
 const adjustmentRows = ref([])
 const senderNoteAutofilled = ref(false)
 
@@ -893,6 +927,15 @@ function handleNewItemKeydown(e, field) {
 // GLOBAL KEY HANDLER
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
+  if (stockEmptyModal.show) {
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      e.preventDefault()
+      closeStockEmptyModal()
+      return
+    }
+    return
+  }
+
   if (deleteConfirmModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -1000,6 +1043,17 @@ function onGlobalKey(e) {
   }
 }
 
+function onStockEmptyCaptureKey(e) {
+  if (!stockEmptyModal.show) return
+
+  const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
+  if (isEnter || e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    closeStockEmptyModal(isEnter ? 'enter' : 'escape')
+  }
+}
+
 // ───────────────────────────────────────────────────────────
 // SEARCH ORDER
 // ───────────────────────────────────────────────────────────
@@ -1069,13 +1123,7 @@ async function searchOrder() {
       throw itemsError
     }
     
-    if (!itemsData || itemsData.length === 0) {
-      alert('Order tidak memiliki item yang dapat diedit')
-      notFound.value = true
-      return
-    }
-    
-    items.value = itemsData.map(item => ({
+    items.value = (itemsData || []).map(item => ({
       ...item,
       product_id: item.product_id,
       product_kode: item.product_kode,
@@ -1088,7 +1136,7 @@ async function searchOrder() {
     console.log('Items loaded:', items.value.length, items.value)
     
     // Store original items for stock restoration
-    originalItems.value = JSON.parse(JSON.stringify(itemsData.map(item => ({
+    originalItems.value = JSON.parse(JSON.stringify((itemsData || []).map(item => ({
       product_id: item.product_id,
       qty: item.qty
     }))))
@@ -1097,12 +1145,11 @@ async function searchOrder() {
     formVisible.value = false
     searchModalError.value = ''
     
-    // Focus first qty input after loading
+    // Samakan dengan halaman input item: fokus ke row input barang baru.
     await nextTick()
     setTimeout(() => {
-      if (items.value.length > 0 && qtyRefs.value[0]) {
-        qtyRefs.value[0].focus()
-      }
+      inputProduct.value?.focus()
+      inputProduct.value?.select?.()
     }, 100)
     
   } catch (error) {
@@ -1394,6 +1441,24 @@ function filterProductModal() {
 }
 
 function onProductModalKey(e) {
+  const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
+
+  if (suppressNextProductModalEnter.value && isEnter) {
+    e.preventDefault()
+    e.stopPropagation()
+    suppressNextProductModalEnter.value = false
+    return
+  }
+
+  if (stockEmptyModal.show) {
+    if (isEnter || e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      closeStockEmptyModal(isEnter ? 'enter' : 'escape')
+    }
+    return
+  }
+
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     productModal.selectedIndex = Math.min(
@@ -1413,7 +1478,7 @@ function onProductModalKey(e) {
     e.preventDefault()
     productModal.selectedIndex = Math.max(productModal.selectedIndex - 8, 0)
     ensureProductModalSelectionVisible()
-  } else if (e.key === 'Enter') {
+  } else if (isEnter) {
     e.preventDefault()
     if (productModal.filtered[productModal.selectedIndex]) {
       selectProduct(productModal.filtered[productModal.selectedIndex])
@@ -1425,7 +1490,7 @@ function onProductModalKey(e) {
 
 function closeProductModal() {
   productModal.show = false
-  productSearchArmed.value = false
+  productSearchArmed.value = true
   focusProductInput()
 }
 
@@ -1439,12 +1504,20 @@ function ensureProductModalSelectionVisible() {
   }
 }
 
-function selectProduct(product) {
+async function selectProduct(product) {
+  if (Number(product?.stok || 0) <= 0) {
+    openStockEmptyModal(product?.nama)
+    productSearchArmed.value = true
+    return
+  }
+
+  const defaultUnitPrice = await getDefaultPrice(product.id)
+
   newItem.product_id = product.id
   newItem.product_kode = product.kode
   newItem.product_nama = product.nama
   newItem.search = `${product.kode} - ${product.nama}`
-  newItem.unit_price = product.harga_jual || 0
+  newItem.unit_price = defaultUnitPrice
   newItem.stok_available = product.stok || 0
   
   productModal.show = false
@@ -1453,6 +1526,46 @@ function selectProduct(product) {
   nextTick(() => {
     inputQty.value?.focus()
   })
+}
+
+async function getDefaultPrice(productId) {
+  try {
+    const customerId = order.value?.customer_id || order.value?.customer?.id
+    if (!customerId) return 0
+
+    const { data: customerSales, error: salesError } = await supabase
+      .from('sales')
+      .select('id')
+      .eq('customer_id', customerId)
+      .eq('status', 'completed')
+      .order('order_date', { ascending: false })
+      .limit(200)
+
+    if (salesError) throw salesError
+
+    if (customerSales && customerSales.length > 0) {
+      const saleIds = customerSales.map(s => s.id)
+
+      const { data: saleItems, error: saleItemsError } = await supabase
+        .from('sale_items')
+        .select('unit_price')
+        .eq('product_id', productId)
+        .in('sale_id', saleIds)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (saleItemsError) throw saleItemsError
+
+      if (saleItems && saleItems.length > 0) {
+        return Number(saleItems[0].unit_price || 0)
+      }
+    }
+
+    return 0
+  } catch (error) {
+    console.error('[getDefaultPrice edit]', error)
+    return 0
+  }
 }
 
 function focusPrice() {
@@ -1478,10 +1591,15 @@ function resetNewItem() {
   newItem.unit_price = 0
   newItem.total = 0
   newItem.stok_available = 0
-  productSearchArmed.value = false
+  productSearchArmed.value = true
 }
 
 function addItem() {
+  if (Number(newItem.stok_available || 0) <= 0) {
+    openStockEmptyModal(newItem.product_nama)
+    return
+  }
+
   if (!newItem.product_id || !newItem.qty || !newItem.unit_price) return
   
   items.value.push({
@@ -1566,6 +1684,41 @@ function closePriceInfoModal() {
   nextTick(() => {
     priceInfoReturnFocusEl.value?.focus?.()
   })
+}
+
+function openStockEmptyModal(productName) {
+  stockEmptyModal.productName = String(productName || '-').trim() || '-'
+  stockEmptyModal.show = true
+  nextTick(() => {
+    stockEmptyModalBox.value?.focus?.()
+  })
+}
+
+function closeStockEmptyModal(source = 'manual') {
+  if (source === 'enter') {
+    suppressNextProductModalEnter.value = true
+  }
+
+  stockEmptyModal.show = false
+  nextTick(() => {
+    if (productModal.show) {
+      productModalInput.value?.focus()
+      productModalInput.value?.select?.()
+      ensureProductModalSelectionVisible()
+    } else {
+      inputProduct.value?.focus()
+      inputProduct.value?.select?.()
+    }
+  })
+}
+
+function onStockEmptyModalKey(e) {
+  const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
+  if (isEnter || e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    closeStockEmptyModal(isEnter ? 'enter' : 'escape')
+  }
 }
 
 // ───────────────────────────────────────────────────────────
@@ -1876,6 +2029,7 @@ function buildExtraChargeSnapshot() {
 }
 
 function paymentTermLabel(limitBulan) {
+  if (Number(limitBulan) === -1) return 'TUNAI'
   const bulan = Number(limitBulan || 0) + 1
   return `${bulan} BULAN`
 }
@@ -2104,6 +2258,7 @@ function formatDate(dateString) {
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
 onMounted(() => {
+  window.addEventListener('keydown', onStockEmptyCaptureKey, true)
   window.addEventListener('keydown', onGlobalKey)
   window.addEventListener('beforeunload', handleBeforeUnload)
 
@@ -2128,6 +2283,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onStockEmptyCaptureKey, true)
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
