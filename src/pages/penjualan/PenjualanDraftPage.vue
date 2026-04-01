@@ -174,72 +174,62 @@
         <div v-if="detailModal.show" class="modal-overlay" @click.self="detailModal.show = false">
           <div class="modal-box modal-box--detail" role="dialog">
             <div class="modal-header modal-header--blue">
-              <div class="modal-header-icon">
-                <i class="pi pi-file-edit"></i>
+              <div class="modal-header-left">
+                <div class="modal-header-icon">
+                  <i class="pi pi-file-edit"></i>
+                </div>
+                <h3 class="modal-title">Detail Draft: {{ detailModal.order?.no_order }}</h3>
+                <span class="status-badge status-draft detail-header-status">Draft</span>
               </div>
-              <h3 class="modal-title">Detail Draft: {{ detailModal.order?.no_order }}</h3>
               <button class="modal-close" @click="detailModal.show = false" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
             <div class="modal-body modal-body--detail" v-if="detailModal.order">
-              <!-- Order Header Info -->
-              <div class="detail-section">
-                <h4 class="detail-section-title">Informasi Order</h4>
-                <div class="detail-grid">
-                  <div class="detail-item">
-                    <label>No. Order:</label>
-                    <strong>{{ detailModal.order.no_order }}</strong>
-                  </div>
-                  <div class="detail-item">
-                    <label>No. Fraktur:</label>
-                    <strong>{{ detailModal.order.no_faktur || '-' }}</strong>
-                  </div>
-                  <div class="detail-item">
-                    <label>Tanggal:</label>
-                    <strong>{{ formatDate(detailModal.order.order_date) }}</strong>
-                  </div>
-                  <div class="detail-item">
-                    <label>Status:</label>
-                    <span class="status-badge status-draft">Draft</span>
-                  </div>
-                  <div class="detail-item">
-                    <label>Pengiriman:</label>
-                    <strong>{{ detailModal.order.diantar ? 'Diantar' : 'Diambil' }}</strong>
-                  </div>
-                  <div class="detail-item">
-                    <label>Jatuh Tempo:</label>
-                    <strong>{{ detailModal.order.limit_bulan + 1 }} Bulan</strong>
-                  </div>
-                  <div class="detail-item" v-if="detailModal.order.extra_charge_desc || Number(detailModal.order.extra_charge_amount || 0) > 0">
-                    <label>Biaya Tambahan:</label>
-                    <strong>
-                      {{ detailModal.order.extra_charge_desc || 'Biaya Tambahan' }}
-                      · {{ formatRp(detailModal.order.extra_charge_amount || 0) }}
-                    </strong>
-                  </div>
-                  <div class="detail-item" v-if="detailModal.order.sender_note">
-                    <label>Keterangan Pengirim:</label>
-                    <strong>{{ detailModal.order.sender_note }}</strong>
+              <div class="detail-top-panels">
+                <!-- Order Header Info -->
+                <div class="detail-section detail-panel">
+                  <h4 class="detail-section-title">Informasi Order</h4>
+                  <div class="detail-grid">
+                    <div class="detail-item">
+                      <label>No. Order:</label>
+                      <strong>{{ detailModal.order.no_order }}</strong>
+                    </div>
+                    <div class="detail-item">
+                      <label>No. Fraktur:</label>
+                      <strong>{{ detailModal.order.no_faktur || '-' }}</strong>
+                    </div>
+                    <div class="detail-item">
+                      <label>Tanggal:</label>
+                      <strong>{{ formatDate(detailModal.order.order_date) }}</strong>
+                    </div>
+                    <div class="detail-item">
+                      <label>Pengiriman:</label>
+                      <strong>{{ detailModal.order.diantar ? 'Diantar' : 'Diambil' }}</strong>
+                    </div>
+                    <div class="detail-item">
+                      <label>Jatuh Tempo:</label>
+                      <strong>{{ detailModal.order.limit_bulan + 1 }} Bulan</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- Customer Info -->
-              <div class="detail-section">
-                <h4 class="detail-section-title">Customer</h4>
-                <div class="detail-grid">
-                  <div class="detail-item detail-item-full">
-                    <label>Nama:</label>
-                    <strong>{{ detailModal.order.customer_nama }}</strong>
-                  </div>
-                  <div class="detail-item detail-item-full" v-if="detailModal.order.customer_alamat">
-                    <label>Alamat:</label>
-                    <span>{{ detailModal.order.customer_alamat }}</span>
-                  </div>
-                  <div class="detail-item" v-if="detailModal.order.customer_telp">
-                    <label>No. Telp:</label>
-                    <span>{{ detailModal.order.customer_telp }}</span>
+                <!-- Customer Info -->
+                <div class="detail-section detail-panel">
+                  <h4 class="detail-section-title">Customer</h4>
+                  <div class="detail-grid">
+                    <div class="detail-item detail-item-full">
+                      <label>Nama:</label>
+                      <strong>{{ detailModal.order.customer_nama }}</strong>
+                    </div>
+                    <div class="detail-item detail-item-full" v-if="detailModal.order.customer_alamat">
+                      <label>Alamat:</label>
+                      <span>{{ detailModal.order.customer_alamat }}</span>
+                    </div>
+                    <div class="detail-item" v-if="detailModal.order.customer_telp">
+                      <label>No. Telp:</label>
+                      <span>{{ detailModal.order.customer_telp }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -267,20 +257,24 @@
                       <td>{{ formatRp(item.unit_price) }}</td>
                       <td><strong>{{ formatRp(item.total) }}</strong></td>
                     </tr>
+                    <tr v-if="Number(detailModal.order.extra_charge_amount || 0) !== 0" class="detail-adjustment-row">
+                      <td>{{ detailModal.items.length + 1 }}</td>
+                      <td><span class="item-kode">-</span></td>
+                      <td><strong class="detail-adjustment-label">{{ detailModal.order.extra_charge_desc || 'Biaya Tambahan' }}</strong></td>
+                      <td>-</td>
+                      <td>-</td>
+                      <td><strong class="detail-adjustment-value">{{ formatRp(detailModal.order.extra_charge_amount || 0) }}</strong></td>
+                    </tr>
                   </tbody>
                   <tfoot>
-                    <tr v-if="Number(detailModal.order.extra_charge_amount || 0) > 0">
-                      <td colspan="5" class="text-right"><strong>{{ detailModal.order.extra_charge_desc || 'Biaya Tambahan' }}:</strong></td>
-                      <td><strong class="total-value">{{ formatRp(detailModal.order.extra_charge_amount || 0) }}</strong></td>
-                    </tr>
                     <tr>
                       <td colspan="5" class="text-right"><strong>Subtotal:</strong></td>
                       <td><strong class="total-value">{{ formatRp(detailModal.order.subtotal) }}</strong></td>
                     </tr>
                   </tfoot>
                 </table>
-                <p v-if="detailModal.order.sender_note" style="margin-top:0.65rem;color:#475569;font-size:0.86rem;">
-                  <strong style="color:#334155;">Keterangan Pengirim:</strong> {{ detailModal.order.sender_note }}
+                <p v-if="detailModal.order.sender_note" class="detail-sender-note">
+                  <strong class="detail-sender-note-label">Keterangan Pengirim:</strong> {{ detailModal.order.sender_note }}
                 </p>
               </div>
             </div>
@@ -288,9 +282,13 @@
               <button class="btn-secondary" @click="detailModal.show = false">
                 Tutup <kbd>Esc</kbd>
               </button>
-              <button class="btn-primary" @click="printOrder(detailModal.order)">
+              <button class="btn-secondary" @click="editDraft(detailModal.order)">
+                <i class="pi pi-pencil"></i>
+                Edit <kbd>Enter</kbd>
+              </button>
+              <button class="btn-primary" @click="openPrintConfirmFromOrder(detailModal.order)">
                 <i class="pi pi-print"></i>
-                Print
+                Print <kbd>P</kbd>
               </button>
             </div>
           </div>
@@ -298,46 +296,69 @@
       </Transition>
     </Teleport>
 
-    <!-- ═══════════════════════════════════════════════════
-         MODAL PRINT OPTIONS
-    ════════════════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════════════════════════════
+         MODAL KONFIRMASI PRINT
+    ═══════════════════════════════════════════════════════ -->
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="printModal.show" class="modal-overlay" @click.self="printModal.show = false">
-          <div class="modal-box modal-box--sm" role="dialog">
+        <div v-if="printConfirmModal.show" class="modal-overlay" @click.self="closePrintConfirmModal">
+          <div
+            ref="printConfirmModalBox"
+            class="modal-box modal-box--print-confirm"
+            role="dialog"
+            tabindex="0"
+            @keydown="handlePrintConfirmKeydown"
+          >
             <div class="modal-header">
               <i class="pi pi-print"></i>
-              <h3 class="modal-title">Print Draft</h3>
-              <button class="modal-close" @click="printModal.show = false" tabindex="-1">
+              <h3 class="modal-title">Konfirmasi Cetak Nota</h3>
+              <button class="modal-close" @click="closePrintConfirmModal" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
-            <div class="modal-body" v-if="printModal.order">
-              <div class="print-info">
-                <p><strong>No. Order:</strong> {{ printModal.order.no_order }}</p>
-                <p><strong>No. Fraktur:</strong> {{ printModal.order.no_faktur || '-' }}</p>
-                <p><strong>Customer:</strong> {{ printModal.order.customer_nama }}</p>
-                <p><strong>Total:</strong> {{ formatRp(printModal.order.subtotal) }}</p>
+            <div class="modal-body" v-if="printConfirmModal.payload">
+              <p class="print-confirm-help">
+                Pilih urutan item, lalu pilih aksi: Simpan ke Riwayat (Enter) atau Print (P).
+              </p>
+
+              <div class="print-sort-options">
+                <button
+                  v-for="(opt, idx) in printSortOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="print-sort-btn"
+                  :class="{ active: idx === printConfirmModal.sortIndex }"
+                  @click="setPrintSortIndex(idx)"
+                >
+                  {{ opt.label }}
+                </button>
               </div>
-              <div class="print-options">
-                <p class="print-note">
-                  <i class="pi pi-info-circle"></i>
-                  Fitur print akan segera ditambahkan. Saat ini Anda dapat:
-                </p>
-                <ul class="print-list">
-                  <li>Lihat detail order untuk melihat informasi lengkap</li>
-                  <li>Gunakan Ctrl+P untuk print halaman ini</li>
-                </ul>
+
+              <div class="print-preview-table-wrap">
+                <table class="print-preview-table">
+                  <thead>
+                    <tr>
+                      <th>Nama Barang</th>
+                      <th class="text-right">Qty</th>
+                      <th class="text-right">Harga</th>
+                      <th class="text-right">Jumlah</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in sortedPrintItems" :key="`${item.product_id}-${item.product_kode}-${item.unit_price}`">
+                      <td>{{ item.product_nama }}</td>
+                      <td class="text-right">{{ item.qty }}</td>
+                      <td class="text-right">{{ formatRp(item.unit_price) }}</td>
+                      <td class="text-right">{{ formatRp(item.total) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn-secondary" @click="printModal.show = false">
-                Tutup <kbd>Esc</kbd>
-              </button>
-              <button class="btn-primary" @click="viewOrder(printModal.order); printModal.show = false">
-                <i class="pi pi-eye"></i>
-                Lihat Detail
-              </button>
+              <button class="btn-secondary" @click="closePrintConfirmModal">Batal (Esc)</button>
+              <button class="btn-secondary" @click="confirmSaveFromPrintModal">Simpan ke Riwayat (Enter)</button>
+              <button class="btn-primary" @click="printFromConfirmModal">Print (P)</button>
             </div>
           </div>
         </div>
@@ -350,12 +371,15 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="deleteModal.show" class="modal-overlay" @click.self="cancelDelete">
-          <div class="modal-box modal-box--confirm" role="dialog">
+          <div class="modal-box modal-box--confirm modal-box--delete-confirm" role="dialog">
             <div class="modal-header modal-header--danger">
               <div class="modal-header-icon">
                 <i class="pi pi-exclamation-triangle"></i>
               </div>
               <h3 class="modal-title">Konfirmasi Hapus Draft</h3>
+              <button class="modal-close" @click="cancelDelete" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
             </div>
             <div class="modal-body modal-body--confirm" v-if="deleteModal.order">
               <p class="confirm-message">Yakin hapus draft ini?</p>
@@ -376,6 +400,14 @@
                   <span class="info-label">Total:</span>
                   <span class="info-value">{{ formatRp(deleteModal.order.subtotal) }}</span>
                 </div>
+                <div class="info-row">
+                  <span class="info-label">Status:</span>
+                  <span class="status-badge status-draft">Draft</span>
+                </div>
+              </div>
+              <div class="delete-warning">
+                <i class="pi pi-info-circle"></i>
+                <span>Data draft dan item terkait akan dihapus.</span>
               </div>
             </div>
             <div class="modal-footer">
@@ -406,6 +438,7 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
+import { sortOrdersNewestFirst } from '@/lib/orderSort'
 
 const router = useRouter()
 
@@ -418,6 +451,7 @@ const inputTglAwal = ref(null)
 const inputTglAkhir = ref(null)
 const btnCancelDelete = ref(null)
 const btnConfirmDelete = ref(null)
+const printConfirmModalBox = ref(null)
 
 // ───────────────────────────────────────────────────────────
 // ───────────────────────────────────────────────────────────
@@ -438,6 +472,7 @@ const _defaultRange = getDefaultF2DateRange()
 // STATE
 // ───────────────────────────────────────────────────────────
 const loading = ref(false)
+const actionBusy = ref(false)
 const orders = ref([])
 const searchOrderNo = ref('')
 const searchDateStart = ref('')
@@ -461,10 +496,20 @@ const deleteModal = reactive({
   order: null,
 })
 
-const printModal = reactive({
+const printConfirmModal = reactive({
   show: false,
-  order: null,
+  sortIndex: 0,
+  payload: null,
 })
+
+const printSortOptions = [
+  { value: 'original', label: 'Urutan Asli' },
+  { value: 'alpha', label: 'Abjad (A-Z)' },
+  { value: 'qty', label: 'Qty Terbanyak' },
+  { value: 'price', label: 'Harga Tertinggi' },
+]
+
+const PENJUALAN_FLASH_KEY = 'penjualan_flash_notice'
 
 // ───────────────────────────────────────────────────────────
 // COMPUTED
@@ -507,6 +552,33 @@ const totalPages = computed(() => Math.max(1, Math.ceil(filteredOrders.value.len
 const pagedOrders = computed(() => {
   const start = (currentPage.value - 1) * PAGE_SIZE
   return filteredOrders.value.slice(start, start + PAGE_SIZE)
+})
+
+const sortedPrintItems = computed(() => {
+  const rows = (printConfirmModal.payload?.items || []).slice()
+  const sortKey = printSortOptions[printConfirmModal.sortIndex]?.value || 'original'
+
+  if (sortKey === 'original') {
+    return rows
+  }
+
+  if (sortKey === 'qty') {
+    return rows.sort((a, b) => {
+      const qDiff = Number(b.qty || 0) - Number(a.qty || 0)
+      if (qDiff !== 0) return qDiff
+      return String(a.product_nama || '').localeCompare(String(b.product_nama || ''), 'id')
+    })
+  }
+
+  if (sortKey === 'price') {
+    return rows.sort((a, b) => {
+      const pDiff = Number(b.unit_price || 0) - Number(a.unit_price || 0)
+      if (pDiff !== 0) return pDiff
+      return String(a.product_nama || '').localeCompare(String(b.product_nama || ''), 'id')
+    })
+  }
+
+  return rows.sort((a, b) => String(a.product_nama || '').localeCompare(String(b.product_nama || ''), 'id'))
 })
 
 // ───────────────────────────────────────────────────────────
@@ -557,7 +629,7 @@ async function loadAllDrafts() {
 
     if (ordersError) throw ordersError
 
-    orders.value = await withItemsPreview(ordersData)
+    orders.value = sortOrdersNewestFirst(await withItemsPreview(ordersData))
     showResults.value = true
     currentPage.value = 1
     selectedRowIndex.value = 0
@@ -582,7 +654,7 @@ async function searchByOrderNo() {
 
     if (ordersError) throw ordersError
 
-    orders.value = await withItemsPreview(ordersData)
+    orders.value = sortOrdersNewestFirst(await withItemsPreview(ordersData))
     showResults.value = true
     currentPage.value = 1
     selectedRowIndex.value = 0
@@ -626,7 +698,7 @@ async function searchByDateRange() {
 
     if (ordersError) throw ordersError
 
-    orders.value = await withItemsPreview(ordersData)
+    orders.value = sortOrdersNewestFirst(await withItemsPreview(ordersData))
     showResults.value = true
     currentPage.value = 1
     selectedRowIndex.value = 0
@@ -746,18 +818,31 @@ function onGlobalKey(e) {
     return
   }
 
+  if (printConfirmModal.show) {
+    handlePrintConfirmKeydown(e)
+    return
+  }
+
   if (detailModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
       detailModal.show = false
+      return
     }
-    return
-  }
 
-  if (printModal.show) {
-    if (e.key === 'Escape') {
+    if (e.key === 'Enter') {
       e.preventDefault()
-      printModal.show = false
+      if (detailModal.order) {
+        editDraft(detailModal.order)
+      }
+      return
+    }
+
+    if (e.key === 'p' || e.key === 'P') {
+      e.preventDefault()
+      if (detailModal.order) {
+        openPrintConfirmFromOrder(detailModal.order)
+      }
     }
     return
   }
@@ -952,8 +1037,473 @@ async function confirmDelete() {
 }
 
 function printOrder(order) {
-  printModal.order = order
-  printModal.show = true
+  openPrintConfirmFromOrder(order)
+}
+
+function setPrintSortIndex(index) {
+  printConfirmModal.sortIndex = index
+}
+
+function handlePrintConfirmKeydown(e) {
+  if (!printConfirmModal.show) return
+
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    closePrintConfirmModal()
+    return
+  }
+
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    e.preventDefault()
+    e.stopPropagation()
+    printConfirmModal.sortIndex = (printConfirmModal.sortIndex + 1) % printSortOptions.length
+    return
+  }
+
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    e.stopPropagation()
+    printConfirmModal.sortIndex = (printConfirmModal.sortIndex - 1 + printSortOptions.length) % printSortOptions.length
+    return
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    e.stopPropagation()
+    confirmSaveFromPrintModal()
+    return
+  }
+
+  if (e.key === 'p' || e.key === 'P') {
+    e.preventDefault()
+    e.stopPropagation()
+    printFromConfirmModal()
+  }
+}
+
+function normalizeItemsForPrint(rows) {
+  return (rows || []).map(item => ({
+    product_id: item.product_id,
+    product_kode: item.product_kode,
+    product_nama: item.product_nama,
+    qty: Number(item.qty || 0),
+    unit_price: Number(item.unit_price || 0),
+    total: Number(item.total || 0),
+  }))
+}
+
+async function fetchOrderItems(orderId) {
+  const { data, error } = await supabase
+    .from('sale_items')
+    .select('*')
+    .eq('sale_id', orderId)
+    .order('created_at')
+
+  if (error) {
+    throw error
+  }
+
+  return data || []
+}
+
+function buildPrintPayload(order) {
+  const adjustmentRows = Number(order?.extra_charge_amount || 0) !== 0
+    ? [{
+      description: String(order?.extra_charge_desc || 'Biaya Tambahan').trim(),
+      amount: Number(order?.extra_charge_amount || 0),
+    }]
+    : []
+
+  return {
+    saleId: order?.id,
+    header: {
+      no_order: order?.no_order,
+      no_faktur: order?.no_faktur,
+      order_date: formatDate(order?.order_date),
+      limit_bulan: Number(order?.limit_bulan || 0),
+    },
+    customer: {
+      nama: order?.customer_nama,
+      kode: order?.customer_kode || '-',
+      alamat: order?.customer_alamat,
+    },
+    senderNote: order?.sender_note || '',
+    items: normalizeItemsForPrint(detailModal.items),
+    adjustmentRows,
+    subtotal: Number(order?.subtotal || 0),
+  }
+}
+
+async function openPrintConfirmFromOrder(order) {
+  if (!order) return
+
+  try {
+    const isCurrentDetailOrder = detailModal.order?.id === order.id
+    const resolvedItems = isCurrentDetailOrder
+      ? detailModal.items
+      : await fetchOrderItems(order.id)
+
+    if (!isCurrentDetailOrder) {
+      detailModal.items = resolvedItems
+    }
+
+    printConfirmModal.payload = {
+      ...buildPrintPayload(order),
+      items: normalizeItemsForPrint(resolvedItems),
+    }
+  } catch (err) {
+    alert('Gagal memuat item untuk print: ' + err.message)
+    return
+  }
+
+  printConfirmModal.sortIndex = 0
+  printConfirmModal.show = true
+  nextTick(() => {
+    printConfirmModalBox.value?.focus?.()
+  })
+}
+
+function closePrintConfirmModal() {
+  printConfirmModal.show = false
+  printConfirmModal.payload = null
+  nextTick(() => {
+    pageEl.value?.focus()
+  })
+}
+
+async function finalizeDraft(order) {
+  if (actionBusy.value) return false
+  if (!order?.id) return false
+
+  actionBusy.value = true
+
+  try {
+    const { error } = await supabase
+      .from('sales')
+      .update({ status: 'completed' })
+      .eq('id', order.id)
+
+    if (error) {
+      alert('Gagal menyimpan draft ke riwayat: ' + error.message)
+      return false
+    }
+
+    return true
+  } finally {
+    actionBusy.value = false
+  }
+}
+
+async function confirmSaveFromPrintModal() {
+  if (actionBusy.value) return
+  const payload = printConfirmModal.payload
+  const order = detailModal.order
+  closePrintConfirmModal()
+  if (!payload || !order) return
+
+  const ok = await finalizeDraft(order)
+  if (!ok) return
+
+  sessionStorage.setItem(
+    PENJUALAN_FLASH_KEY,
+    JSON.stringify({
+      severity: 'success',
+      summary: 'Data Berhasil Disimpan',
+      detail: `No. Order ${payload?.header?.no_order || '-'} tersimpan di Riwayat Transaksi.`,
+      life: 3200,
+    })
+  )
+
+  router.push('/penjualan')
+}
+
+async function printFromConfirmModal() {
+  if (actionBusy.value) return
+  const payload = printConfirmModal.payload
+  const order = detailModal.order
+  if (!payload || !order) {
+    closePrintConfirmModal()
+    return
+  }
+
+  const sortedItems = sortedPrintItems.value
+  const printPayload = {
+    ...payload,
+    items: sortedItems,
+  }
+
+  closePrintConfirmModal()
+
+  const ok = await finalizeDraft(order)
+  if (!ok) return
+
+  const html = buildNotaPrintHtml(printPayload, sortedItems)
+  const win = window.open('', '_blank', 'width=1200,height=760')
+  if (!win) {
+    alert('Popup print diblokir browser. Izinkan popup lalu coba lagi.')
+    return
+  }
+
+  win.document.open()
+  win.document.write(html)
+  win.document.close()
+
+  win.onload = async () => {
+    win.focus()
+    win.print()
+
+    sessionStorage.setItem(
+      PENJUALAN_FLASH_KEY,
+      JSON.stringify({
+        severity: 'success',
+        summary: 'Data Berhasil Disimpan',
+        detail: `No. Order ${printPayload?.header?.no_order || '-'} tersimpan di Riwayat Transaksi.`,
+        life: 3200,
+      })
+    )
+
+    await router.push('/penjualan')
+  }
+}
+
+function toInputDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = String(d.getFullYear()).slice(-2)
+  return `${day}/${month}/${year}`
+}
+
+async function editDraft(order) {
+  if (!order?.id) return
+
+  let customerPayload = {
+    id: order.customer_id,
+    kode: order.customer_kode || '',
+    nama: order.customer_nama,
+    alamat: order.customer_alamat,
+    no_telp: order.customer_telp,
+    limit_kredit: Number(order.customer_limit_kredit || 0),
+    saldo_piutang: Number(order.customer_saldo_piutang || 0),
+  }
+
+  if (order.customer_id) {
+    const { data: customerData } = await supabase
+      .from('customers')
+      .select('id, kode, nama, alamat, no_telp, limit_kredit, saldo_piutang')
+      .eq('id', order.customer_id)
+      .maybeSingle()
+
+    if (customerData) {
+      customerPayload = {
+        id: customerData.id,
+        kode: customerData.kode || '',
+        nama: customerData.nama,
+        alamat: customerData.alamat,
+        no_telp: customerData.no_telp,
+        limit_kredit: Number(customerData.limit_kredit || 0),
+        saldo_piutang: Number(customerData.saldo_piutang || 0),
+      }
+    }
+  }
+
+  sessionStorage.setItem(
+    'penjualan_draft',
+    JSON.stringify({
+      sale_id: order.id,
+      no_order: order.no_order,
+      no_faktur: order.no_faktur,
+      order_date: toInputDate(order.order_date),
+      customer: customerPayload,
+      diantar: Boolean(order.diantar),
+      limit_bulan: Number(order.limit_bulan || 0),
+      extra_charge_desc: order.extra_charge_desc || null,
+      extra_charge_amount: Number(order.extra_charge_amount || 0),
+      sender_note: order.sender_note || null,
+    })
+  )
+
+  sessionStorage.setItem('penjualan_edit_last_order', String(order.no_order || '').trim())
+  sessionStorage.setItem('penjualan_edit_restore_on_refresh', '1')
+
+  router.push('/penjualan/edit')
+}
+
+function paymentTermLabel(limitBulan) {
+  const bulan = Number(limitBulan || 0) + 1
+  return `${bulan} BULAN`
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function chunkItems(itemsList, size = 15) {
+  const chunks = []
+  for (let i = 0; i < itemsList.length; i += size) {
+    chunks.push(itemsList.slice(i, i + size))
+  }
+  return chunks.length ? chunks : [[]]
+}
+
+function buildNotaPrintHtml(payload, sortedItems) {
+  const adjustmentLines = (payload.adjustmentRows || []).map(row => ({
+    product_kode: '-',
+    product_nama: row.description,
+    qty: '-',
+    unit_price: row.amount,
+    total: row.amount,
+  }))
+
+  const allRows = sortedItems.concat(adjustmentLines)
+  const pages = chunkItems(allRows, 15)
+
+  const pageHtml = pages.map((pageRows, idx) => {
+    const rows = pageRows.map(row => `
+      <tr>
+        <td>${escapeHtml(row.product_kode || '-')}</td>
+        <td>${escapeHtml(row.product_nama || '-')}</td>
+        <td class="text-right">${escapeHtml(row.qty)}</td>
+        <td class="text-right">${escapeHtml(formatRp(Number(row.unit_price || 0)).replace('Rp ', ''))}</td>
+        <td class="text-right">${escapeHtml(formatRp(Number(row.total || 0)).replace('Rp ', ''))}</td>
+      </tr>
+    `).join('')
+
+    return `
+      <section class="nota-page">
+        <div class="nota-head">
+          <div class="title-left">
+            <div class="nama-toko">MAJU MULIA BERSAMA</div>
+            <div class="kota">SEMARANG</div>
+          </div>
+          <div class="title-center">FAKTUR</div>
+          <div class="title-right">
+            <div>No. Faktur: ${escapeHtml(payload.header.no_faktur || '-')}</div>
+            <div>Tanggal: ${escapeHtml(payload.header.order_date || '-')}</div>
+            <div>No. Order: ${escapeHtml(payload.header.no_order || '-')}</div>
+            <div>Salesmen: -</div>
+            <div>Halaman: ${idx + 1}</div>
+          </div>
+        </div>
+
+        <div class="meta-left">
+          <div>Kepada: ${escapeHtml(payload.customer.nama || '-')} (${escapeHtml(payload.customer.kode || '-')})</div>
+          <div>${escapeHtml(payload.customer.alamat || '-')}</div>
+          <div>Pembayaran: ${escapeHtml(paymentTermLabel(payload.header.limit_bulan))}</div>
+        </div>
+
+        <table class="nota-table">
+          <thead>
+            <tr>
+              <th class="col-kode">Kode Barang</th>
+              <th class="col-nama">Nama Barang</th>
+              <th class="col-qty">Qty</th>
+              <th class="col-harga">Harga</th>
+              <th class="col-jumlah">Jumlah</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div class="nota-bottom">
+          <div class="bottom-left">
+            <div>Keterangan: ${escapeHtml(payload.senderNote || '')}</div>
+          </div>
+          <div class="bottom-sign">
+            <div>Dikirim Oleh</div>
+            <div class="sign-line"></div>
+          </div>
+          <div class="bottom-sign">
+            <div>Diterima Oleh</div>
+            <div class="sign-line"></div>
+          </div>
+          <div class="subtotal-box">
+            <div class="subtotal-label">Subtotal</div>
+            <div class="subtotal-val">${escapeHtml(formatRp(payload.subtotal || 0).replace('Rp ', ''))}</div>
+          </div>
+        </div>
+      </section>
+    `
+  }).join('')
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <title>Print Nota ${escapeHtml(payload.header.no_order || '')}</title>
+        <style>
+          @page { size: 23.5cm 14cm; margin: 0; }
+          body {
+            margin: 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12pt;
+            font-weight: bold;
+            color: black;
+          }
+          .nota-page {
+            width: 23.5cm;
+            height: 14cm;
+            box-sizing: border-box;
+            padding: 0.8cm 0.8cm 0.55cm;
+            page-break-after: always;
+          }
+          .nota-page:last-child { page-break-after: auto; }
+          .nota-head {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            align-items: start;
+            margin-bottom: 0.35cm;
+          }
+          .title-center { text-align: center; letter-spacing: 0.22em; }
+          .title-right { justify-self: end; text-align: left; font-size: 9.5pt; }
+          .nama-toko { letter-spacing: 0.08em; }
+          .kota { letter-spacing: 0.32em; font-size: 10pt; }
+          .meta-left { margin-bottom: 0.24cm; font-size: 10pt; line-height: 1.25; }
+          .nota-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+          .nota-table th, .nota-table td { border: 1px solid #000; padding: 0.08cm 0.1cm; }
+          .nota-table td { height: 0.42cm; }
+          .col-kode { width: 18%; }
+          .col-nama { width: 45%; }
+          .col-qty { width: 9%; }
+          .col-harga { width: 14%; }
+          .col-jumlah { width: 14%; }
+          .text-right { text-align: right; }
+          .nota-bottom {
+            margin-top: 0.18cm;
+            display: grid;
+            grid-template-columns: 1.25fr 0.8fr 0.8fr 0.55fr;
+            align-items: end;
+            gap: 0.2cm;
+          }
+          .bottom-left { font-size: 10pt; min-height: 1.1cm; }
+          .bottom-sign { text-align: center; font-size: 10pt; }
+          .sign-line { border-bottom: 1px solid #000; margin-top: 0.65cm; }
+          .subtotal-box {
+            border: 1px solid #000;
+            min-height: 1.1cm;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: right;
+            padding: 0.05cm 0.08cm;
+            font-size: 10pt;
+          }
+          .subtotal-label { font-size: 8.5pt; }
+        </style>
+      </head>
+      <body>${pageHtml}</body>
+    </html>
+  `
 }
 
 // ───────────────────────────────────────────────────────────

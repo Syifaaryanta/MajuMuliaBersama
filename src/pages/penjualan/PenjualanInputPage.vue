@@ -533,8 +533,8 @@
               <p>Data yang sudah diinput akan disimpan sebagai draft. Lanjut keluar?</p>
             </div>
             <div class="modal-footer">
-              <button class="btn-secondary" @click="closeExitConfirmModal">Batal</button>
-              <button class="btn-primary" @click="confirmExitAndSaveDraft">Ya, Simpan Draft</button>
+              <button class="btn-secondary" @click="closeExitConfirmModal">Batal (Esc)</button>
+              <button class="btn-primary" @click="confirmExitAndSaveDraft">Ya, Simpan Draft (Y)</button>
             </div>
           </div>
         </div>
@@ -637,6 +637,7 @@ const PENJUALAN_FLASH_KEY = 'penjualan_flash_notice'
 const productSearchArmed = ref(false)
 const adjustmentRows = ref([])
 const WORKING_STATE_KEY = 'penjualan_input_working_state'
+const senderNoteAutofilled = ref(false)
 
 const extraForm = reactive({
   senderName: '',
@@ -767,7 +768,7 @@ function onGlobalKey(e) {
       return
     }
 
-    if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
+    if (e.key === 'y' || e.key === 'Y') {
       e.preventDefault()
       confirmExitAndSaveDraft()
       return
@@ -846,6 +847,13 @@ function focusProductInput() {
 }
 
 function focusInlineNoteInput() {
+  const isPickup = orderData.value?.diantar === false
+  const isSenderNoteEmpty = !String(extraForm.senderName || '').trim()
+  if (isPickup && isSenderNoteEmpty && !senderNoteAutofilled.value) {
+    extraForm.senderName = 'Diambil'
+    senderNoteAutofilled.value = true
+  }
+
   nextTick(() => {
     senderInlineInput.value?.focus()
     senderInlineInput.value?.setSelectionRange?.(

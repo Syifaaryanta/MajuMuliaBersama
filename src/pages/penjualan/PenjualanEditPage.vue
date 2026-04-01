@@ -651,6 +651,7 @@ function normalizeAdjustmentDescription(text) {
 
 const productSearchArmed = ref(false)
 const adjustmentRows = ref([])
+const senderNoteAutofilled = ref(false)
 
 const extraForm = reactive({
   senderName: '',
@@ -966,6 +967,7 @@ function onGlobalKey(e) {
     adjustmentRows.value = []
     productSearchArmed.value = false
     extraForm.senderName = ''
+    senderNoteAutofilled.value = false
     searchModalError.value = ''
     nextTick(() => {
       searchInput.value?.focus()
@@ -1039,6 +1041,7 @@ async function searchOrder() {
     order.value = orderData
     sessionStorage.setItem(EDIT_LAST_ORDER_KEY, String(orderData.no_order || searchQuery.value.trim() || ''))
     extraForm.senderName = orderData.sender_note || ''
+    senderNoteAutofilled.value = false
 
     const existingExtraDesc = normalizeAdjustmentDescription(orderData.extra_charge_desc)
     const existingExtraAmount = Number(orderData.extra_charge_amount || 0)
@@ -1141,6 +1144,7 @@ function clearSearch() {
   formVisible.value = true
   adjustmentRows.value = []
   extraForm.senderName = ''
+  senderNoteAutofilled.value = false
   nextTick(() => {
     searchInput.value?.focus()
   })
@@ -1168,6 +1172,13 @@ function focusProductInput() {
 }
 
 function focusInlineNoteInput() {
+  const isPickup = order.value?.diantar === false
+  const isSenderNoteEmpty = !String(extraForm.senderName || '').trim()
+  if (isPickup && isSenderNoteEmpty && !senderNoteAutofilled.value) {
+    extraForm.senderName = 'Diambil'
+    senderNoteAutofilled.value = true
+  }
+
   nextTick(() => {
     senderInlineInput.value?.focus()
     senderInlineInput.value?.setSelectionRange?.(
