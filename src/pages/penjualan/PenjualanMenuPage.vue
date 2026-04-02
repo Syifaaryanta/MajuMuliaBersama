@@ -11,7 +11,7 @@
     </div>
 
     <!-- ── MENU OPTIONS ──────────────────────────────────── -->
-    <div class="menu-container">
+    <div :class="['menu-container', `menu-count-${menuOptions.length}`]">
       <div 
         v-for="(option, index) in menuOptions" 
         :key="option.id"
@@ -32,7 +32,7 @@
 
     <!-- ── QUICK STATS ──────────────────────────────────── -->
     <div class="stats-cards">
-      <div class="stat-card">
+      <div class="stat-card stat-card--blue">
         <div class="stat-icon stat-icon--blue">
           <i class="pi pi-calendar"></i>
         </div>
@@ -41,7 +41,7 @@
           <span class="stat-value">{{ stats.today }} order</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--green">
         <div class="stat-icon stat-icon--green">
           <i class="pi pi-calendar-plus"></i>
         </div>
@@ -50,7 +50,7 @@
           <span class="stat-value">{{ stats.week }} order</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--purple">
         <div class="stat-icon stat-icon--purple">
           <i class="pi pi-chart-bar"></i>
         </div>
@@ -59,7 +59,7 @@
           <span class="stat-value">{{ stats.month }} order</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--orange">
         <div class="stat-icon stat-icon--orange">
           <i class="pi pi-database"></i>
         </div>
@@ -95,18 +95,18 @@ const menuOptions = [
     route: '/penjualan/buat'
   },
   {
-    id: 'edit',
-    title: 'Revisi Transaksi',
-    description: 'Ubah & koreksi data transaksi yang sudah tercatat',
-    icon: 'pi pi-pencil',
-    route: '/penjualan/edit'
-  },
-  {
     id: 'draft',
     title: 'Order Tertunda',
     description: 'Kelola transaksi yang belum diselesaikan',
     icon: 'pi pi-file-edit',
     route: '/penjualan/draft'
+  },
+  {
+    id: 'edit',
+    title: 'Revisi Transaksi',
+    description: 'Ubah & koreksi data transaksi yang sudah tercatat',
+    icon: 'pi pi-pencil',
+    route: '/penjualan/edit'
   },
   {
     id: 'daftar',
@@ -216,16 +216,16 @@ function handleKeydown(e) {
     router.push('/penjualan/buat')
   }
   
-  // F2 - Edit Penjualan
+  // F2 - Draft Order
   else if (e.key === 'F2') {
     e.preventDefault()
-    router.push('/penjualan/edit')
+    router.push('/penjualan/draft')
   }
   
-  // F3 - Draft Order
+  // F3 - Edit Penjualan
   else if (e.key === 'F3') {
     e.preventDefault()
-    router.push('/penjualan/draft')
+    router.push('/penjualan/edit')
   }
   
   // F4 - Daftar Penjualan

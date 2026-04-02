@@ -35,6 +35,11 @@
       </div>
     </div>
 
+    <div class="shortcuts-bar">
+      <kbd>F4 Info Harga</kbd>
+      <kbd>F10 Simpan</kbd>
+    </div>
+
     <div class="items-section">
       <div class="table-card">
         <div class="table-header">
@@ -91,7 +96,7 @@
                     title="Hapus baris ini"
                     @click="removeItem(idx)"
                   >
-                    <span class="del-label">Del</span>
+                    <i class="pi pi-trash"></i>
                   </button>
                 </td>
               </tr>
@@ -214,14 +219,131 @@
         </div>
       </Transition>
     </Teleport>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="priceHistoryModal.show" class="modal-overlay" @click.self="closePriceHistoryModal">
+          <div class="modal-box modal-box--price-history" role="dialog" aria-modal="true">
+            <div class="modal-header">
+              <i class="pi pi-tags"></i>
+              <h3 class="modal-title">Riwayat Harga Pembelian</h3>
+              <button class="modal-close" @click="closePriceHistoryModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="price-history-summary">
+                <div class="price-summary-item">
+                  <span class="price-summary-label">Barang</span>
+                  <strong>{{ priceHistoryModal.productName || '-' }}</strong>
+                </div>
+                <div class="price-summary-item">
+                  <span class="price-summary-label">Supplier Aktif</span>
+                  <strong>{{ priceHistoryModal.currentSupplierName || '-' }}</strong>
+                </div>
+                <div class="price-summary-item">
+                  <span class="price-summary-label">Harga Sebelumnya</span>
+                  <strong>{{ formatRp(priceHistoryModal.previousPrice) }}</strong>
+                </div>
+                <div class="price-summary-item">
+                  <span class="price-summary-label">Last Order Date</span>
+                  <strong>{{ formatDateDisplay(priceHistoryModal.lastOrderDate) }}</strong>
+                </div>
+              </div>
+
+              <div v-if="priceHistoryModal.loading" class="price-history-empty">Memuat riwayat harga...</div>
+
+              <div v-else-if="priceHistoryModal.comparisons.length" class="price-history-table-wrap">
+                <table class="price-history-table">
+                  <thead>
+                    <tr>
+                      <th>Supplier</th>
+                      <th>Harga Terakhir</th>
+                      <th>Last Order Date</th>
+                      <th>No. Order</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(row, idx) in priceHistoryModal.comparisons"
+                      :key="`${row.supplier_id || row.supplier_nama}-${idx}`"
+                      :class="{ 'price-row-current': row.is_current }"
+                    >
+                      <td>{{ row.supplier_nama || '-' }}</td>
+                      <td>{{ formatRp(row.harga_beli) }}</td>
+                      <td>{{ formatDateDisplay(row.last_order_date) }}</td>
+                      <td>{{ row.no_order || '-' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div v-else class="price-history-empty">
+                Belum ada histori pembelian untuk barang ini.
+              </div>
+
+              <p class="modal-shortcut">Esc: Tutup</p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="submitConfirmModal.show" class="modal-overlay" @click.self="closeSubmitConfirmModal">
+          <div class="modal-box modal-box--sm" role="dialog" aria-modal="true">
+            <div class="modal-header">
+              <i class="pi pi-check-circle"></i>
+              <h3 class="modal-title">Simpan Ke Receiving?</h3>
+              <button class="modal-close" @click="closeSubmitConfirmModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>Data akan disimpan dan masuk ke halaman Receiving.</p>
+              <p class="modal-shortcut">Enter/Y: Konfirmasi · Esc: Batal</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" @click="closeSubmitConfirmModal">Batal (Esc)</button>
+              <button class="btn-primary" @click="confirmSubmitToReceiving">Konfirmasi (Enter/Y)</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="exitConfirmModal.show" class="modal-overlay" @click.self="closeExitConfirmModal">
+          <div class="modal-box modal-box--sm" role="dialog" aria-modal="true">
+            <div class="modal-header">
+              <i class="pi pi-exclamation-triangle"></i>
+              <h3 class="modal-title">Keluar Dari Input?</h3>
+              <button class="modal-close" @click="closeExitConfirmModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>Data yang sudah diinput akan disimpan sebagai draft dan masuk ke Order Pembelian Tertunda.</p>
+              <p class="modal-shortcut">Enter/Y: Simpan Draft · Esc: Batal</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" @click="closeExitConfirmModal">Batal (Esc)</button>
+              <button class="btn-primary" @click="confirmExitAndSaveDraft">Ya, Simpan Draft (Y)</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
-import { upsertPurchaseOrder, getTermLabel } from '@/lib/pembelianStore'
+import { upsertPurchaseOrder, getTermLabel, listPurchaseOrders } from '@/lib/pembelianStore'
 import { buildPurchaseOrderFingerprint } from '@/lib/orderDedupe'
 
 const router = useRouter()
@@ -233,6 +355,10 @@ const inputPrice = ref(null)
 const productModalInput = ref(null)
 const qtyRefs = ref({})
 const priceRefs = ref({})
+const priceHistoryReturnFocusEl = ref(null)
+
+const PEMBELIAN_FLASH_KEY = 'pembelian_flash_notice'
+const PEMBELIAN_INPUT_WORKING_KEY = 'pembelian_input_working_state'
 
 const orderData = ref({})
 const items = ref([])
@@ -254,6 +380,24 @@ const productModal = reactive({
   selectedIndex: 0,
 })
 
+const submitConfirmModal = reactive({
+  show: false,
+})
+
+const exitConfirmModal = reactive({
+  show: false,
+})
+
+const priceHistoryModal = reactive({
+  show: false,
+  loading: false,
+  productName: '',
+  currentSupplierName: '',
+  previousPrice: 0,
+  lastOrderDate: null,
+  comparisons: [],
+})
+
 const subtotal = computed(() => items.value.reduce((sum, row) => sum + row.total, 0))
 const termLabel = computed(() => getTermLabel(orderData.value.terms || '1'))
 
@@ -266,57 +410,167 @@ function setPriceRef(el, idx) {
 }
 
 function onGlobalKey(e) {
+  if (priceHistoryModal.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closePriceHistoryModal()
+    }
+    return
+  }
+
+  if (submitConfirmModal.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closeSubmitConfirmModal()
+      return
+    }
+    if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
+      e.preventDefault()
+      confirmSubmitToReceiving()
+    }
+    return
+  }
+
+  if (exitConfirmModal.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closeExitConfirmModal()
+      return
+    }
+    if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
+      e.preventDefault()
+      confirmExitAndSaveDraft()
+    }
+    return
+  }
+
   if (productModal.show) return
 
   if (e.key === 'Escape') {
     e.preventDefault()
-    router.push('/pembelian/order')
+    openExitConfirmModal()
     return
   }
 
-  if ((e.key === 'y' || e.key === 'Y') && items.value.length > 0) {
+  if (e.key === 'F10') {
     e.preventDefault()
-    submitPurchase()
+    openSubmitConfirmModal()
   }
 }
 
 function handleNewItemKeydown(e, field) {
-  if (field === 'product' && e.key === 'Enter' && !newItem.search.trim() && items.value.length > 0) {
+  if (e.key === 'F4' && field === 'price') {
     e.preventDefault()
-    submitPurchase()
+    if (!newItem.product_id) {
+      alert('Pilih barang dulu sebelum melihat riwayat harga.')
+      return
+    }
+    openPriceHistoryModal(
+      {
+        product_id: newItem.product_id,
+        product_nama: newItem.product_nama,
+        product_kode: newItem.product_kode,
+      },
+      inputPrice.value
+    )
     return
   }
 
   if (e.key === 'ArrowUp') {
     e.preventDefault()
     const last = items.value.length - 1
-    if (last >= 0) {
-      if (field === 'product') priceRefs.value[last]?.focus()
-      if (field === 'qty') qtyRefs.value[last]?.focus()
-      if (field === 'price') priceRefs.value[last]?.focus()
+    if (last < 0) return
+
+    if (field === 'product') {
+      priceRefs.value[last]?.focus()
+      return
     }
+
+    if (field === 'qty') {
+      qtyRefs.value[last]?.focus()
+      return
+    }
+
+    if (field === 'price') {
+      priceRefs.value[last]?.focus()
+    }
+    return
   }
 
-  if (e.key === 'ArrowRight' && field === 'qty') {
-    e.preventDefault()
-    inputPrice.value?.focus()
+  if (e.key === 'ArrowRight') {
+    if (field === 'product') {
+      if (!newItem.product_id) return
+      e.preventDefault()
+      inputQty.value?.focus()
+      return
+    }
+
+    if (field === 'qty') {
+      e.preventDefault()
+      inputPrice.value?.focus()
+    }
+    return
   }
 
-  if (e.key === 'ArrowLeft' && field === 'price') {
-    e.preventDefault()
-    inputQty.value?.focus()
+  if (e.key === 'ArrowLeft') {
+    if (field === 'price') {
+      e.preventDefault()
+      inputQty.value?.focus()
+      return
+    }
+
+    if (field === 'qty') {
+      e.preventDefault()
+      inputProduct.value?.focus()
+    }
   }
 }
 
 function handleTableKeydown(e, idx, field) {
+  if (e.key === 'F4' && field === 'price') {
+    e.preventDefault()
+    const row = items.value[idx]
+    if (!row?.product_id) return
+    openPriceHistoryModal(row, priceRefs.value[idx])
+    return
+  }
+
+  if (e.key === 'ArrowRight') {
+    if (field === 'qty') {
+      e.preventDefault()
+      priceRefs.value[idx]?.focus()
+    }
+    return
+  }
+
+  if (e.key === 'ArrowLeft') {
+    if (field === 'price') {
+      e.preventDefault()
+      qtyRefs.value[idx]?.focus()
+      return
+    }
+
+    if (field === 'qty') {
+      e.preventDefault()
+      inputProduct.value?.focus()
+    }
+    return
+  }
+
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     if (idx < items.value.length - 1) {
       if (field === 'qty') qtyRefs.value[idx + 1]?.focus()
       if (field === 'price') priceRefs.value[idx + 1]?.focus()
-    } else {
-      inputProduct.value?.focus()
+      return
     }
+
+    if (field === 'qty') {
+      inputQty.value?.focus()
+      return
+    }
+
+    inputPrice.value?.focus()
     return
   }
 
@@ -325,7 +579,10 @@ function handleTableKeydown(e, idx, field) {
     if (idx > 0) {
       if (field === 'qty') qtyRefs.value[idx - 1]?.focus()
       if (field === 'price') priceRefs.value[idx - 1]?.focus()
+      return
     }
+
+    inputProduct.value?.focus()
     return
   }
 
@@ -333,17 +590,20 @@ function handleTableKeydown(e, idx, field) {
     e.preventDefault()
     if (field === 'qty') {
       priceRefs.value[idx]?.focus()
-    } else {
-      inputProduct.value?.focus()
+      return
     }
+
+    if (idx < items.value.length - 1) {
+      qtyRefs.value[idx + 1]?.focus()
+      return
+    }
+
+    inputProduct.value?.focus()
   }
 }
 
 async function onProductEnter() {
-  if (!newItem.search.trim()) {
-    if (items.value.length > 0) submitPurchase()
-    return
-  }
+  if (!newItem.search.trim()) return
   await openProductModal()
 }
 
@@ -407,19 +667,7 @@ async function selectProduct(product) {
   newItem.product_nama = product.nama
   newItem.search = product.nama
 
-  try {
-    const { data: price } = await supabase
-      .from('product_prices')
-      .select('harga_beli')
-      .eq('product_id', product.id)
-      .eq('supplier_id', orderData.value.supplier.id)
-      .eq('aktif', true)
-      .single()
-
-    newItem.unit_cost = Number(price?.harga_beli || 0)
-  } catch {
-    newItem.unit_cost = 0
-  }
+  newItem.unit_cost = await resolveDefaultPurchasePrice(product.id)
 
   inputQty.value?.removeAttribute('disabled')
   inputPrice.value?.removeAttribute('disabled')
@@ -427,6 +675,144 @@ async function selectProduct(product) {
   await nextTick()
   inputQty.value?.focus()
   inputQty.value?.select()
+}
+
+async function resolveDefaultPurchasePrice(productId) {
+  const supplierId = orderData.value?.supplier?.id
+  const historyRows = collectLatestSupplierPrices(productId)
+  const currentHistory = historyRows.find(row => String(row.supplier_id) === String(supplierId))
+
+  if (currentHistory?.harga_beli) {
+    return Number(currentHistory.harga_beli)
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('product_prices')
+      .select('harga_beli')
+      .eq('product_id', productId)
+      .eq('supplier_id', supplierId)
+      .eq('aktif', true)
+      .single()
+
+    if (error && error.code !== 'PGRST116') throw error
+    return Number(data?.harga_beli || 0)
+  } catch {
+    return 0
+  }
+}
+
+function collectLatestSupplierPrices(productId) {
+  const allOrders = listPurchaseOrders()
+  const entries = []
+
+  for (const order of allOrders) {
+    if (!order || order.status === 'draft') continue
+    const orderItems = Array.isArray(order.items) ? order.items : []
+    const supplierName = order.supplier?.nama || '-'
+    const supplierId = order.supplier?.id ?? null
+    const supplierKey = supplierId != null ? `id:${supplierId}` : `nama:${supplierName}`
+    const orderDate = order.order_date || order.updated_at || order.created_at || null
+    const time = orderDate ? new Date(orderDate).getTime() : 0
+
+    for (const item of orderItems) {
+      if (String(item.product_id) !== String(productId)) continue
+
+      entries.push({
+        supplier_key: supplierKey,
+        supplier_id: supplierId,
+        supplier_nama: supplierName,
+        harga_beli: Number(item.unit_cost || 0),
+        last_order_date: orderDate,
+        no_order: order.no_order || null,
+        time: Number.isFinite(time) ? time : 0,
+      })
+    }
+  }
+
+  entries.sort((a, b) => b.time - a.time)
+
+  const latestMap = new Map()
+  for (const row of entries) {
+    if (!latestMap.has(row.supplier_key)) {
+      latestMap.set(row.supplier_key, row)
+    }
+  }
+
+  return Array.from(latestMap.values())
+}
+
+async function openPriceHistoryModal(row, focusEl = null) {
+  if (!row?.product_id) {
+    alert('Pilih barang dulu sebelum membuka riwayat harga.')
+    return
+  }
+
+  priceHistoryReturnFocusEl.value = focusEl
+  priceHistoryModal.show = true
+  priceHistoryModal.loading = true
+  priceHistoryModal.productName = row.product_nama || row.product_kode || '-'
+  priceHistoryModal.currentSupplierName = orderData.value?.supplier?.nama || '-'
+  priceHistoryModal.previousPrice = 0
+  priceHistoryModal.lastOrderDate = null
+  priceHistoryModal.comparisons = []
+
+  const supplierId = orderData.value?.supplier?.id
+  const historyRows = collectLatestSupplierPrices(row.product_id)
+
+  let comparisons = historyRows.map(item => ({
+    ...item,
+    is_current: String(item.supplier_id) === String(supplierId),
+  }))
+
+  const currentSupplierRow = comparisons.find(item => item.is_current)
+
+  if (!currentSupplierRow) {
+    try {
+      const { data: currentPrice, error } = await supabase
+        .from('product_prices')
+        .select('harga_beli')
+        .eq('product_id', row.product_id)
+        .eq('supplier_id', supplierId)
+        .eq('aktif', true)
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+
+      if (currentPrice?.harga_beli) {
+        comparisons.unshift({
+          supplier_key: supplierId != null ? `id:${supplierId}` : `nama:${priceHistoryModal.currentSupplierName}`,
+          supplier_id: supplierId ?? null,
+          supplier_nama: priceHistoryModal.currentSupplierName,
+          harga_beli: Number(currentPrice.harga_beli || 0),
+          last_order_date: null,
+          no_order: null,
+          is_current: true,
+        })
+      }
+    } catch (err) {
+      console.error('[openPriceHistoryModal fallback price]', err)
+    }
+  }
+
+  comparisons.sort((a, b) => {
+    if (a.is_current && !b.is_current) return -1
+    if (!a.is_current && b.is_current) return 1
+    return new Date(b.last_order_date || 0).getTime() - new Date(a.last_order_date || 0).getTime()
+  })
+
+  const latestCurrent = comparisons.find(item => item.is_current)
+  priceHistoryModal.previousPrice = Number(latestCurrent?.harga_beli || 0)
+  priceHistoryModal.lastOrderDate = latestCurrent?.last_order_date || null
+  priceHistoryModal.comparisons = comparisons
+  priceHistoryModal.loading = false
+}
+
+function closePriceHistoryModal() {
+  priceHistoryModal.show = false
+  nextTick(() => {
+    priceHistoryReturnFocusEl.value?.focus?.()
+  })
 }
 
 function focusPrice() {
@@ -442,13 +828,13 @@ function formatNewItemPrice(e) {
 function updateItemPrice(idx, e) {
   const num = parseFormattedNumber(e.target.value)
   items.value[idx].unit_cost = num
-  items.value[idx].total = num * items.value[idx].qty
+  items.value[idx].total = num * Number(items.value[idx].qty || 0)
   e.target.value = formatNumber(num)
 }
 
 function updateItemTotal(idx) {
   const row = items.value[idx]
-  row.total = row.qty * row.unit_cost
+  row.total = Number(row.qty || 0) * Number(row.unit_cost || 0)
 }
 
 function addItem() {
@@ -456,7 +842,8 @@ function addItem() {
     alert('Pilih barang dulu.')
     return
   }
-  if (!newItem.qty || newItem.qty < 1) {
+
+  if (!newItem.qty || Number(newItem.qty) < 1) {
     alert('Qty minimal 1.')
     return
   }
@@ -489,40 +876,107 @@ function resetNewItem() {
   inputPrice.value?.setAttribute('disabled', 'disabled')
 }
 
-function submitPurchase() {
+function openSubmitConfirmModal() {
   if (isSubmitting.value) return
-
   if (!items.value.length) {
-    alert('Tambahkan minimal 1 barang.')
+    alert('Tambahkan minimal 1 barang sebelum simpan ke Receiving.')
     return
   }
+  submitConfirmModal.show = true
+}
 
-  isSubmitting.value = true
+function closeSubmitConfirmModal() {
+  submitConfirmModal.show = false
+}
+
+function openExitConfirmModal() {
+  if (isSubmitting.value) return
+  exitConfirmModal.show = true
+}
+
+function closeExitConfirmModal() {
+  exitConfirmModal.show = false
+}
+
+function buildPayload(status = 'ordered') {
+  const normalizedItems = items.value.map(item => ({
+    product_id: item.product_id,
+    product_kode: item.product_kode,
+    product_nama: item.product_nama,
+    qty: Number(item.qty || 0),
+    unit_cost: Number(item.unit_cost || 0),
+    total: Number(item.total || Number(item.qty || 0) * Number(item.unit_cost || 0)),
+  }))
 
   const payload = {
     no_order: orderData.value.no_order,
     order_date: orderData.value.order_date,
     supplier: orderData.value.supplier,
     terms: orderData.value.terms,
-    items: items.value,
-    subtotal: subtotal.value,
-    status: 'ordered',
+    items: normalizedItems,
+    subtotal: normalizedItems.reduce((sum, row) => sum + Number(row.total || 0), 0),
+    status,
     received_at: null,
-    request_fingerprint: buildPurchaseOrderFingerprint({
-      order_date: orderData.value.order_date,
-      supplier: orderData.value.supplier,
-      terms: orderData.value.terms,
-      items: items.value,
-      subtotal: subtotal.value,
-      status: 'ordered',
-    }),
   }
 
+  payload.request_fingerprint = buildPurchaseOrderFingerprint(payload)
+  return payload
+}
+
+function saveOrderWithStatus(status = 'ordered') {
+  const payload = buildPayload(status)
+  upsertPurchaseOrder(payload)
+  sessionStorage.removeItem('pembelian_draft')
+  clearWorkingState()
+}
+
+function setFlashToast(summary, detail, severity = 'success', life = 3200) {
+  sessionStorage.setItem(
+    PEMBELIAN_FLASH_KEY,
+    JSON.stringify({
+      severity,
+      summary,
+      detail,
+      life,
+    })
+  )
+}
+
+function confirmSubmitToReceiving() {
+  if (isSubmitting.value) return
+  if (!items.value.length) {
+    closeSubmitConfirmModal()
+    alert('Tambahkan minimal 1 barang sebelum simpan ke Receiving.')
+    return
+  }
+
+  isSubmitting.value = true
+
   try {
-    upsertPurchaseOrder(payload)
-    sessionStorage.removeItem('pembelian_draft')
-    alert('Order pembelian tersimpan. Data masuk ke Edit, Receiving, dan History.')
-    router.push('/pembelian/edit-order')
+    saveOrderWithStatus('ordered')
+    setFlashToast(
+      'Masuk Receiving',
+      `No. Order ${orderData.value.no_order || '-'} masuk ke halaman Receiving.`
+    )
+    closeSubmitConfirmModal()
+    router.push('/pembelian')
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function confirmExitAndSaveDraft() {
+  if (isSubmitting.value) return
+  isSubmitting.value = true
+
+  try {
+    saveOrderWithStatus('draft')
+    setFlashToast(
+      'Draft Tersimpan',
+      `No. Order ${orderData.value.no_order || '-'} masuk ke halaman Order Pembelian Tertunda.`
+    )
+    closeExitConfirmModal()
+    router.push('/pembelian')
   } finally {
     isSubmitting.value = false
   }
@@ -542,6 +996,111 @@ function parseFormattedNumber(val) {
   return parseInt(String(val).replace(/\./g, '').replace(/\D/g, ''), 10) || 0
 }
 
+function formatDateDisplay(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  const dd = String(date.getDate()).padStart(2, '0')
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const yyyy = String(date.getFullYear())
+  return `${dd}-${mm}-${yyyy}`
+}
+
+function persistWorkingState() {
+  if (!orderData.value?.no_order) return
+
+  const snapshot = {
+    no_order: orderData.value.no_order,
+    items: items.value.map(item => ({
+      product_id: item.product_id,
+      product_kode: item.product_kode,
+      product_nama: item.product_nama,
+      qty: Number(item.qty || 0),
+      unit_cost: Number(item.unit_cost || 0),
+      total: Number(item.total || Number(item.qty || 0) * Number(item.unit_cost || 0)),
+    })),
+    newItem: {
+      search: newItem.search,
+      product_id: newItem.product_id,
+      product_kode: newItem.product_kode,
+      product_nama: newItem.product_nama,
+      qty: Number(newItem.qty || 1),
+      unit_cost: Number(newItem.unit_cost || 0),
+    },
+  }
+
+  sessionStorage.setItem(PEMBELIAN_INPUT_WORKING_KEY, JSON.stringify(snapshot))
+}
+
+function restoreWorkingState() {
+  const raw = sessionStorage.getItem(PEMBELIAN_INPUT_WORKING_KEY)
+  if (!raw) return
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || parsed.no_order !== orderData.value?.no_order) return
+
+    items.value = Array.isArray(parsed.items)
+      ? parsed.items.map(item => ({
+          product_id: item.product_id,
+          product_kode: item.product_kode,
+          product_nama: item.product_nama,
+          qty: Number(item.qty || 0),
+          unit_cost: Number(item.unit_cost || 0),
+          total: Number(item.total || Number(item.qty || 0) * Number(item.unit_cost || 0)),
+        }))
+      : []
+
+    newItem.search = String(parsed.newItem?.search || '')
+    newItem.product_id = parsed.newItem?.product_id || null
+    newItem.product_kode = String(parsed.newItem?.product_kode || '')
+    newItem.product_nama = String(parsed.newItem?.product_nama || '')
+    newItem.qty = Number(parsed.newItem?.qty || 1)
+    newItem.unit_cost = Number(parsed.newItem?.unit_cost || 0)
+  } catch (err) {
+    console.error('[restoreWorkingState input pembelian]', err)
+  }
+
+  nextTick(() => {
+    if (newItem.product_id) {
+      inputQty.value?.removeAttribute('disabled')
+      inputPrice.value?.removeAttribute('disabled')
+      return
+    }
+
+    inputQty.value?.setAttribute('disabled', 'disabled')
+    inputPrice.value?.setAttribute('disabled', 'disabled')
+  })
+}
+
+function clearWorkingState() {
+  sessionStorage.removeItem(PEMBELIAN_INPUT_WORKING_KEY)
+}
+
+function handleBeforeUnload() {
+  persistWorkingState()
+}
+
+watch(
+  () => ({
+    no_order: orderData.value?.no_order,
+    items: items.value,
+    newItem: {
+      search: newItem.search,
+      product_id: newItem.product_id,
+      product_kode: newItem.product_kode,
+      product_nama: newItem.product_nama,
+      qty: newItem.qty,
+      unit_cost: newItem.unit_cost,
+    },
+  }),
+  () => {
+    persistWorkingState()
+  },
+  { deep: true }
+)
+
 onMounted(() => {
   const raw = sessionStorage.getItem('pembelian_draft')
   if (!raw) {
@@ -551,13 +1110,16 @@ onMounted(() => {
   }
 
   orderData.value = JSON.parse(raw)
+  restoreWorkingState()
   pageEl.value?.focus()
   window.addEventListener('keydown', onGlobalKey)
+  window.addEventListener('beforeunload', handleBeforeUnload)
   nextTick(() => inputProduct.value?.focus())
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKey)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
 

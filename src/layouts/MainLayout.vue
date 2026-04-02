@@ -155,6 +155,13 @@ function onResize() {
 function handleGlobalKeydown(e) {
   // Only handle arrow keys when not in an input/textarea
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+
+  if (e.ctrlKey && e.shiftKey && String(e.key).toLowerCase() === 'p') {
+    e.preventDefault()
+    isMobileDrawerOpen.value = false
+    router.push('/profile')
+    return
+  }
   
   // Let child pages that have their own arrow key handlers take priority
   // Only handle arrows on dashboard (no sub-page active)
@@ -194,11 +201,11 @@ function handleNavClick() {
 
 const ALL_NAV = [
   { to: '/dashboard',    icon: 'pi pi-th-large',       label: 'Dashboard',   name: 'Dashboard'   },
+  { to: '/penjualan',    icon: 'pi pi-receipt',        label: 'Penjualan',   name: 'Penjualan'   },
+  { to: '/pembelian',    icon: 'pi pi-shopping-cart',  label: 'Pembelian',   name: 'Pembelian'   },
+  { to: '/penagihan',    icon: 'pi pi-wallet',         label: 'Penagihan',   name: 'Penagihan'   },
   { to: '/gudang',       icon: 'pi pi-warehouse',      label: 'Gudang',      name: 'Gudang'      },
   { to: '/pembelian/history', icon: 'pi pi-history',   label: 'History',     name: 'Pembelian'   },
-  { to: '/pembelian',    icon: 'pi pi-shopping-cart',  label: 'Pembelian',   name: 'Pembelian'   },
-  { to: '/penjualan',    icon: 'pi pi-receipt',        label: 'Penjualan',   name: 'Penjualan'   },
-  { to: '/penagihan',    icon: 'pi pi-wallet',         label: 'Penagihan',   name: 'Penagihan'   },
   { to: '/master-data',  icon: 'pi pi-database',       label: 'Data Master', name: 'MasterData'  },
   { to: '/laporan',      icon: 'pi pi-chart-bar',      label: 'Laporan',     name: 'Laporan'     },
 ]
@@ -231,6 +238,7 @@ const avatarInitial = computed(() => {
 })
 
 const currentPageLabel = computed(() => {
+  if (route.path.startsWith('/profile')) return 'Profil'
   return ALL_NAV.find(n => route.path.startsWith(n.to))?.label ?? '—'
 })
 

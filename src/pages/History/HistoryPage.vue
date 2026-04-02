@@ -215,7 +215,7 @@
             </button>
           </div>
           <div class="stats-cards history-stats-cards">
-            <div class="stat-card">
+            <div class="stat-card stat-card--blue">
               <div class="stat-icon stat-icon--blue">
                 <i class="pi pi-th-large"></i>
               </div>
@@ -224,7 +224,7 @@
                 <span class="stat-value">{{ historyCards.length }} kategori</span>
               </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card--green">
               <div class="stat-icon stat-icon--green">
                 <i class="pi pi-shopping-cart"></i>
               </div>
@@ -233,7 +233,7 @@
                 <span class="stat-value">{{ historyStats.totalPembelian }} order</span>
               </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card--orange">
               <div class="stat-icon stat-icon--orange">
                 <i class="pi pi-check-circle"></i>
               </div>
@@ -242,7 +242,7 @@
                 <span class="stat-value">{{ historyStats.receivedPembelian }} order</span>
               </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-card--purple">
               <div class="stat-icon stat-icon--purple">
                 <i class="pi pi-calendar"></i>
               </div>

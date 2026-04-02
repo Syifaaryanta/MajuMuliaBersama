@@ -7,90 +7,119 @@
       </div>
 
       <form class="order-form" @submit.prevent="goToInputItem">
-        <div class="form-row">
-          <label class="form-label">
-            <i class="pi pi-hashtag"></i>
-            No. Order Pembelian
-          </label>
-          <input v-model="form.no_order" type="text" class="form-input" readonly disabled />
-        </div>
-
-        <div class="form-row">
-          <label class="form-label required">
-            <i class="pi pi-calendar"></i>
-            Tanggal Order
-          </label>
-          <input
-            ref="inputOrderDate"
-            v-model="form.order_date"
-            type="date"
-            class="form-input"
-            @keydown.enter.prevent="focusSupplier"
-          />
-        </div>
-
-        <div class="form-row">
-          <label class="form-label required">
-            <i class="pi pi-truck"></i>
-            Supplier
-          </label>
-
-          <div v-if="!selectedSupplier" class="search-input-wrap">
-            <i class="pi pi-search si-icon"></i>
+        <div class="order-form-grid">
+          <div class="form-row form-row--compact">
+            <label class="form-label">
+              <i class="pi pi-hashtag"></i>
+              No. Order Pembelian
+            </label>
             <input
-              ref="inputSupplier"
-              v-model="searchSupplier"
+              v-model="form.no_order"
               type="text"
-              class="form-input si-input"
-              placeholder="Ketik nama supplier lalu Enter"
-              @keydown.enter.prevent="openSupplierModal"
-              @input="onSupplierInput"
+              class="form-input"
+              readonly
+              disabled
+              placeholder="Pilih supplier terlebih dahulu"
             />
           </div>
 
-          <div v-else class="customer-info">
-            <div class="ci-header">
-              <span class="ci-name">{{ selectedSupplier.nama }}</span>
-              <span class="ci-kode">{{ selectedSupplier.kode }}</span>
-            </div>
-            <div class="ci-detail">
-              <div class="ci-row">
-                <i class="pi pi-map-marker"></i>
-                <span>{{ selectedSupplier.alamat || '—' }}</span>
-              </div>
-              <div class="ci-row">
-                <i class="pi pi-phone"></i>
-                <span>{{ selectedSupplier.no_telp || '—' }}</span>
-              </div>
-            </div>
-            <button class="change-customer-btn" type="button" @click="clearSupplier">
-              <i class="pi pi-times"></i> Ganti Supplier
-            </button>
+          <div class="form-row form-row--compact">
+            <label class="form-label required">
+              <i class="pi pi-calendar"></i>
+              Tanggal Order
+            </label>
+            <input
+              ref="inputOrderDate"
+              v-model="form.order_date"
+              type="date"
+              class="form-input"
+              @focus="focusedField = 'order_date'"
+              @keydown.enter.prevent="focusSupplier"
+            />
           </div>
-        </div>
 
-        <div class="form-row" :class="{ 'form-row--focused': focusedField === 'terms' }" @click="focusedField = 'terms'">
-          <label class="form-label required">
-            <i class="pi pi-clock"></i>
-            Terms Pembayaran
-          </label>
-          <div class="radio-group radio-group-wrap">
-            <label class="radio-option" :class="{ active: form.terms === '1' }">
-              <input v-model="form.terms" type="radio" value="1" />
-              <span class="radio-label">1 Bulan</span>
+          <div
+            ref="supplierFieldEl"
+            class="form-row form-row--customer"
+            :class="{ 'form-row--focused': focusedField === 'supplier' }"
+            tabindex="0"
+            @click="focusSupplier"
+            @focus="focusedField = 'supplier'"
+            @keydown.enter="onSupplierFieldEnter"
+            @keydown.backspace="onSupplierFieldBackspace"
+          >
+            <label class="form-label required">
+              <i class="pi pi-truck"></i>
+              Supplier
             </label>
-            <label class="radio-option" :class="{ active: form.terms === '2' }">
-              <input v-model="form.terms" type="radio" value="2" />
-              <span class="radio-label">2 Bulan</span>
+
+            <div v-if="!selectedSupplier" class="search-input-wrap">
+              <i class="pi pi-search si-icon"></i>
+              <input
+                ref="inputSupplier"
+                v-model="searchSupplier"
+                type="text"
+                class="form-input si-input"
+                placeholder="Ketik nama supplier lalu Enter"
+                @focus="focusedField = 'supplier'"
+                @keydown.enter.prevent="openSupplierModal"
+                @keydown.backspace="onSupplierInputBackspace"
+                @input="onSupplierInput"
+              />
+            </div>
+
+            <div v-else class="customer-info">
+              <div class="ci-header">
+                <span class="ci-name">{{ selectedSupplier.nama }}</span>
+                <span class="ci-kode">{{ selectedSupplier.kode }}</span>
+              </div>
+              <div class="ci-detail">
+                <div class="ci-row">
+                  <i class="pi pi-map-marker"></i>
+                  <span>{{ selectedSupplier.alamat || '—' }}</span>
+                </div>
+                <div class="ci-row">
+                  <i class="pi pi-phone"></i>
+                  <span>{{ selectedSupplier.no_telp || '—' }}</span>
+                </div>
+              </div>
+              <button class="change-customer-btn" type="button" @click="clearSupplier">
+                <i class="pi pi-times"></i> Ganti Supplier
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref="termsFieldEl"
+            class="form-row form-row--option"
+            :class="{ 'form-row--focused': focusedField === 'terms' }"
+            tabindex="0"
+            @click="focusTerms"
+            @focus="focusedField = 'terms'"
+            @keydown="onTermsFieldKeydown"
+          >
+            <label class="form-label required">
+              <i class="pi pi-clock"></i>
+              Terms Pembayaran
             </label>
-            <label class="radio-option" :class="{ active: form.terms === '3' }">
-              <input v-model="form.terms" type="radio" value="3" />
-              <span class="radio-label">3 Bulan</span>
-            </label>
-            <label class="radio-option" :class="{ active: form.terms === 'lunas' }">
-              <input v-model="form.terms" type="radio" value="lunas" />
-              <span class="radio-label">Lunas</span>
-            </label>
+            <div class="radio-group radio-group-wrap">
+              <label class="radio-option" :class="{ active: form.terms === 'tunai' }">
+                <input v-model="form.terms" type="radio" value="tunai" />
+                <span class="radio-label">Tunai</span>
+              </label>
+              <label class="radio-option" :class="{ active: form.terms === '1' }">
+                <input v-model="form.terms" type="radio" value="1" />
+                <span class="radio-label">1 Bulan</span>
+              </label>
+              <label class="radio-option" :class="{ active: form.terms === '2' }">
+                <input v-model="form.terms" type="radio" value="2" />
+                <span class="radio-label">2 Bulan</span>
+              </label>
+              <label class="radio-option" :class="{ active: form.terms === '3' }">
+                <input v-model="form.terms" type="radio" value="3" />
+                <span class="radio-label">3 Bulan</span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -162,7 +191,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { generatePurchaseOrderNo } from '@/lib/pembelianStore'
@@ -171,17 +200,20 @@ const router = useRouter()
 const pageEl = ref(null)
 const inputOrderDate = ref(null)
 const inputSupplier = ref(null)
+const supplierFieldEl = ref(null)
+const termsFieldEl = ref(null)
 const supplierModalInput = ref(null)
 
 const focusedField = ref('')
 const searchSupplier = ref('')
 const selectedSupplier = ref(null)
-const suppressEnterOnce = ref(false)
+const justSelectedSupplier = ref(false)
+const ORDER_WORKING_KEY = 'pembelian_order_working_state'
 
 const form = reactive({
   no_order: '',
   order_date: new Date().toISOString().split('T')[0],
-  terms: '1',
+  terms: 'tunai',
 })
 
 const supplierModal = reactive({
@@ -192,11 +224,15 @@ const supplierModal = reactive({
   selectedIndex: 0,
 })
 
-const termOptions = ['1', '2', '3', 'lunas']
+const termOptions = ['tunai', '1', '2', '3']
 
-const canProceed = computed(() => Boolean(form.order_date && selectedSupplier.value && form.terms))
+const canProceed = computed(() => Boolean(form.order_date && selectedSupplier.value && form.terms && form.no_order))
 
 function handleKeydown(e) {
+  if (e.defaultPrevented) {
+    return
+  }
+
   if (supplierModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -214,23 +250,36 @@ function handleKeydown(e) {
   if (e.key === 'Enter' && document.activeElement?.tagName !== 'INPUT') {
     e.preventDefault()
 
-    if (suppressEnterOnce.value) {
-      suppressEnterOnce.value = false
+    if (justSelectedSupplier.value) {
       return
     }
 
-    if (!selectedSupplier.value) {
+    if (focusedField.value === 'order_date') {
       focusSupplier()
       return
     }
-    if (!focusedField.value) {
-      focusedField.value = 'terms'
+
+    if (focusedField.value === 'supplier') {
+      onSupplierFieldEnter()
       return
     }
+
     if (focusedField.value === 'terms' && canProceed.value) {
       goToInputItem()
     }
     return
+  }
+
+  if (e.key === 'Backspace' && document.activeElement?.tagName !== 'INPUT') {
+    if (focusedField.value === 'terms') {
+      e.preventDefault()
+      focusSupplier()
+      return
+    }
+    if (focusedField.value === 'supplier') {
+      e.preventDefault()
+      focusOrderDate()
+    }
   }
 
   if (focusedField.value === 'terms') {
@@ -253,14 +302,63 @@ function handleKeydown(e) {
   }
 }
 
+function focusOrderDate() {
+  focusedField.value = 'order_date'
+  nextTick(() => inputOrderDate.value?.focus())
+}
+
 function focusSupplier() {
-  nextTick(() => inputSupplier.value?.focus())
+  focusedField.value = 'supplier'
+  nextTick(() => {
+    if (selectedSupplier.value) {
+      supplierFieldEl.value?.focus()
+      return
+    }
+    inputSupplier.value?.focus()
+  })
+}
+
+function focusTerms() {
+  focusedField.value = 'terms'
+  nextTick(() => termsFieldEl.value?.focus())
+}
+
+function resolveSupplierTerm(tempoBulan) {
+  const tempo = Number(tempoBulan)
+  if ([1, 2, 3].includes(tempo)) return String(tempo)
+  return 'tunai'
 }
 
 function onSupplierInput() {
   if (selectedSupplier.value) {
     selectedSupplier.value = null
+    form.terms = 'tunai'
   }
+}
+
+function onSupplierInputBackspace(e) {
+  if (!searchSupplier.value && e.target.selectionStart === 0) {
+    e.preventDefault()
+    focusOrderDate()
+  }
+}
+
+function onSupplierFieldBackspace(e) {
+  if (!selectedSupplier.value) return
+  e.preventDefault()
+  e.stopPropagation()
+  clearSupplier()
+}
+
+function onSupplierFieldEnter(e) {
+  if (!selectedSupplier.value) {
+    if (document.activeElement === inputSupplier.value) return
+    e?.preventDefault()
+    openSupplierModal()
+    return
+  }
+  e?.preventDefault()
+  focusTerms()
 }
 
 async function openSupplierModal() {
@@ -268,7 +366,7 @@ async function openSupplierModal() {
   try {
     let query = supabase
       .from('suppliers')
-      .select('id, kode, nama, alamat, no_telp')
+      .select('id, kode, nama, alamat, no_telp, jatuh_tempo_bulan')
       .eq('aktif', true)
       .order('nama')
 
@@ -307,17 +405,21 @@ function filterSupplierModal() {
 function onSupplierModalKey(e) {
   if (e.key === 'ArrowDown') {
     e.preventDefault()
+    e.stopPropagation()
     supplierModal.selectedIndex = Math.min(supplierModal.selectedIndex + 1, supplierModal.filtered.length - 1)
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
+    e.stopPropagation()
     supplierModal.selectedIndex = Math.max(supplierModal.selectedIndex - 1, 0)
   } else if (e.key === 'Enter') {
     e.preventDefault()
+    e.stopPropagation()
     if (supplierModal.filtered[supplierModal.selectedIndex]) {
       selectSupplier(supplierModal.filtered[supplierModal.selectedIndex])
     }
   } else if (e.key === 'Escape') {
     e.preventDefault()
+    e.stopPropagation()
     supplierModal.show = false
   }
 }
@@ -325,16 +427,40 @@ function onSupplierModalKey(e) {
 function selectSupplier(item) {
   selectedSupplier.value = item
   searchSupplier.value = item.nama
+  form.terms = resolveSupplierTerm(item.jatuh_tempo_bulan)
+  justSelectedSupplier.value = true
   supplierModal.show = false
-  focusedField.value = 'terms'
-  suppressEnterOnce.value = true
-  nextTick(() => pageEl.value?.focus())
+  focusTerms()
+  setTimeout(() => {
+    justSelectedSupplier.value = false
+  }, 0)
 }
 
 function clearSupplier() {
   selectedSupplier.value = null
   searchSupplier.value = ''
+  form.terms = 'tunai'
   focusSupplier()
+}
+
+function onTermsFieldKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    e.stopPropagation()
+    if (justSelectedSupplier.value) {
+      return
+    }
+    if (canProceed.value) {
+      goToInputItem()
+    }
+    return
+  }
+
+  if (e.key === 'Backspace') {
+    e.preventDefault()
+    e.stopPropagation()
+    focusSupplier()
+  }
 }
 
 function goToInputItem() {
@@ -354,10 +480,59 @@ function goToInputItem() {
   router.push('/pembelian/input')
 }
 
+function persistWorkingState() {
+  const snapshot = {
+    form: {
+      no_order: form.no_order,
+      order_date: form.order_date,
+      terms: form.terms,
+    },
+    searchSupplier: searchSupplier.value,
+    selectedSupplier: selectedSupplier.value,
+  }
+
+  sessionStorage.setItem(ORDER_WORKING_KEY, JSON.stringify(snapshot))
+}
+
+function restoreWorkingState() {
+  const raw = sessionStorage.getItem(ORDER_WORKING_KEY)
+  if (!raw) return false
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return false
+
+    form.no_order = parsed.form?.no_order || ''
+    form.order_date = parsed.form?.order_date || form.order_date
+    form.terms = parsed.form?.terms || 'tunai'
+    searchSupplier.value = parsed.searchSupplier || ''
+    selectedSupplier.value = parsed.selectedSupplier || null
+    return true
+  } catch (err) {
+    console.error('[restoreWorkingState order pembelian]', err)
+    return false
+  }
+}
+
+watch(
+  () => [
+    form.no_order,
+    form.order_date,
+    form.terms,
+    searchSupplier.value,
+    selectedSupplier.value?.id,
+  ],
+  persistWorkingState,
+  { immediate: true }
+)
+
 onMounted(() => {
-  form.no_order = generatePurchaseOrderNo()
+  restoreWorkingState()
+  if (!form.no_order) {
+    form.no_order = generatePurchaseOrderNo()
+  }
   pageEl.value?.focus()
-  nextTick(() => inputOrderDate.value?.focus())
+  nextTick(() => focusOrderDate())
   window.addEventListener('keydown', handleKeydown)
 })
 

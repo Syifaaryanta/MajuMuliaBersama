@@ -7,8 +7,61 @@
   margin: 0 auto;
 }
 
+.pembelian-order-page .order-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 1rem;
+}
+
+.pembelian-order-page .form-row--customer,
+.pembelian-order-page .form-row--option {
+  align-self: stretch;
+}
+
+.pembelian-order-page .radio-group-wrap {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pembelian-order-page .form-row--focused {
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+}
+
+.pembelian-order-page .form-row:focus,
+.pembelian-order-page .form-row:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 0;
+  border-radius: 8px;
+}
+
+.pembelian-order-page .search-input-wrap .si-input {
+  border-width: 2px;
+}
+
+.pembelian-order-page .search-input-wrap .si-input:focus {
+  border-width: 2px;
+  box-shadow: none;
+}
+
+.pembelian-order-page .order-form-grid .search-input-wrap,
+.pembelian-order-page .order-form-grid .search-input-wrap.focused {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 @media (max-width: 768px) {
   .pembelian-order-page {
     padding: 1rem;
+  }
+
+  .pembelian-order-page .order-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pembelian-order-page .radio-group-wrap {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

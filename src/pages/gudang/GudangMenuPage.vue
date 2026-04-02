@@ -10,7 +10,7 @@
     </div>
 
     <!-- ── MENU OPTIONS ──────────────────────────────────── -->
-    <div class="menu-container">
+    <div :class="['menu-container', `menu-count-${menuOptions.length}`]">
       <div 
         v-for="(option, index) in menuOptions" 
         :key="option.id"
@@ -31,7 +31,7 @@
 
     <!-- ── QUICK STATS ──────────────────────────────────── -->
     <div class="stats-cards">
-      <div class="stat-card">
+      <div class="stat-card stat-card--blue">
         <div class="stat-icon stat-icon--blue">
           <i class="pi pi-box"></i>
         </div>
@@ -40,7 +40,7 @@
           <span class="stat-value">{{ stats.totalProducts }} item</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--green">
         <div class="stat-icon stat-icon--green">
           <i class="pi pi-check-circle"></i>
         </div>
@@ -49,7 +49,7 @@
           <span class="stat-value">{{ stats.safeStock }} item</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--orange">
         <div class="stat-icon stat-icon--orange">
           <i class="pi pi-exclamation-triangle"></i>
         </div>
@@ -58,7 +58,7 @@
           <span class="stat-value">{{ stats.lowStock }} item</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--purple">
         <div class="stat-icon stat-icon--purple">
           <i class="pi pi-users"></i>
         </div>

@@ -26,11 +26,13 @@ export function generatePurchaseOrderNo() {
   const nums = rows
     .map(row => String(row.no_order || ''))
     .filter(no => no.startsWith(prefix))
-    .map(no => parseInt(no.slice(prefix.length), 10))
+    .map(no => no.slice(prefix.length))
+    .filter(suffix => /^\d{3}$/.test(suffix))
+    .map(suffix => parseInt(suffix, 10))
     .filter(n => Number.isFinite(n))
 
   const next = (nums.length ? Math.max(...nums) : 0) + 1
-  return `${prefix}${String(next).padStart(5, '0')}`
+  return `${prefix}${String(next).padStart(3, '0')}`
 }
 
 export function getPurchaseOrderByNo(noOrder) {
@@ -86,7 +88,15 @@ export function markPurchaseOrderReceived(noOrder, receivedAt = new Date().toISO
   return rows[index]
 }
 
+export function removePurchaseOrder(noOrder) {
+  const rows = listPurchaseOrders()
+  const nextRows = rows.filter(row => row.no_order !== noOrder)
+  if (nextRows.length === rows.length) return false
+  saveAll(nextRows)
+  return true
+}
+
 export function getTermLabel(termValue) {
-  if (termValue === 'lunas') return 'Lunas'
+  if (termValue === 'tunai' || termValue === 'lunas') return 'Tunai'
   return `${termValue} Bulan`
 }

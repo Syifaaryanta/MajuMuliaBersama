@@ -1,5 +1,6 @@
 <template>
   <div class="pembelian-menu-page" ref="pageEl" tabindex="-1">
+    <Toast position="top-right" />
 
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
@@ -10,7 +11,7 @@
     </div>
 
     <!-- ── MENU OPTIONS ──────────────────────────────────── -->
-    <div class="menu-container">
+    <div :class="['menu-container', `menu-count-${menuOptions.length}`]">
       <div
         v-for="(option, index) in menuOptions"
         :key="option.id"
@@ -30,7 +31,7 @@
     </div>
 
     <div class="stats-cards">
-      <div class="stat-card">
+      <div class="stat-card stat-card--blue">
         <div class="stat-icon stat-icon--blue">
           <i class="pi pi-file"></i>
         </div>
@@ -39,7 +40,7 @@
           <span class="stat-value">{{ infoStats.totalOrder }} order</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--orange">
         <div class="stat-icon stat-icon--orange">
           <i class="pi pi-clock"></i>
         </div>
@@ -48,7 +49,7 @@
           <span class="stat-value">{{ infoStats.menungguTerima }} order</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--green">
         <div class="stat-icon stat-icon--green">
           <i class="pi pi-check-circle"></i>
         </div>
@@ -57,7 +58,7 @@
           <span class="stat-value">{{ infoStats.sudahDiterima }} order</span>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--purple">
         <div class="stat-icon stat-icon--purple">
           <i class="pi pi-truck"></i>
         </div>
@@ -75,10 +76,14 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listPurchaseOrders } from '@/lib/pembelianStore'
+import { useToast } from 'primevue/usetoast'
+import Toast from 'primevue/toast'
 
 const router = useRouter()
+const toast = useToast()
 const pageEl = ref(null)
 const selectedIndex = ref(0)
+const PEMBELIAN_FLASH_KEY = 'pembelian_flash_notice'
 const infoStats = ref({
   totalOrder: 0,
   menungguTerima: 0,
@@ -93,6 +98,13 @@ const menuOptions = [
     description: 'Buat dan kelola order pembelian baru ke supplier',
     icon: 'pi pi-file-plus',
     route: '/pembelian/order'
+  },
+  {
+    id: 'draft-pembelian',
+    title: 'Order Tertunda',
+    description: 'Kelola order pembelian yang belum selesai diproses',
+    icon: 'pi pi-clock',
+    route: '/pembelian/draft'
   },
   {
     id: 'edit-order-pembelian',
@@ -163,6 +175,12 @@ function handleKeydown(e) {
     navigateToOption(menuOptions[selectedIndex.value])
   }
 
+  // F3 - Order Tertunda
+  else if (e.key === 'F3') {
+    e.preventDefault()
+    router.push('/pembelian/draft')
+  }
+
   // Number keys 1-N (match card order left to right)
   else if (e.key >= '1' && e.key <= '9') {
     e.preventDefault()
@@ -184,6 +202,25 @@ onMounted(() => {
   loadInfoStats()
   pageEl.value?.focus()
   window.addEventListener('keydown', handleKeydown)
+
+  const flashRaw = sessionStorage.getItem(PEMBELIAN_FLASH_KEY)
+  if (flashRaw) {
+    try {
+      const flash = JSON.parse(flashRaw)
+      if (flash?.summary) {
+        toast.add({
+          severity: flash.severity || 'success',
+          summary: flash.summary,
+          detail: flash.detail || '',
+          life: Number(flash.life || 3000),
+        })
+      }
+    } catch (err) {
+      console.error('[parse PEMBELIAN_FLASH_KEY menu]', err)
+    }
+
+    sessionStorage.removeItem(PEMBELIAN_FLASH_KEY)
+  }
 })
 
 onUnmounted(() => {

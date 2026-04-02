@@ -31,6 +31,12 @@ const router = createRouter({
           component: () => import('@/pages/DashboardPage.vue')
         },
         {
+          path: 'profile',
+          name: 'Profile',
+          component: () => import('@/pages/ProfilePage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Dashboard' }
+        },
+        {
           path: 'gudang',
           name: 'Gudang',
           component: () => import('@/pages/gudang/GudangMenuPage.vue')
@@ -86,6 +92,12 @@ const router = createRouter({
           path: 'pembelian/edit-order',
           name: 'PembelianEditOrder',
           component: () => import('@/pages/pembelian/PembelianEditOrderPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Pembelian' }
+        },
+        {
+          path: 'pembelian/draft',
+          name: 'PembelianDraft',
+          component: () => import('@/pages/pembelian/PembelianDraftPage.vue'),
           meta: { requiresAuth: true, parentRoute: 'Pembelian' }
         },
         {

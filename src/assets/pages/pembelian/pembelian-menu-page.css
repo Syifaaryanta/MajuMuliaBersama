@@ -18,11 +18,12 @@
   }
 
   .menu-container {
-    grid-template-columns: 1fr;
     gap: .9rem;
   }
 
   .menu-card {
+    flex-basis: 100%;
+    max-width: 100%;
     gap: .9rem;
     padding: 1rem;
   }

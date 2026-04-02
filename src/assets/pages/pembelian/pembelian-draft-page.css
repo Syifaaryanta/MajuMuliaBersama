@@ -1,0 +1,24 @@
+@import '@/assets/pages/penjualan/penjualan-list-page.css';
+
+.pembelian-draft-page .col-supplier {
+  min-width: 220px;
+}
+
+.pembelian-draft-page .detail-top-panels .detail-section {
+  min-width: 280px;
+}
+
+.pembelian-draft-page .status-badge {
+  min-width: 84px;
+}
+
+@media (max-width: 768px) {
+  .pembelian-draft-page .search-sequential {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pembelian-draft-page .search-divider {
+    display: none;
+  }
+}

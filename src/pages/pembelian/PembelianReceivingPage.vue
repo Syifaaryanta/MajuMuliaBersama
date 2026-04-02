@@ -272,7 +272,7 @@ function openConfirmModal() {
 
 function listPendingOrders() {
   return listPurchaseOrders()
-    .filter(row => row?.no_order && row.status !== 'received')
+    .filter(row => row?.no_order && row.status === 'ordered')
     .sort((a, b) => {
       const timeA = new Date(a.updated_at || a.created_at || 0).getTime()
       const timeB = new Date(b.updated_at || b.created_at || 0).getTime()
@@ -304,9 +304,9 @@ function applyOrder(row) {
 
 function selectOrder(noOrder, { silentNotFound = false } = {}) {
   const row = pendingOrders.value.find(item => item.no_order === noOrder) || getPurchaseOrderByNo(noOrder)
-  if (!row || row.status === 'received') {
+  if (!row || row.status !== 'ordered') {
     if (!silentNotFound) {
-      alert('No order tidak ditemukan atau sudah received.')
+      alert('No order tidak ditemukan atau belum masuk antrian receiving.')
     }
     return
   }
@@ -327,9 +327,9 @@ function loadOrder({ silentNotFound = false } = {}) {
   }
 
   const row = pendingOrders.value.find(item => item.no_order === typedNo) || getPurchaseOrderByNo(typedNo)
-  if (!row || row.status === 'received') {
+  if (!row || row.status !== 'ordered') {
     if (!silentNotFound) {
-      alert('No order tidak ditemukan atau sudah received.')
+      alert('No order tidak ditemukan atau belum masuk antrian receiving.')
     }
     return
   }

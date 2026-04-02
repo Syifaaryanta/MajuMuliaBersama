@@ -61,8 +61,9 @@
 }
 
 .history-nav-cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.9rem;
 }
 
@@ -77,6 +78,8 @@
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex: 1 1 320px;
+  max-width: 430px;
 }
 
 .history-nav-main-card:hover {
@@ -797,11 +800,13 @@
   }
 
   .history-nav-cards {
-    grid-template-columns: 1fr;
+    justify-content: center;
     gap: .7rem;
   }
 
   .history-nav-main-card {
+    flex-basis: 100%;
+    max-width: 100%;
     padding: .92rem;
     gap: .75rem;
     border-radius: 10px;

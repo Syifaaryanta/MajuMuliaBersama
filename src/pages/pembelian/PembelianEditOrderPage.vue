@@ -287,7 +287,14 @@ function parseFormattedNumber(value) {
 
 onMounted(() => {
   pageEl.value?.focus()
-  nextTick(() => searchInput.value?.focus())
+  const pendingSearchNo = sessionStorage.getItem('pembelian_edit_search_no_order')
+  if (pendingSearchNo) {
+    searchQuery.value = pendingSearchNo
+    sessionStorage.removeItem('pembelian_edit_search_no_order')
+    nextTick(() => searchOrder())
+  } else {
+    nextTick(() => searchInput.value?.focus())
+  }
   window.addEventListener('keydown', handleKeydown)
 })
 

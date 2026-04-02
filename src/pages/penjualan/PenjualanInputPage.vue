@@ -300,7 +300,7 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="productModal.show" class="modal-overlay" @click.self="closeProductModal">
-          <div class="modal-box modal-search" role="dialog">
+          <div class="modal-box modal-search" role="dialog" tabindex="0" @keydown="onProductModalKey">
             <div class="modal-header">
               <i class="pi pi-search"></i>
               <h3 class="modal-title">Pilih Barang</h3>
@@ -595,6 +595,39 @@
       </Transition>
     </Teleport>
 
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="duplicateItemModal.show" class="modal-overlay" @click.self="closeDuplicateItemModal">
+          <div
+            ref="duplicateItemModalBox"
+            class="modal-box modal-box--sm"
+            role="dialog"
+            tabindex="0"
+            aria-modal="true"
+            aria-label="Peringatan item duplikat"
+            @keydown="onDuplicateItemModalKey"
+          >
+            <div class="modal-header modal-header--danger">
+              <i class="pi pi-exclamation-triangle"></i>
+              <h3 class="modal-title">Item Sudah Diinput</h3>
+              <button class="modal-close" @click="closeDuplicateItemModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="confirm-text">Barang ini sudah ada di daftar item.</p>
+              <p class="confirm-subtext">ID Item: <strong>{{ duplicateItemModal.productId || '-' }}</strong></p>
+              <p class="confirm-subtext">Nama: <strong>{{ duplicateItemModal.productName || '-' }}</strong></p>
+              <p class="confirm-subtext">Tekan <strong>Enter</strong> untuk pilih item lain.</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-primary" @click="closeDuplicateItemModal('enter')">Pilih Item Lain <kbd>Enter</kbd></button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- ═══════════════════════════════════════════════════════
          MODAL KONFIRMASI KELUAR
     ═══════════════════════════════════════════════════════ -->
@@ -647,6 +680,7 @@ const senderInlineInput = ref(null)
 const priceInfoReturnFocusEl = ref(null)
 const printConfirmModalBox = ref(null)
 const stockEmptyModalBox = ref(null)
+const duplicateItemModalBox = ref(null)
 const suppressNextProductModalEnter = ref(false)
 
 // ───────────────────────────────────────────────────────────
@@ -722,6 +756,12 @@ const creditLimitConfirmModal = reactive({
 
 const stockEmptyModal = reactive({
   show: false,
+  productName: '',
+})
+
+const duplicateItemModal = reactive({
+  show: false,
+  productId: '',
   productName: '',
 })
 
@@ -864,6 +904,17 @@ watch(
 // KEYBOARD SHORTCUTS
 // ───────────────────────────────────────────────────────────
 function onGlobalKey(e) {
+  if (e.defaultPrevented) return
+
+  if (duplicateItemModal.show) {
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      e.preventDefault()
+      closeDuplicateItemModal(e.key === 'Enter' ? 'enter' : 'escape')
+      return
+    }
+    return
+  }
+
   if (stockEmptyModal.show) {
     if (e.key === 'Escape' || e.key === 'Enter') {
       e.preventDefault()
@@ -923,7 +974,12 @@ function onGlobalKey(e) {
     return
   }
 
-  if (productModal.show || supplierModal.show) return
+  if (productModal.show) {
+    onProductModalKey(e)
+    return
+  }
+
+  if (supplierModal.show) return
 
   // Esc: show confirm modal for save draft and exit
   if (e.key === 'Escape') {
@@ -971,6 +1027,16 @@ function onGlobalKey(e) {
 }
 
 function onStockEmptyCaptureKey(e) {
+  if (duplicateItemModal.show) {
+    const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
+    if (isEnter || e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      closeDuplicateItemModal(isEnter ? 'enter' : 'escape')
+    }
+    return
+  }
+
   if (!stockEmptyModal.show) return
 
   const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
@@ -1107,6 +1173,9 @@ function openStockEmptyModal(productName) {
 function closeStockEmptyModal(source = 'manual') {
   if (source === 'enter') {
     suppressNextProductModalEnter.value = true
+    setTimeout(() => {
+      suppressNextProductModalEnter.value = false
+    }, 0)
   }
 
   stockEmptyModal.show = false
@@ -1128,6 +1197,45 @@ function onStockEmptyModalKey(e) {
     e.preventDefault()
     e.stopPropagation()
     closeStockEmptyModal(isEnter ? 'enter' : 'escape')
+  }
+}
+
+function openDuplicateItemModal(product) {
+  duplicateItemModal.productId = String(product?.id ?? '').trim()
+  duplicateItemModal.productName = String(product?.nama ?? '').trim()
+  duplicateItemModal.show = true
+  nextTick(() => {
+    duplicateItemModalBox.value?.focus?.()
+  })
+}
+
+function closeDuplicateItemModal(source = 'manual') {
+  if (source === 'enter') {
+    suppressNextProductModalEnter.value = true
+    setTimeout(() => {
+      suppressNextProductModalEnter.value = false
+    }, 0)
+  }
+
+  duplicateItemModal.show = false
+  nextTick(() => {
+    if (productModal.show) {
+      productModalInput.value?.focus()
+      productModalInput.value?.select?.()
+      ensureProductModalSelectionVisible()
+    } else {
+      inputProduct.value?.focus()
+      inputProduct.value?.select?.()
+    }
+  })
+}
+
+function onDuplicateItemModalKey(e) {
+  const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
+  if (isEnter || e.key === 'Escape') {
+    e.preventDefault()
+    e.stopPropagation()
+    closeDuplicateItemModal(isEnter ? 'enter' : 'escape')
   }
 }
 
@@ -1157,7 +1265,23 @@ async function confirmCreditLimitAndSubmit() {
 
 async function confirmExitAndSaveDraft() {
   if (saving.value) return
-  await saveAsDraft()
+
+  const isSaved = await saveAsDraft()
+  if (!isSaved) {
+    alert('Gagal menyimpan draft. Coba lagi.')
+    return
+  }
+
+  sessionStorage.setItem(
+    PENJUALAN_FLASH_KEY,
+    JSON.stringify({
+      severity: 'success',
+      summary: 'Draft Tersimpan',
+      detail: `No. Order ${orderData.value?.no_order || '-'} disimpan sebagai draft.`,
+      life: 3200,
+    })
+  )
+
   clearWorkingState()
   exitConfirmModal.show = false
   router.push('/penjualan')
@@ -1531,6 +1655,24 @@ function handleTableKeydown(e, rowIdx, field) {
 // ───────────────────────────────────────────────────────────
 // PRODUCT SEARCH
 // ───────────────────────────────────────────────────────────
+function findExistingItemByProductId(productId) {
+  const targetId = String(productId ?? '').trim().toLowerCase()
+  if (!targetId) return null
+  return items.value.find(item => String(item.product_id ?? '').trim().toLowerCase() === targetId) || null
+}
+
+function notifyDuplicateItemSelection(product) {
+  const existing = findExistingItemByProductId(product?.id)
+  if (!existing) return false
+
+  openDuplicateItemModal({
+    id: existing.product_id,
+    nama: existing.product_nama || product?.nama,
+  })
+
+  return true
+}
+
 async function openProductModal() {
   if (!productSearchArmed.value) return
 
@@ -1666,6 +1808,15 @@ function onProductModalKey(e) {
     return
   }
 
+  if (duplicateItemModal.show) {
+    if (isEnter || e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      closeDuplicateItemModal(isEnter ? 'enter' : 'escape')
+    }
+    return
+  }
+
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     productModal.selectedIndex = Math.min(productModal.selectedIndex + 1, productModal.filtered.length - 1)
@@ -1695,6 +1846,11 @@ function ensureProductModalSelectionVisible() {
 }
 
 async function selectProduct(product) {
+  if (notifyDuplicateItemSelection(product)) {
+    productSearchArmed.value = true
+    return
+  }
+
   if (Number(product?.stok || 0) <= 0) {
     openStockEmptyModal(product?.nama)
     productSearchArmed.value = true
@@ -1859,6 +2015,16 @@ function addItem() {
   if (!newItem.unit_price || newItem.unit_price < 0) {
     alert('Harga satuan tidak valid')
     inputPrice.value?.focus()
+    return
+  }
+
+  const duplicated = findExistingItemByProductId(newItem.product_id)
+  if (duplicated) {
+    openDuplicateItemModal({
+      id: duplicated.product_id,
+      nama: duplicated.product_nama || newItem.product_nama,
+    })
+    resetNewItem()
     return
   }
 
