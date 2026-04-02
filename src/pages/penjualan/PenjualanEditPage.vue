@@ -446,6 +446,49 @@
       </Transition>
     </Teleport>
 
+    <!-- ═══════════════════════════════════════════════════════
+         MODAL SUPPLIER SELECTION
+    ═══════════════════════════════════════════════════════ -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="supplierModal.show" class="modal-overlay" @click.self="supplierModal.show = false" @keydown="onSupplierModalKey">
+          <div ref="supplierModalBox" class="modal-box modal-search" role="dialog" tabindex="0">
+            <div class="modal-header modal-header--blue">
+              <i class="pi pi-truck"></i>
+              <h3 class="modal-title">Pilih Supplier</h3>
+              <button class="modal-close" @click="supplierModal.show = false" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="supplier-product-name"> <strong>{{ supplierModal.product?.nama }}</strong></p>
+              <p class="supplier-select-hint">
+                <i class="pi pi-info-circle"></i>
+                Barang ini tersedia dari beberapa supplier dengan harga berbeda. Pilih supplier yang akan digunakan.
+              </p>
+              <div class="search-modal-results" ref="supplierModalResultsEl">
+                <div
+                  v-for="(entry, idx) in supplierModal.prices"
+                  :key="entry.id"
+                  class="search-modal-item"
+                  :class="{ active: idx === supplierModal.selectedIndex }"
+                  @click="selectSupplierPrice(entry)"
+                  @mouseenter="supplierModal.selectedIndex = idx"
+                >
+                  <div class="smi-main">
+                    <span class="smi-nama">{{ entry.supplier_nama }}</span>
+                  </div>
+                  <div class="smi-sub">
+                    <span>Modal: <strong>{{ formatRp(entry.harga_beli) }}</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- ═══════════════════════════════════════════════════
          MODAL STOK KOSONG
     ════════════════════════════════════════════════════ -->
@@ -467,39 +510,6 @@
             </div>
             <div class="modal-footer">
               <button class="btn-primary" @click="closeStockEmptyModal">Batal & Cari Lagi <kbd>Enter</kbd></button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="duplicateItemModal.show" class="modal-overlay" @click.self="closeDuplicateItemModal">
-          <div
-            ref="duplicateItemModalBox"
-            class="modal-box modal-box--sm"
-            role="dialog"
-            tabindex="0"
-            aria-modal="true"
-            aria-label="Peringatan item duplikat"
-            @keydown="onDuplicateItemModalKey"
-          >
-            <div class="modal-header modal-header--danger">
-              <i class="pi pi-exclamation-triangle"></i>
-              <h3 class="modal-title">Item Sudah Diinput</h3>
-              <button class="modal-close" @click="closeDuplicateItemModal" tabindex="-1">
-                <i class="pi pi-times"></i>
-              </button>
-            </div>
-            <div class="modal-body">
-              <p class="confirm-text">Barang ini sudah ada di daftar item.</p>
-              <p class="confirm-subtext">ID Item: <strong>{{ duplicateItemModal.productId || '-' }}</strong></p>
-              <p class="confirm-subtext">Nama: <strong>{{ duplicateItemModal.productName || '-' }}</strong></p>
-              <p class="confirm-subtext">Tekan <strong>Enter</strong> untuk pilih item lain.</p>
-            </div>
-            <div class="modal-footer">
-              <button class="btn-primary" @click="closeDuplicateItemModal('enter')">Pilih Item Lain <kbd>Enter</kbd></button>
             </div>
           </div>
         </div>
@@ -618,11 +628,12 @@ const inputQty = ref(null)
 const inputPrice = ref(null)
 const productModalInput = ref(null)
 const productModalResultsEl = ref(null)
+const supplierModalResultsEl = ref(null)
+const supplierModalBox = ref(null)
 const senderInlineInput = ref(null)
 const priceInfoReturnFocusEl = ref(null)
 const printConfirmModalBox = ref(null)
 const stockEmptyModalBox = ref(null)
-const duplicateItemModalBox = ref(null)
 const suppressNextProductModalEnter = ref(false)
 
 // ───────────────────────────────────────────────────────────
@@ -678,6 +689,14 @@ const priceInfoModal = reactive({
   }
 })
 
+const supplierModal = reactive({
+  show: false,
+  product: null,
+  prices: [],
+  selectedIndex: 0,
+  defaultUnitPrice: 0,
+})
+
 const printConfirmModal = reactive({
   show: false,
   sortIndex: 0,
@@ -694,12 +713,6 @@ const deleteConfirmModal = reactive({
 
 const stockEmptyModal = reactive({
   show: false,
-  productName: '',
-})
-
-const duplicateItemModal = reactive({
-  show: false,
-  productId: '',
   productName: '',
 })
 
@@ -969,15 +982,6 @@ function handleNewItemKeydown(e, field) {
 function onGlobalKey(e) {
   if (e.defaultPrevented) return
 
-  if (duplicateItemModal.show) {
-    if (e.key === 'Escape' || e.key === 'Enter') {
-      e.preventDefault()
-      closeDuplicateItemModal(e.key === 'Enter' ? 'enter' : 'escape')
-      return
-    }
-    return
-  }
-
   if (stockEmptyModal.show) {
     if (e.key === 'Escape' || e.key === 'Enter') {
       e.preventDefault()
@@ -1023,6 +1027,11 @@ function onGlobalKey(e) {
 
   if (productModal.show) {
     onProductModalKey(e)
+    return
+  }
+
+  if (supplierModal.show) {
+    onSupplierModalKey(e)
     return
   }
 
@@ -1098,16 +1107,6 @@ function onGlobalKey(e) {
 }
 
 function onStockEmptyCaptureKey(e) {
-  if (duplicateItemModal.show) {
-    const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
-    if (isEnter || e.key === 'Escape') {
-      e.preventDefault()
-      e.stopPropagation()
-      closeDuplicateItemModal(isEnter ? 'enter' : 'escape')
-    }
-    return
-  }
-
   if (!stockEmptyModal.show) return
 
   const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
@@ -1469,24 +1468,6 @@ function confirmDeleteRow() {
 // ───────────────────────────────────────────────────────────
 // PRODUCT SEARCH
 // ───────────────────────────────────────────────────────────
-function findExistingItemByProductId(productId) {
-  const targetId = String(productId ?? '').trim().toLowerCase()
-  if (!targetId) return null
-  return items.value.find(item => String(item.product_id ?? '').trim().toLowerCase() === targetId) || null
-}
-
-function notifyDuplicateItemSelection(product) {
-  const existing = findExistingItemByProductId(product?.id)
-  if (!existing) return false
-
-  openDuplicateItemModal({
-    id: existing.product_id,
-    nama: existing.product_nama || product?.nama,
-  })
-
-  return true
-}
-
 async function openProductModal() {
   if (!productSearchArmed.value) return
   if (!newItem.search.trim()) return
@@ -1523,6 +1504,8 @@ function filterProductModal() {
 }
 
 function onProductModalKey(e) {
+  if (e.defaultPrevented) return
+
   const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
 
   if (suppressNextProductModalEnter.value && isEnter) {
@@ -1537,15 +1520,6 @@ function onProductModalKey(e) {
       e.preventDefault()
       e.stopPropagation()
       closeStockEmptyModal(isEnter ? 'enter' : 'escape')
-    }
-    return
-  }
-
-  if (duplicateItemModal.show) {
-    if (isEnter || e.key === 'Escape') {
-      e.preventDefault()
-      e.stopPropagation()
-      closeDuplicateItemModal(isEnter ? 'enter' : 'escape')
     }
     return
   }
@@ -1596,31 +1570,109 @@ function ensureProductModalSelectionVisible() {
 }
 
 async function selectProduct(product) {
-  if (notifyDuplicateItemSelection(product)) {
-    productSearchArmed.value = true
-    return
-  }
-
   if (Number(product?.stok || 0) <= 0) {
     openStockEmptyModal(product?.nama)
     productSearchArmed.value = true
     return
   }
 
-  const defaultUnitPrice = await getDefaultPrice(product.id)
+  productModal.show = false
+  productSearchArmed.value = false
+
+  try {
+    const defaultUnitPrice = await getDefaultPrice(product.id)
+
+    const { data: prices, error } = await supabase
+      .from('product_prices')
+      .select('id, stok, harga_beli, supplier:suppliers(id, nama)')
+      .eq('product_id', product.id)
+      .eq('aktif', true)
+      .order('updated_at', { ascending: false })
+
+    if (error) throw error
+
+    const activePrices = (prices || []).filter(p => p.supplier)
+
+    if (activePrices.length > 1) {
+      supplierModal.product = product
+      supplierModal.prices = activePrices.map(p => ({
+        id: p.id,
+        supplier_id: p.supplier.id,
+        supplier_nama: p.supplier.nama,
+        stok: p.stok,
+        harga_beli: p.harga_beli,
+      }))
+      supplierModal.defaultUnitPrice = defaultUnitPrice
+      supplierModal.selectedIndex = 0
+      supplierModal.show = true
+      nextTick(() => {
+        supplierModalBox.value?.focus?.()
+        ensureSupplierModalSelectionVisible()
+      })
+      return
+    }
+
+    fillNewItem(product, defaultUnitPrice)
+  } catch (error) {
+    console.error('[selectProduct edit]', error)
+    const fallbackPrice = await getDefaultPrice(product.id)
+    fillNewItem(product, fallbackPrice)
+  }
+}
+
+function selectSupplierPrice(entry) {
+  supplierModal.show = false
+  fillNewItem(supplierModal.product, supplierModal.defaultUnitPrice)
+}
+
+function onSupplierModalKey(e) {
+  if (e.defaultPrevented) return
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    supplierModal.selectedIndex = Math.min(supplierModal.selectedIndex + 1, supplierModal.prices.length - 1)
+    ensureSupplierModalSelectionVisible()
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    supplierModal.selectedIndex = Math.max(supplierModal.selectedIndex - 1, 0)
+    ensureSupplierModalSelectionVisible()
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    if (supplierModal.prices[supplierModal.selectedIndex]) {
+      selectSupplierPrice(supplierModal.prices[supplierModal.selectedIndex])
+    }
+  } else if (e.key === 'Escape') {
+    supplierModal.show = false
+    nextTick(() => {
+      productModalInput.value?.focus()
+      productModalInput.value?.select?.()
+    })
+  }
+}
+
+function ensureSupplierModalSelectionVisible() {
+  const container = supplierModalResultsEl.value
+  if (!container) return
+
+  const selectedEl = container.children?.[supplierModal.selectedIndex]
+  if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+    selectedEl.scrollIntoView({ block: 'nearest' })
+  }
+}
+
+function fillNewItem(product, price) {
+  if (!product) return
 
   newItem.product_id = product.id
   newItem.product_kode = product.kode
   newItem.product_nama = product.nama
   newItem.search = `${product.kode} - ${product.nama}`
-  newItem.unit_price = defaultUnitPrice
-  newItem.stok_available = product.stok || 0
-  
-  productModal.show = false
-  productSearchArmed.value = false
-  
+  newItem.unit_price = Number(price || 0)
+  newItem.stok_available = Number(product.stok || 0)
+
   nextTick(() => {
     inputQty.value?.focus()
+    inputQty.value?.select?.()
   })
 }
 
@@ -1697,16 +1749,6 @@ function addItem() {
   }
 
   if (!newItem.product_id || !newItem.qty || !newItem.unit_price) return
-
-  const duplicated = findExistingItemByProductId(newItem.product_id)
-  if (duplicated) {
-    openDuplicateItemModal({
-      id: duplicated.product_id,
-      nama: duplicated.product_nama || newItem.product_nama,
-    })
-    resetNewItem()
-    return
-  }
   
   items.value.push({
     id: Date.now(), // temporary id for new items
@@ -1859,45 +1901,6 @@ function onStockEmptyModalKey(e) {
     e.preventDefault()
     e.stopPropagation()
     closeStockEmptyModal(isEnter ? 'enter' : 'escape')
-  }
-}
-
-function openDuplicateItemModal(product) {
-  duplicateItemModal.productId = String(product?.id ?? '').trim()
-  duplicateItemModal.productName = String(product?.nama ?? '').trim()
-  duplicateItemModal.show = true
-  nextTick(() => {
-    duplicateItemModalBox.value?.focus?.()
-  })
-}
-
-function closeDuplicateItemModal(source = 'manual') {
-  if (source === 'enter') {
-    suppressNextProductModalEnter.value = true
-    setTimeout(() => {
-      suppressNextProductModalEnter.value = false
-    }, 0)
-  }
-
-  duplicateItemModal.show = false
-  nextTick(() => {
-    if (productModal.show) {
-      productModalInput.value?.focus()
-      productModalInput.value?.select?.()
-      ensureProductModalSelectionVisible()
-    } else {
-      inputProduct.value?.focus()
-      inputProduct.value?.select?.()
-    }
-  })
-}
-
-function onDuplicateItemModalKey(e) {
-  const isEnter = e.key === 'Enter' || e.code === 'NumpadEnter'
-  if (isEnter || e.key === 'Escape') {
-    e.preventDefault()
-    e.stopPropagation()
-    closeDuplicateItemModal(isEnter ? 'enter' : 'escape')
   }
 }
 
