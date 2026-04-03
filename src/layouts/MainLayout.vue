@@ -37,9 +37,9 @@
           :to="item.to"
           class="nav-item"
           :class="{
+            'nav-item--active': isNavItemActive(item),
             'nav-item--keyboard-selected': index === selectedNavIndex
           }"
-          active-class="nav-item--active"
           @click="handleNavClick"
         >
           <i :class="['nav-icon', item.icon]"></i>
@@ -199,6 +199,18 @@ function handleNavClick() {
   }
 }
 
+function isNavItemActive(item, path = route.path) {
+  if (item.to === '/pembelian/history') {
+    return path === '/pembelian/history'
+  }
+
+  if (item.to === '/pembelian') {
+    return path.startsWith('/pembelian') && path !== '/pembelian/history'
+  }
+
+  return path.startsWith(item.to)
+}
+
 const ALL_NAV = [
   { to: '/dashboard',    icon: 'pi pi-th-large',       label: 'Dashboard',   name: 'Dashboard'   },
   { to: '/penjualan',    icon: 'pi pi-receipt',        label: 'Penjualan',   name: 'Penjualan'   },
@@ -239,7 +251,7 @@ const avatarInitial = computed(() => {
 
 const currentPageLabel = computed(() => {
   if (route.path.startsWith('/profile')) return 'Profil'
-  return ALL_NAV.find(n => route.path.startsWith(n.to))?.label ?? '—'
+  return navItems.value.find(n => isNavItemActive(n))?.label ?? '—'
 })
 
 const currentDate = computed(() => {
@@ -254,7 +266,7 @@ const currentDate = computed(() => {
 // Sync selectedNavIndex with current route
 watch(() => route.path, (newPath) => {
   const items = navItems.value
-  const index = items.findIndex(item => newPath.startsWith(item.to))
+  const index = items.findIndex(item => isNavItemActive(item, newPath))
   if (index !== -1) {
     selectedNavIndex.value = index
   }

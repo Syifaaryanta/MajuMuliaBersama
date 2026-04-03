@@ -38,6 +38,24 @@
   color: white;
 }
 
+.page-header-meta {
+  margin-top: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.page-header-meta .filter-period-label {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.page-header-meta .filter-chip {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(191, 219, 254, 0.95);
+  color: #1e40af;
+}
+
 .page-header .btn-secondary {
   background: rgba(255, 255, 255, 0.95);
   color: #1e40af;
@@ -359,7 +377,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .item-qty-val {
@@ -382,7 +400,7 @@
 }
 
 .g-table--riwayat .col-items-qty {
-  text-align: left;
+  text-align: center;
 }
 
 .g-table--riwayat .col-total {
@@ -391,23 +409,54 @@
 
 .g-table--riwayat th.col-total,
 .g-table--riwayat td.col-total {
-  text-align: right;
-  padding-right: 1rem;
+  text-align: center;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
 }
 
 .g-table--riwayat td.col-total .harga-val {
   display: inline-block;
-  width: 100%;
-  text-align: right;
+  width: auto;
+  text-align: center;
 }
 
 .g-table--riwayat .col-status {
   vertical-align: top;
-  text-align: left;
+  text-align: center;
 }
 
 .g-table--riwayat .col-status .status-badge {
   margin-top: 0.12rem;
+}
+
+.g-table--riwayat thead th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.g-table--riwayat thead th:last-child {
+  border-top-right-radius: 8px;
+}
+
+.g-table--riwayat th.col-date,
+.g-table--riwayat td.col-date,
+.g-table--riwayat th.col-items-nama,
+.g-table--riwayat td.col-items-nama,
+.g-table--riwayat th.col-items-qty,
+.g-table--riwayat td.col-items-qty,
+.g-table--riwayat th.col-total,
+.g-table--riwayat td.col-total,
+.g-table--riwayat th.col-status,
+.g-table--riwayat td.col-status {
+  text-align: center;
+}
+
+.g-table--riwayat td.col-items-nama .items-list {
+  align-items: center;
+}
+
+.g-table--riwayat td.col-items-nama .item-row-nama {
+  justify-content: center;
+  text-align: center;
 }
 
 /* ── STATUS BADGE ────────────────────────────────────────── */
@@ -946,10 +995,11 @@
 }
 
 .penjualan-list-page .table-wrap {
-  border-radius: 0;
+  border-radius: 8px;
   box-shadow: none;
   border: none;
   margin-bottom: 0;
+  overflow: hidden;
 }
 
 /* ── LOADING & EMPTY STATES ──────────────────────────────── */
@@ -1004,6 +1054,10 @@
 
   .page-header-title {
     font-size: 1.15rem;
+  }
+
+  .page-header-meta {
+    margin-top: 0.5rem;
   }
 
   .page-header .btn-secondary {
@@ -1087,6 +1141,10 @@
 
   .page-header-title {
     font-size: 1rem;
+  }
+
+  .page-header-meta {
+    margin-top: 0.45rem;
   }
 
   .search-bar {

@@ -803,6 +803,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const toast = useToast()
 const PAGE_SIZE = 15
+const GUDANG_KATALOG_STATE_KEY = 'gudang-katalog-state-v1'
 
 // ── DOM Refs ───────────────────────────────────────────────
 const pageEl        = ref(null)
@@ -1703,16 +1704,205 @@ function onLightboxKey(e) {
   else if (e.key === 'ArrowRight') { nextPhoto() }
 }
 
+function getSelectedCatalogProductId() {
+  if (selectedRowIndex.value < 0) return null
+  return pagedRows.value[selectedRowIndex.value]?.product_id ?? null
+}
+
+function serializeFormPrices(prices) {
+  if (!Array.isArray(prices)) return []
+
+  return prices.map(pr => ({
+    price_id: pr?.price_id ?? null,
+    supplier_id: pr?.supplier_id || '',
+    supplierSearch: pr?.supplierSearch || '',
+    stok: Number(pr?.stok ?? 0),
+    harga_beli: Number(pr?.harga_beli ?? 0),
+  }))
+}
+
+function persistKatalogState() {
+  const payload = {
+    searchBarang: searchBarang.value,
+    hasSearched: hasSearched.value,
+    lastSearch: lastSearch.value,
+    currentPage: currentPage.value,
+    selectedProductId: getSelectedCatalogProductId(),
+    modal: {
+      show: modal.show,
+      mode: modal.mode,
+      variant: modal.variant,
+      title: modal.title,
+      activePriceRow: modal.activePriceRow,
+    },
+    form: modal.show
+      ? {
+          id: form.id,
+          kode: form.kode,
+          nama: form.nama,
+          deskripsi: form.deskripsi,
+          stok: form.stok,
+          satuan: form.satuan,
+          foto_urls: Array.isArray(form.foto_urls) ? form.foto_urls : [],
+          prices: serializeFormPrices(form.prices),
+        }
+      : null,
+    stockValidation: modal.show
+      ? {
+          tanggal: stockValidation.tanggal,
+          diubahOleh: stockValidation.diubahOleh,
+          alasan: stockValidation.alasan,
+        }
+      : null,
+    editModeModal: {
+      show: editModeModal.show,
+      selected: editModeModal.selected,
+      rowProductId: editModeModal.row?.product_id ?? null,
+    },
+  }
+
+  sessionStorage.setItem(GUDANG_KATALOG_STATE_KEY, JSON.stringify(payload))
+}
+
+function restoreKatalogState() {
+  const raw = sessionStorage.getItem(GUDANG_KATALOG_STATE_KEY)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    searchBarang.value = typeof parsed.searchBarang === 'string' ? parsed.searchBarang : ''
+    hasSearched.value = Boolean(parsed.hasSearched)
+    lastSearch.value = typeof parsed.lastSearch === 'string' ? parsed.lastSearch : ''
+
+    return {
+      shouldSearch: hasSearched.value && Boolean(searchBarang.value.trim()),
+      currentPage: Number.isInteger(parsed.currentPage) && parsed.currentPage > 0 ? parsed.currentPage : 1,
+      selectedProductId: parsed.selectedProductId == null ? null : String(parsed.selectedProductId),
+      modal: parsed.modal && typeof parsed.modal === 'object' ? parsed.modal : null,
+      form: parsed.form && typeof parsed.form === 'object' ? parsed.form : null,
+      stockValidation: parsed.stockValidation && typeof parsed.stockValidation === 'object'
+        ? parsed.stockValidation
+        : null,
+      editModeModal: parsed.editModeModal && typeof parsed.editModeModal === 'object'
+        ? parsed.editModeModal
+        : null,
+    }
+  } catch (error) {
+    console.warn('[GudangKatalog] gagal restore state:', error)
+    return null
+  }
+}
+
+function applyKatalogSelection(productId) {
+  if (!productId) return
+
+  const globalIndex = allRows.value.findIndex(
+    row => String(row.product_id) === String(productId)
+  )
+  if (globalIndex < 0) return
+
+  currentPage.value = Math.floor(globalIndex / PAGE_SIZE) + 1
+  selectedRowIndex.value = globalIndex % PAGE_SIZE
+
+  nextTick(() => rowRefs.get(selectedRowIndex.value)?.scrollIntoView({ block: 'nearest' }))
+}
+
+function restoreKatalogModalFromState(restored) {
+  if (!restored) return
+
+  if (restored.modal?.show && restored.form) {
+    const restoredPrices = Array.isArray(restored.form.prices) ? restored.form.prices : []
+
+    form.id = restored.form.id ?? null
+    form.kode = restored.form.kode || ''
+    form.nama = restored.form.nama || ''
+    form.deskripsi = restored.form.deskripsi || ''
+    form.stok = Number(restored.form.stok ?? 0)
+    form.satuan = restored.form.satuan || 'pcs'
+    form.foto_urls = Array.isArray(restored.form.foto_urls)
+      ? restored.form.foto_urls.filter(Boolean)
+      : []
+    form.prices = restoredPrices.length
+      ? restoredPrices.map(pr =>
+          makePriceRowDefault({
+            price_id: pr?.price_id ?? null,
+            supplier_id: pr?.supplier_id || '',
+            supplierSearch: pr?.supplierSearch || '',
+            stok: Number(pr?.stok ?? 0),
+            harga_beli: Number(pr?.harga_beli ?? 0),
+          })
+        )
+      : [makePriceRowDefault()]
+
+    modal.mode = restored.modal.mode === 'edit' ? 'edit' : 'add'
+    modal.variant = ['full', 'identity', 'stock'].includes(restored.modal.variant)
+      ? restored.modal.variant
+      : 'full'
+    modal.title = typeof restored.modal.title === 'string' && restored.modal.title
+      ? restored.modal.title
+      : (modal.mode === 'add' ? 'Tambah Barang Baru' : 'Edit Barang')
+    modal.error = ''
+
+    const restoredActiveRow = Number.isInteger(restored.modal.activePriceRow)
+      ? restored.modal.activePriceRow
+      : 0
+    modal.activePriceRow = Math.min(
+      Math.max(restoredActiveRow, 0),
+      Math.max(form.prices.length - 1, 0)
+    )
+
+    stockValidation.tanggal = restored.stockValidation?.tanggal || ''
+    stockValidation.diubahOleh = restored.stockValidation?.diubahOleh || ''
+    stockValidation.alasan = restored.stockValidation?.alasan || ''
+
+    modal.show = true
+    nextTick(() => {
+      if (isStockOnlyEdit.value) {
+        priceSupplierRefs.value[modal.activePriceRow]?.focus() || stockTanggalRef.value?.focus()
+      } else {
+        inputKode.value?.focus()
+      }
+    })
+    return
+  }
+
+  if (restored.editModeModal?.show && restored.editModeModal.rowProductId != null) {
+    const row = allRows.value.find(
+      item => String(item.product_id) === String(restored.editModeModal.rowProductId)
+    )
+    if (row) {
+      openEditModeModal(row)
+      editModeModal.selected = restored.editModeModal.selected === 1 ? 1 : 0
+    }
+  }
+}
+
 // ── Lifecycle ──────────────────────────────────────────────
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   window.addEventListener('keydown', onGlobalEscModal)
   window.addEventListener('keydown', onLightboxKey)
-  loadSuppliers()
-  nextTick(() => inputBarang.value?.focus())
+
+  await loadSuppliers()
+
+  const restored = restoreKatalogState()
+  if (restored?.shouldSearch) {
+    await doSearch()
+    currentPage.value = Math.min(Math.max(restored.currentPage, 1), totalPages.value)
+    if (restored.selectedProductId) {
+      applyKatalogSelection(restored.selectedProductId)
+    }
+  }
+
+  restoreKatalogModalFromState(restored)
+
+  if (!modal.show && !editModeModal.show) {
+    nextTick(() => inputBarang.value?.focus())
+  }
 })
 
 onUnmounted(() => {
+  persistKatalogState()
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('keydown', onGlobalEscModal)
   window.removeEventListener('keydown', onLightboxKey)
@@ -1720,6 +1910,38 @@ onUnmounted(() => {
 })
 
 watch(allRows, () => { currentPage.value = 1 })
+
+watch([searchBarang, hasSearched, lastSearch, currentPage, selectedRowIndex], () => {
+  persistKatalogState()
+})
+
+watch(
+  [
+    () => modal.show,
+    () => modal.mode,
+    () => modal.variant,
+    () => modal.title,
+    () => modal.activePriceRow,
+    () => editModeModal.show,
+    () => editModeModal.selected,
+    () => editModeModal.row?.product_id ?? null,
+  ],
+  () => {
+    persistKatalogState()
+  }
+)
+
+watch(form, () => {
+  if (modal.show) {
+    persistKatalogState()
+  }
+}, { deep: true })
+
+watch(stockValidation, () => {
+  if (modal.show) {
+    persistKatalogState()
+  }
+}, { deep: true })
 </script>
 
 <style scoped>

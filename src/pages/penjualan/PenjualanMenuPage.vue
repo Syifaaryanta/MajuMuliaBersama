@@ -103,14 +103,14 @@ const menuOptions = [
   },
   {
     id: 'edit',
-    title: 'Revisi Transaksi',
-    description: 'Ubah & koreksi data transaksi yang sudah tercatat',
+    title: 'Edit Order Penjualan',
+    description: 'Ubah dan perbarui data order penjualan',
     icon: 'pi pi-pencil',
     route: '/penjualan/edit'
   },
   {
     id: 'daftar',
-    title: 'Riwayat Transaksi',
+    title: 'History Penjualan',
     description: 'Pantau seluruh rekap transaksi penjualan',
     icon: 'pi pi-list',
     route: '/penjualan/list'

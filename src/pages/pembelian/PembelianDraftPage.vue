@@ -256,9 +256,9 @@
                 <i class="pi pi-pencil"></i>
                 Edit <kbd>Enter</kbd>
               </button>
-              <button class="btn-danger" @click="initiateDelete(detailModal.order)">
-                <i class="pi pi-trash"></i>
-                Hapus <kbd>Del</kbd>
+              <button class="btn-primary" @click="saveDraftToReceiving(detailModal.order)">
+                <i class="pi pi-save"></i>
+                Simpan <kbd>F10</kbd>
               </button>
             </div>
           </div>
@@ -323,9 +323,10 @@
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { sortOrdersNewestFirst } from '@/lib/orderSort'
-import { listPurchaseOrders, removePurchaseOrder, getTermLabel } from '@/lib/pembelianStore'
+import { listPurchaseOrders, removePurchaseOrder, getTermLabel, upsertPurchaseOrder } from '@/lib/pembelianStore'
 
 const router = useRouter()
+const PEMBELIAN_FLASH_KEY = 'pembelian_flash_notice'
 
 const pageEl = ref(null)
 const inputNoOrder = ref(null)
@@ -554,6 +555,29 @@ function editDraft(order) {
   router.push('/pembelian/edit-order')
 }
 
+function saveDraftToReceiving(order) {
+  if (!order?.no_order) return
+
+  upsertPurchaseOrder({
+    ...order,
+    status: 'ordered',
+    received_at: null,
+  })
+
+  sessionStorage.setItem(
+    PEMBELIAN_FLASH_KEY,
+    JSON.stringify({
+      severity: 'success',
+      summary: 'Masuk Receiving',
+      detail: `No. Order ${order.no_order} dipindahkan ke halaman Receiving.`,
+      life: 3200,
+    })
+  )
+
+  detailModal.show = false
+  router.push('/pembelian')
+}
+
 function initiateDelete(order) {
   if (!order) return
   deleteModal.order = order
@@ -623,11 +647,12 @@ function onGlobalKey(e) {
       return
     }
 
-    if (e.key === 'Delete') {
+    if (e.key === 'F10') {
       e.preventDefault()
       if (detailModal.order) {
-        initiateDelete(detailModal.order)
+        saveDraftToReceiving(detailModal.order)
       }
+      return
     }
     return
   }
@@ -676,15 +701,6 @@ function onGlobalKey(e) {
     const order = pagedOrders.value[selectedRowIndex.value]
     if (order) {
       viewOrder(order)
-    }
-    return
-  }
-
-  if (e.key === 'Delete') {
-    e.preventDefault()
-    const order = pagedOrders.value[selectedRowIndex.value]
-    if (order) {
-      initiateDelete(order)
     }
     return
   }

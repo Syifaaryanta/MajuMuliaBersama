@@ -36,6 +36,7 @@
     </div>
 
     <div class="shortcuts-bar">
+      <kbd>F2 Input Item</kbd>
       <kbd>F4 Info Harga</kbd>
       <kbd>F10 Simpan</kbd>
     </div>
@@ -224,7 +225,7 @@
       <Transition name="modal">
         <div v-if="priceHistoryModal.show" class="modal-overlay" @click.self="closePriceHistoryModal">
           <div class="modal-box modal-box--price-history" role="dialog" aria-modal="true">
-            <div class="modal-header">
+            <div class="modal-header modal-header--blue">
               <i class="pi pi-tags"></i>
               <h3 class="modal-title">Riwayat Harga Pembelian</h3>
               <button class="modal-close" @click="closePriceHistoryModal" tabindex="-1">
@@ -232,57 +233,59 @@
               </button>
             </div>
             <div class="modal-body">
-              <div class="price-history-summary">
-                <div class="price-summary-item">
-                  <span class="price-summary-label">Barang</span>
-                  <strong>{{ priceHistoryModal.productName || '-' }}</strong>
-                </div>
-                <div class="price-summary-item">
-                  <span class="price-summary-label">Supplier Aktif</span>
+              <div class="price-history-product-name">
+                {{ priceHistoryModal.productName || '-' }}
+              </div>
+
+              <div class="price-summary-box">
+                <div class="price-summary-row">
+                  <span>Supplier Aktif</span>
                   <strong>{{ priceHistoryModal.currentSupplierName || '-' }}</strong>
                 </div>
-                <div class="price-summary-item">
-                  <span class="price-summary-label">Harga Sebelumnya</span>
+                <div class="price-summary-row">
+                  <span>Harga Sebelumnya</span>
                   <strong>{{ formatRp(priceHistoryModal.previousPrice) }}</strong>
                 </div>
-                <div class="price-summary-item">
-                  <span class="price-summary-label">Last Order Date</span>
+                <div class="price-summary-row">
+                  <span>Last Order Date</span>
                   <strong>{{ formatDateDisplay(priceHistoryModal.lastOrderDate) }}</strong>
                 </div>
               </div>
 
               <div v-if="priceHistoryModal.loading" class="price-history-empty">Memuat riwayat harga...</div>
 
-              <div v-else-if="priceHistoryModal.comparisons.length" class="price-history-table-wrap">
+              <div v-else-if="priceHistoryTableRows.length" class="price-history-table-wrap">
                 <table class="price-history-table">
                   <thead>
                     <tr>
                       <th>Supplier</th>
                       <th>Harga Terakhir</th>
-                      <th>Last Order Date</th>
-                      <th>No. Order</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr
-                      v-for="(row, idx) in priceHistoryModal.comparisons"
+                      v-for="(row, idx) in priceHistoryTableRows"
                       :key="`${row.supplier_id || row.supplier_nama}-${idx}`"
                       :class="{ 'price-row-current': row.is_current }"
                     >
-                      <td>{{ row.supplier_nama || '-' }}</td>
-                      <td>{{ formatRp(row.harga_beli) }}</td>
-                      <td>{{ formatDateDisplay(row.last_order_date) }}</td>
-                      <td>{{ row.no_order || '-' }}</td>
+                      <td>
+                        <div class="price-supplier-cell">
+                          <strong>{{ row.supplier_nama || '-' }}</strong>
+                        </div>
+                      </td>
+                      <td><strong>{{ formatRp(row.harga_beli) }}</strong></td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
               <div v-else class="price-history-empty">
-                Belum ada histori pembelian untuk barang ini.
+                Tidak ada data supplier lain untuk perbandingan harga.
               </div>
 
-              <p class="modal-shortcut">Esc: Tutup</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" @click="closePriceHistoryModal">Esc: Tutup</button>
             </div>
           </div>
         </div>
@@ -293,7 +296,7 @@
       <Transition name="modal">
         <div v-if="submitConfirmModal.show" class="modal-overlay" @click.self="closeSubmitConfirmModal">
           <div class="modal-box modal-box--sm" role="dialog" aria-modal="true">
-            <div class="modal-header">
+            <div class="modal-header modal-header--blue">
               <i class="pi pi-check-circle"></i>
               <h3 class="modal-title">Simpan Ke Receiving?</h3>
               <button class="modal-close" @click="closeSubmitConfirmModal" tabindex="-1">
@@ -302,7 +305,7 @@
             </div>
             <div class="modal-body">
               <p>Data akan disimpan dan masuk ke halaman Receiving.</p>
-              <p class="modal-shortcut">Enter/Y: Konfirmasi · Esc: Batal</p>
+              <p class="modal-shortcut"></p>
             </div>
             <div class="modal-footer">
               <button class="btn-secondary" @click="closeSubmitConfirmModal">Batal (Esc)</button>
@@ -317,7 +320,7 @@
       <Transition name="modal">
         <div v-if="exitConfirmModal.show" class="modal-overlay" @click.self="closeExitConfirmModal">
           <div class="modal-box modal-box--sm" role="dialog" aria-modal="true">
-            <div class="modal-header">
+            <div class="modal-header modal-header--danger">
               <i class="pi pi-exclamation-triangle"></i>
               <h3 class="modal-title">Keluar Dari Input?</h3>
               <button class="modal-close" @click="closeExitConfirmModal" tabindex="-1">
@@ -325,8 +328,8 @@
               </button>
             </div>
             <div class="modal-body">
-              <p>Data yang sudah diinput akan disimpan sebagai draft dan masuk ke Order Pembelian Tertunda.</p>
-              <p class="modal-shortcut">Enter/Y: Simpan Draft · Esc: Batal</p>
+              <p>Data yang sudah diinput akan disimpan sebagai draft. Lanjut keluar?</p>
+              <p class="modal-shortcut"></p>
             </div>
             <div class="modal-footer">
               <button class="btn-secondary" @click="closeExitConfirmModal">Batal (Esc)</button>
@@ -400,6 +403,9 @@ const priceHistoryModal = reactive({
 
 const subtotal = computed(() => items.value.reduce((sum, row) => sum + row.total, 0))
 const termLabel = computed(() => getTermLabel(orderData.value.terms || '1'))
+const priceHistoryTableRows = computed(() =>
+  (priceHistoryModal.comparisons || []).filter(row => !row.is_current)
+)
 
 function setQtyRef(el, idx) {
   if (el) qtyRefs.value[idx] = el
@@ -455,7 +461,20 @@ function onGlobalKey(e) {
   if (e.key === 'F10') {
     e.preventDefault()
     openSubmitConfirmModal()
+    return
   }
+
+  if (e.key === 'F2') {
+    e.preventDefault()
+    focusProductInput()
+  }
+}
+
+function focusProductInput() {
+  nextTick(() => {
+    inputProduct.value?.focus()
+    inputProduct.value?.select?.()
+  })
 }
 
 function handleNewItemKeydown(e, field) {
@@ -527,6 +546,25 @@ function handleNewItemKeydown(e, field) {
 }
 
 function handleTableKeydown(e, idx, field) {
+  if (e.key === 'Delete') {
+    e.preventDefault()
+    removeItem(idx)
+
+    nextTick(() => {
+      const nextIdx = Math.min(idx, items.value.length - 1)
+      if (nextIdx >= 0) {
+        if (field === 'price') {
+          priceRefs.value[nextIdx]?.focus()
+        } else {
+          qtyRefs.value[nextIdx]?.focus()
+        }
+      } else {
+        inputProduct.value?.focus()
+      }
+    })
+    return
+  }
+
   if (e.key === 'F4' && field === 'price') {
     e.preventDefault()
     const row = items.value[idx]
@@ -724,7 +762,6 @@ function collectLatestSupplierPrices(productId) {
         supplier_nama: supplierName,
         harga_beli: Number(item.unit_cost || 0),
         last_order_date: orderDate,
-        no_order: order.no_order || null,
         time: Number.isFinite(time) ? time : 0,
       })
     }
@@ -786,7 +823,6 @@ async function openPriceHistoryModal(row, focusEl = null) {
           supplier_nama: priceHistoryModal.currentSupplierName,
           harga_beli: Number(currentPrice.harga_beli || 0),
           last_order_date: null,
-          no_order: null,
           is_current: true,
         })
       }

@@ -19,6 +19,35 @@ function saveAll(rows) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(rows))
 }
 
+export function getPurchaseReceivingItemKey(item, index = 0) {
+  const productId = String(item?.product_id ?? '')
+  const productKode = String(item?.product_kode ?? '')
+  const productNama = String(item?.product_nama ?? '')
+  const unitCost = Number(item?.unit_cost || 0)
+  return `${productId}|${productKode}|${productNama}|${unitCost}|${index}`
+}
+
+function normalizeReceivingValidations(items, sourceMap = {}) {
+  const normalized = {}
+  const rows = Array.isArray(items) ? items : []
+  const prev = sourceMap && typeof sourceMap === 'object' ? sourceMap : {}
+
+  rows.forEach((item, idx) => {
+    const key = getPurchaseReceivingItemKey(item, idx)
+    normalized[key] = Boolean(prev[key])
+  })
+
+  return normalized
+}
+
+export function isPurchaseOrderFullyValidated(order) {
+  const rows = Array.isArray(order?.items) ? order.items : []
+  if (!rows.length) return false
+
+  const validations = normalizeReceivingValidations(rows, order?.receiving_validations || {})
+  return Object.values(validations).every(Boolean)
+}
+
 export function generatePurchaseOrderNo() {
   const year = new Date().getFullYear().toString().slice(-2)
   const prefix = `PO${year}`
@@ -45,13 +74,18 @@ export function upsertPurchaseOrder(order) {
   const bucket = secondBucket()
   const requestFingerprint = order.request_fingerprint || buildPurchaseOrderFingerprint(order, bucket)
   const index = rows.findIndex(row => row.no_order === order.no_order)
+  const duplicateIndex = rows.findIndex(row => row.request_fingerprint === requestFingerprint)
+  const existingRow = index >= 0 ? rows[index] : (duplicateIndex >= 0 ? rows[duplicateIndex] : null)
+  const receivingValidations = normalizeReceivingValidations(
+    order.items || [],
+    order.receiving_validations || existingRow?.receiving_validations || {}
+  )
   const payload = {
     ...order,
+    receiving_validations: receivingValidations,
     request_fingerprint: requestFingerprint,
     updated_at: new Date().toISOString(),
   }
-
-  const duplicateIndex = rows.findIndex(row => row.request_fingerprint === requestFingerprint)
 
   if (index >= 0) {
     rows[index] = payload
@@ -77,9 +111,19 @@ export function markPurchaseOrderReceived(noOrder, receivedAt = new Date().toISO
   const index = rows.findIndex(row => row.no_order === noOrder)
   if (index < 0) return null
 
+  const validations = normalizeReceivingValidations(
+    rows[index].items || [],
+    rows[index].receiving_validations || {}
+  )
+
+  Object.keys(validations).forEach(key => {
+    validations[key] = true
+  })
+
   rows[index] = {
     ...rows[index],
     status: 'received',
+    receiving_validations: validations,
     received_at: receivedAt,
     updated_at: receivedAt,
   }

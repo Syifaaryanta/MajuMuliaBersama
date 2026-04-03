@@ -370,6 +370,7 @@ const router = useRouter()
 
 // ── Constants ──────────────────────────────────────────────
 const PAGE_SIZE = 15
+const GUDANG_CEK_HARGA_STATE_KEY = 'gudang-cek-harga-state-v1'
 
 // ── DOM Refs ───────────────────────────────────────────────
 const pageEl        = ref(null)
@@ -1437,6 +1438,87 @@ async function doDelete() {
   }
 }
 
+function getSelectedPagedProductId() {
+  if (selectedRowIndex.value < 0) return null
+  return pagedRows.value[selectedRowIndex.value]?.product_id ?? null
+}
+
+function persistCekHargaState() {
+  const payload = {
+    searchBarang: searchBarang.value,
+    searchCustomer: searchCustomer.value,
+    selectedCustomer: selectedCustomer.value
+      ? {
+          id: selectedCustomer.value.id,
+          kode: selectedCustomer.value.kode,
+          nama: selectedCustomer.value.nama,
+        }
+      : null,
+    hasSearched: hasSearched.value,
+    lastSearch: lastSearch.value,
+    currentPage: currentPage.value,
+    selectedProductId: getSelectedPagedProductId(),
+  }
+
+  sessionStorage.setItem(GUDANG_CEK_HARGA_STATE_KEY, JSON.stringify(payload))
+}
+
+function restoreCekHargaState() {
+  const raw = sessionStorage.getItem(GUDANG_CEK_HARGA_STATE_KEY)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+
+    searchBarang.value = typeof parsed.searchBarang === 'string' ? parsed.searchBarang : ''
+    searchCustomer.value = typeof parsed.searchCustomer === 'string' ? parsed.searchCustomer : ''
+    hasSearched.value = Boolean(parsed.hasSearched)
+    lastSearch.value = typeof parsed.lastSearch === 'string' ? parsed.lastSearch : ''
+
+    const restoredCurrentPage = Number.isInteger(parsed.currentPage) && parsed.currentPage > 0
+      ? parsed.currentPage
+      : 1
+
+    const savedCustomer = parsed.selectedCustomer
+    if (savedCustomer && savedCustomer.id != null) {
+      selectedCustomer.value = {
+        id: savedCustomer.id,
+        kode: savedCustomer.kode || '',
+        nama: savedCustomer.nama || '',
+      }
+
+      if (!searchCustomer.value && selectedCustomer.value.nama) {
+        searchCustomer.value = selectedCustomer.value.nama
+      }
+    } else {
+      selectedCustomer.value = null
+    }
+
+    return {
+      shouldSearch: hasSearched.value && Boolean(searchBarang.value.trim()),
+      currentPage: restoredCurrentPage,
+      selectedProductId: parsed.selectedProductId == null ? null : String(parsed.selectedProductId),
+    }
+  } catch (error) {
+    console.warn('[GudangCekHarga] gagal restore state:', error)
+    return null
+  }
+}
+
+function applyCekHargaSelection(productId) {
+  if (!productId) return
+
+  const globalIndex = allRows.value.findIndex(
+    row => String(row.product_id) === String(productId)
+  )
+  if (globalIndex < 0) return
+
+  currentPage.value = Math.floor(globalIndex / PAGE_SIZE) + 1
+  selectedRowIndex.value = globalIndex % PAGE_SIZE
+
+  nextTick(() => rowRefs.get(selectedRowIndex.value)?.scrollIntoView({ block: 'nearest' }))
+}
+
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
@@ -1451,13 +1533,30 @@ function onLightboxKey(e) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   window.addEventListener('keydown', onLightboxKey)
+
+  const restored = restoreCekHargaState()
+  if (restored?.shouldSearch) {
+    await doSearch()
+
+    currentPage.value = Math.min(Math.max(restored.currentPage, 1), totalPages.value)
+
+    if (restored.selectedProductId) {
+      applyCekHargaSelection(restored.selectedProductId)
+    }
+
+    if (selectedCustomer.value && pagedRows.value[selectedRowIndex.value]) {
+      await fetchCustomerHistory(selectedCustomer.value.id, pagedRows.value[selectedRowIndex.value].product_id)
+    }
+  }
+
   nextTick(() => inputBarang.value?.focus())
 })
 
 onUnmounted(() => {
+  persistCekHargaState()
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('keydown', onLightboxKey)
   clearTimeout(barangTimer)
@@ -1475,6 +1574,21 @@ watch([selectedRowIndex, pagedRows], ([idx]) => {
     infoCards.newUnitCost = null
   }
 })
+
+watch(
+  [
+    searchBarang,
+    searchCustomer,
+    hasSearched,
+    lastSearch,
+    currentPage,
+    selectedRowIndex,
+    () => selectedCustomer.value?.id ?? null,
+  ],
+  () => {
+    persistCekHargaState()
+  }
+)
 </script>
 
 <style scoped>

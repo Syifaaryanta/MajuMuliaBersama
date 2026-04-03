@@ -2,33 +2,27 @@
   <div class="penjualan-list-page" ref="pageEl" tabindex="-1">
 
     <!-- ── PAGE HEADER CARD ──────────────────────────────────── -->
-    <div class="page-header-card">
+    <div class="page-header-card" v-if="!showFilterModal">
       <div class="page-header">
         <div class="page-header-left">
-          <h1 class="page-header-title">Riwayat Order Penjualan</h1>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── FILTER SUMMARY ───────────────────────────────── -->
-    <div class="search-bar" v-if="showResults">
-      <div class="filter-summary">
-        <div class="filter-period-wrap">
-          <span class="filter-period-label">Periode</span>
-          <span class="filter-chip" v-if="searchOrderNo">
-            <i class="pi pi-hashtag"></i>
-            No. Order: {{ searchOrderNo }}
-          </span>
-          <span class="filter-chip" v-else>
-            <i class="pi pi-calendar"></i>
-            {{ activeFilterLabel }}
-          </span>
+          <h1 class="page-header-title">History Penjualan</h1>
+          <div class="page-header-meta" v-if="showResults">
+            
+            <span class="filter-chip" v-if="searchOrderNo">
+              <i class="pi pi-hashtag"></i>
+              No. Order: {{ searchOrderNo }}
+            </span>
+            <span class="filter-chip" v-else>
+              <i class="pi pi-calendar"></i>
+              {{ activeFilterLabel }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- ── TABLE CONTAINER ─────────────────────────────────── -->
-    <div class="table-container" v-if="showResults">
+    <div class="table-container" v-if="showResults && !showFilterModal">
       <!-- ── RESULT META ──────────────────────────────────── -->
       <div class="result-meta">
         <span class="result-count">
@@ -129,12 +123,12 @@
                 <div class="modal-header-icon">
                   <i class="pi pi-filter"></i>
                 </div>
-                <h3 class="modal-title">Filter Riwayat Transaksi</h3>
+                <h3 class="modal-title">Filter History Penjualan</h3>
               </div>
             </div>
 
             <div class="modal-body">
-              <p class="modal-helper">Isi No. Order atau rentang tanggal, lalu tekan Enter.</p>
+              <p class="modal-helper"></p>
 
               <div class="filter-modal-grid">
                 <div class="search-field">
@@ -518,6 +512,15 @@ const activeFilterLabel = computed(() => {
   return `${start} s/d ${end}`
 })
 
+function exitToSourceMenu() {
+  const from = String(route.query.from || '').toLowerCase()
+  if (from === 'history') {
+    router.push('/pembelian/history')
+    return
+  }
+  router.push('/penjualan')
+}
+
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
@@ -802,7 +805,7 @@ async function submitFilter() {
 
 function onFilterCancel() {
   if (!showResults.value) {
-    router.push('/penjualan')
+    exitToSourceMenu()
     return
   }
   showFilterModal.value = false
@@ -837,7 +840,7 @@ function onGlobalKey(e) {
     if (e.key === 'Escape') {
       e.preventDefault()
       if (showResults.value) {
-        router.push('/penjualan')
+        exitToSourceMenu()
       } else {
         onFilterCancel()
       }
@@ -882,7 +885,7 @@ function onGlobalKey(e) {
   if (!showResults.value) {
     if (e.key === 'Escape') {
       e.preventDefault()
-      router.push('/penjualan')
+      exitToSourceMenu()
     }
     return
   }

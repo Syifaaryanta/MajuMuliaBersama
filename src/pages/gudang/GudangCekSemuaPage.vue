@@ -249,6 +249,7 @@ const rowRefs       = new Map()
 const archiveModal = reactive({ show: false, row: null, saving: false })
 
 const FETCH_BATCH_SIZE = 1000
+const GUDANG_CEK_SEMUA_STATE_KEY = 'gudang-cek-semua-state-v1'
 
 // ── Reset selection when user types ─────────────────────────
 watch(searchQuery, () => {
@@ -566,21 +567,77 @@ function normalizeLooseSearch(value) {
     .trim()
 }
 
+function getSelectedFilteredProductId() {
+  if (selectedRowIndex.value < 0) return null
+  return filteredRows.value[selectedRowIndex.value]?.product_id ?? null
+}
+
+function persistPageState() {
+  const payload = {
+    searchQuery: searchQuery.value,
+    selectedProductId: getSelectedFilteredProductId(),
+  }
+
+  sessionStorage.setItem(GUDANG_CEK_SEMUA_STATE_KEY, JSON.stringify(payload))
+}
+
+function restorePageState() {
+  const raw = sessionStorage.getItem(GUDANG_CEK_SEMUA_STATE_KEY)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    searchQuery.value = typeof parsed.searchQuery === 'string' ? parsed.searchQuery : ''
+
+    if (parsed.selectedProductId == null) {
+      return { selectedProductId: null }
+    }
+
+    return { selectedProductId: String(parsed.selectedProductId) }
+  } catch (error) {
+    console.warn('[GudangCekSemua] gagal restore state:', error)
+    return null
+  }
+}
+
+function restoreSelectedRowByProductId(productId) {
+  if (!productId) return
+
+  const idx = filteredRows.value.findIndex(row => String(row.product_id) === String(productId))
+  if (idx < 0) return
+
+  selectedRowIndex.value = idx
+  nextTick(() => rowRefs.get(idx)?.scrollIntoView({ block: 'nearest' }))
+}
+
 // ───────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   await loadAllProducts()
-  nextTick(() => { searchInput.value?.focus() })
+
   const qProductId = route.query.product_id
   if (qProductId) {
     router.replace({ path: '/gudang/detail', query: { product_id: qProductId } })
+    return
   }
+
+  const restored = restorePageState()
+  if (restored?.selectedProductId) {
+    restoreSelectedRowByProductId(restored.selectedProductId)
+  }
+
+  nextTick(() => { searchInput.value?.focus() })
 })
 
 onUnmounted(() => {
+  persistPageState()
   window.removeEventListener('keydown', onGlobalKey)
+})
+
+watch([searchQuery, selectedRowIndex], () => {
+  persistPageState()
 })
 </script>
 

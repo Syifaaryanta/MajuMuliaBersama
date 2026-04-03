@@ -1,6 +1,6 @@
 <template>
   <div class="history-menu-page" ref="pageEl" tabindex="-1">
-    <div class="g-header">
+    <div class="g-header" v-if="activeHistoryMenu !== 'barang' && !showPembelianFilterModal && !showBarangFilterModal">
       <div class="g-header-left">
         <h1 class="g-title">Pusat Riwayat Transaksi</h1>
         <p class="g-subtitle">Pilih kategori riwayat untuk melihat histori operasional</p>
@@ -10,7 +10,7 @@
     <div class="history-layout">
       <section class="history-main">
         <template v-if="activeHistoryMenu === 'pembelian'">
-          <div v-if="hasSubmittedPembelianFilter" class="search-bar">
+          <div v-if="hasSubmittedPembelianFilter && !showPembelianFilterModal" class="search-bar">
             <div class="search-sequential">
               <div class="search-field">
                 <label class="search-label">No. Order</label>
@@ -41,7 +41,7 @@
             </div>
           </div>
 
-          <div v-if="hasSubmittedPembelianFilter" class="table-container">
+          <div v-if="hasSubmittedPembelianFilter && !showPembelianFilterModal" class="table-container">
             <div class="result-meta">
               <span class="result-count"><b>{{ filteredPembelian.length }}</b> order pembelian</span>
             </div>
@@ -98,8 +98,16 @@
         </template>
 
         <template v-else-if="activeHistoryMenu === 'barang'">
-          <div v-if="hasSubmittedBarangFilter" class="search-bar">
-            <div class="search-sequential">
+          <div v-if="hasSubmittedBarangFilter && !showBarangFilterModal" class="search-bar history-barang-header-card">
+            <div class="history-barang-header">
+              <h2 class="history-barang-title">Pusat History Barang</h2>
+              <p class="history-barang-period">
+                <i class="pi pi-calendar"></i>
+                <span>{{ activeBarangFilterLabel }}</span>
+              </p>
+            </div>
+
+            <div class="search-sequential history-barang-search-sequential">
               <div class="search-field">
                 <label class="search-label">No. Order</label>
                 <input
@@ -110,26 +118,38 @@
                   placeholder="Filter No. Order Penjualan/Pembelian"
                 />
               </div>
+              <div class="search-field">
+                <label class="search-label">Supplier/Customer</label>
+                <input
+                  ref="inputBarangParty"
+                  v-model="searchPartyBarang"
+                  type="text"
+                  class="search-input"
+                  placeholder="Filter nama supplier/customer"
+                />
+              </div>
+              <div class="search-field">
+                <label class="search-label">Nama/Kode Item</label>
+                <input
+                  ref="inputBarangItem"
+                  v-model="searchItemBarang"
+                  type="text"
+                  class="search-input"
+                  placeholder="Filter nama atau kode item"
+                />
+              </div>
             </div>
-            <div class="filter-summary">
+            <div class="filter-summary history-barang-filter-summary">
               <div class="filter-chip-wrap">
-                <span class="filter-chip">
-                  <i class="pi pi-calendar"></i>
-                  {{ activeBarangFilterLabel }}
-                </span>
                 <span v-if="activeBarangFilter?.productName" class="filter-chip filter-chip--supplier">
                   <i class="pi pi-tag"></i>
                   Barang: {{ activeBarangFilter.productName }}
                 </span>
               </div>
-              <button class="btn-secondary btn-filter" @click="openBarangFilterModal">
-                <i class="pi pi-filter"></i>
-                <span>Ubah Filter</span>
-              </button>
             </div>
           </div>
 
-          <div v-if="hasSubmittedBarangFilter" class="table-container">
+          <div v-if="hasSubmittedBarangFilter && !showBarangFilterModal" class="table-container">
             <div class="result-meta">
               <span class="result-count"><b>{{ filteredBarang.length }}</b> mutasi barang</span>
             </div>
@@ -141,7 +161,8 @@
                     <th class="col-order">No. Order</th>
                     <th class="col-date">Tanggal</th>
                     <th class="col-fraktur">No. Faktur</th>
-                    <th class="col-relasi">Supplier/Customer</th>
+                    <th class="col-relasi-supplier">Supplier</th>
+                    <th class="col-relasi-customer">Customer</th>
                     <th class="col-product">Nama Barang</th>
                     <th class="col-stock">Stok Berkurang</th>
                     <th class="col-stock">Stok Bertambah</th>
@@ -149,12 +170,12 @@
                 </thead>
                 <tbody v-if="barangLoading">
                   <tr>
-                    <td colspan="8" class="empty-cell">Memuat histori barang...</td>
+                    <td colspan="9" class="empty-cell">Memuat histori barang...</td>
                   </tr>
                 </tbody>
                 <tbody v-else-if="filteredBarang.length === 0">
                   <tr>
-                    <td colspan="8" class="empty-cell">
+                    <td colspan="9" class="empty-cell">
                       <i class="pi pi-inbox"></i>
                       Data histori barang tidak ditemukan.
                     </td>
@@ -175,10 +196,32 @@
                         {{ row.no_order }}
                       </span>
                     </td>
-                    <td><span class="date-chip">{{ row.date }}</span></td>
-                    <td>{{ row.no_faktur || '-' }}</td>
-                    <td>{{ row.party_name }}</td>
-                    <td>{{ row.product_name }}</td>
+                    <td><span class="barang-date-text">{{ formatDateDdMmYyyy(row.date) }}</span></td>
+                    <td>
+                      <span
+                        class="fraktur-badge"
+                        :class="{ 'fraktur-badge--empty': !row.no_faktur || row.no_faktur === '-' }"
+                      >
+                        {{ row.no_faktur || '-' }}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        class="party-badge party-badge--supplier"
+                        :class="{ 'party-badge--empty': !(row.supplier_name || (row.type === 'pembelian' ? row.party_name || '-' : '-')) || (row.supplier_name || (row.type === 'pembelian' ? row.party_name || '-' : '-')) === '-' }"
+                      >
+                        {{ row.supplier_name || (row.type === 'pembelian' ? row.party_name || '-' : '-') }}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        class="party-badge party-badge--customer"
+                        :class="{ 'party-badge--empty': !(row.customer_name || (row.type === 'penjualan' ? row.party_name || '-' : '-')) || (row.customer_name || (row.type === 'penjualan' ? row.party_name || '-' : '-')) === '-' }"
+                      >
+                        {{ row.customer_name || (row.type === 'penjualan' ? row.party_name || '-' : '-') }}
+                      </span>
+                    </td>
+                    <td><span class="barang-product-name">{{ row.product_name }}</span></td>
                     <td class="cell-center">
                       <span v-if="row.stock_out > 0" class="stock-chip stock-chip--out">-{{ row.stock_out }}</span>
                       <span v-else class="stock-chip stock-chip--empty">-</span>
@@ -259,7 +302,7 @@
 
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="showPembelianFilterModal" class="modal-overlay" @click.self="goToMenu">
+        <div v-if="showPembelianFilterModal" class="modal-overlay" @click.self="backToHistoryMenu">
           <form class="modal-box modal-box--filter" @submit.prevent="submitPembelianFilter">
             <div class="modal-header modal-header--blue">
               <div class="modal-header-left">
@@ -313,7 +356,7 @@
             </div>
 
             <div class="modal-footer">
-              <button type="button" class="btn-secondary" @click="goToMenu">Batal</button>
+              <button type="button" class="btn-secondary" @click="backToHistoryMenu">Batal</button>
               <button type="submit" class="btn-primary">
                 <i class="pi pi-check"></i>
                 <span>Enter</span>
@@ -326,7 +369,7 @@
 
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="showBarangFilterModal" class="modal-overlay" @click.self="goToMenu">
+        <div v-if="showBarangFilterModal" class="modal-overlay" @click.self="backToHistoryMenu">
           <form class="modal-box modal-box--filter" @submit.prevent="submitBarangFilter">
             <div class="modal-header modal-header--blue">
               <div class="modal-header-left">
@@ -380,7 +423,7 @@
             </div>
 
             <div class="modal-footer">
-              <button type="button" class="btn-secondary" @click="goToMenu">Batal</button>
+              <button type="button" class="btn-secondary" @click="backToHistoryMenu">Batal</button>
               <button type="submit" class="btn-primary">
                 <i class="pi pi-check"></i>
                 <span>Enter</span>
@@ -394,12 +437,13 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { listPurchaseOrders } from '@/lib/pembelianStore'
 
 const router = useRouter()
+const HISTORY_PAGE_STATE_KEY = 'history_page_state_v1'
 const pageEl = ref(null)
 
 const activeHistoryMenu = ref('')
@@ -407,19 +451,19 @@ const selectedHistoryCardIndex = ref(0)
 const historyCards = [
   {
     key: 'barang',
-    title: 'Riwayat Barang',
+    title: 'History Barang',
     description: 'Lihat mutasi stok barang masuk dan keluar.',
     icon: 'pi pi-box',
   },
   {
     key: 'penjualan',
-    title: 'Riwayat Penjualan',
+    title: 'History Penjualan',
     description: 'Buka halaman histori transaksi penjualan.',
     icon: 'pi pi-shopping-cart',
   },
   {
     key: 'pembelian',
-    title: 'Riwayat Pembelian',
+    title: 'History Pembelian',
     description: 'Buka halaman histori order dan penerimaan pembelian.',
     icon: 'pi pi-truck',
   },
@@ -446,10 +490,14 @@ const pembelianRowRefs = ref([])
 const pembelianFocusedRowIndex = ref(0)
 
 const inputNoBarang = ref(null)
+const inputBarangParty = ref(null)
+const inputBarangItem = ref(null)
 const inputBarangStartDate = ref(null)
 const inputBarangEndDate = ref(null)
 const inputBarangName = ref(null)
 const searchNoBarang = ref('')
+const searchPartyBarang = ref('')
+const searchItemBarang = ref('')
 const showBarangFilterModal = ref(false)
 const barangStartDate = ref('')
 const barangEndDate = ref('')
@@ -472,7 +520,9 @@ const activePembelianFilterLabel = computed(() => {
 const hasSubmittedBarangFilter = computed(() => !!activeBarangFilter.value)
 const activeBarangFilterLabel = computed(() => {
   if (!activeBarangFilter.value) return ''
-  return `${activeBarangFilter.value.startDate} s/d ${activeBarangFilter.value.endDate}`
+  const start = formatDateDdMmYyyy(activeBarangFilter.value.startDate)
+  const end = formatDateDdMmYyyy(activeBarangFilter.value.endDate)
+  return `${start} s/d ${end}`
 })
 
 const pembelianDateFiltered = computed(() => {
@@ -500,8 +550,30 @@ const filteredPembelian = computed(() => {
 })
 
 const filteredBarang = computed(() => {
+  const noOrderQuery = searchNoBarang.value.toLowerCase().trim()
+  const partyQuery = searchPartyBarang.value.toLowerCase().trim()
+  const itemQuery = searchItemBarang.value.toLowerCase().trim()
+
   return barangRows.value
-    .filter(row => row.no_order.toLowerCase().includes(searchNoBarang.value.toLowerCase()))
+    .filter(row => {
+      const byNoOrder = !noOrderQuery || String(row.no_order || '').toLowerCase().includes(noOrderQuery)
+      if (!byNoOrder) return false
+
+      const supplierName = String(row.supplier_name || '').toLowerCase()
+      const customerName = String(row.customer_name || '').toLowerCase()
+      const partyName = String(row.party_name || '').toLowerCase()
+      const byParty =
+        !partyQuery ||
+        supplierName.includes(partyQuery) ||
+        customerName.includes(partyQuery) ||
+        partyName.includes(partyQuery)
+      if (!byParty) return false
+
+      const itemName = String(row.product_name || '').toLowerCase()
+      const itemCode = String(row.product_kode || '').toLowerCase()
+      const byItem = !itemQuery || itemName.includes(itemQuery) || itemCode.includes(itemQuery)
+      return byItem
+    })
     .sort((a, b) => String(b.date).localeCompare(String(a.date)))
 })
 
@@ -520,16 +592,170 @@ function toDateOnly(value) {
   return String(value || '').slice(0, 10)
 }
 
+function formatDateDdMmYyyy(value) {
+  const base = toDateOnly(value)
+  if (!base) return '-'
+
+  const parts = base.split('-')
+  if (parts.length === 3) {
+    const [year, month, day] = parts
+    if (year && month && day) return `${day}/${month}/${year}`
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return base
+
+  const day = String(parsed.getDate()).padStart(2, '0')
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const year = parsed.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
 function formatRp(val) {
   return 'Rp ' + Number(val || 0).toLocaleString('id-ID')
 }
 
+function persistHistoryState() {
+  const persistableMenu =
+    activeHistoryMenu.value === 'barang' || activeHistoryMenu.value === 'pembelian'
+      ? activeHistoryMenu.value
+      : ''
+
+  const payload = {
+    activeHistoryMenu: persistableMenu,
+    selectedHistoryCardIndex: selectedHistoryCardIndex.value,
+    pembelian: {
+      activeFilter: activePembelianFilter.value,
+      searchNo: searchNoPembelian.value,
+      showFilterModal: showPembelianFilterModal.value,
+      startDate: pembelianStartDate.value,
+      endDate: pembelianEndDate.value,
+      supplierFilter: pembelianSupplierFilter.value,
+      focusedRowIndex: pembelianFocusedRowIndex.value,
+    },
+    barang: {
+      activeFilter: activeBarangFilter.value,
+      searchNo: searchNoBarang.value,
+      searchParty: searchPartyBarang.value,
+      searchItem: searchItemBarang.value,
+      showFilterModal: showBarangFilterModal.value,
+      startDate: barangStartDate.value,
+      endDate: barangEndDate.value,
+      nameFilter: barangNameFilter.value,
+      focusedRowIndex: barangFocusedRowIndex.value,
+      rows: barangRows.value,
+    },
+  }
+  sessionStorage.setItem(HISTORY_PAGE_STATE_KEY, JSON.stringify(payload))
+}
+
+async function restoreHistoryState() {
+  const raw = sessionStorage.getItem(HISTORY_PAGE_STATE_KEY)
+  if (!raw) return false
+
+  try {
+    const state = JSON.parse(raw)
+    let hasCachedBarangRows = false
+
+    activeHistoryMenu.value =
+      state?.activeHistoryMenu === 'barang' || state?.activeHistoryMenu === 'pembelian'
+        ? state.activeHistoryMenu
+        : ''
+    selectedHistoryCardIndex.value = Number.isInteger(state?.selectedHistoryCardIndex)
+      ? state.selectedHistoryCardIndex
+      : 0
+
+    if (state?.pembelian) {
+      activePembelianFilter.value = state.pembelian.activeFilter || null
+      searchNoPembelian.value = String(state.pembelian.searchNo || '')
+      showPembelianFilterModal.value = Boolean(state.pembelian.showFilterModal)
+      pembelianStartDate.value = state.pembelian.startDate || pembelianStartDate.value
+      pembelianEndDate.value = state.pembelian.endDate || pembelianEndDate.value
+      pembelianSupplierFilter.value = String(state.pembelian.supplierFilter || '')
+      pembelianFocusedRowIndex.value = Number.isInteger(state.pembelian.focusedRowIndex)
+        ? state.pembelian.focusedRowIndex
+        : 0
+    }
+
+    if (state?.barang) {
+      activeBarangFilter.value = state.barang.activeFilter || null
+      searchNoBarang.value = String(state.barang.searchNo || '')
+      searchPartyBarang.value = String(state.barang.searchParty || '')
+      searchItemBarang.value = String(state.barang.searchItem || '')
+      showBarangFilterModal.value = Boolean(state.barang.showFilterModal)
+      barangStartDate.value = state.barang.startDate || barangStartDate.value
+      barangEndDate.value = state.barang.endDate || barangEndDate.value
+      barangNameFilter.value = String(state.barang.nameFilter || '')
+      barangFocusedRowIndex.value = Number.isInteger(state.barang.focusedRowIndex)
+        ? state.barang.focusedRowIndex
+        : 0
+      if (Array.isArray(state.barang.rows)) {
+        barangRows.value = state.barang.rows
+        hasCachedBarangRows = true
+      }
+    }
+
+    if (activeHistoryMenu.value !== 'pembelian') {
+      showPembelianFilterModal.value = false
+    }
+    if (activeHistoryMenu.value !== 'barang') {
+      showBarangFilterModal.value = false
+    }
+
+    if (activeHistoryMenu.value === 'barang' && activeBarangFilter.value) {
+      if (!hasCachedBarangRows) {
+        await loadBarangHistory()
+      }
+      if (!showBarangFilterModal.value && filteredBarang.value.length) {
+        focusBarangRow(barangFocusedRowIndex.value)
+      } else if (showBarangFilterModal.value) {
+        nextTick(() => inputBarangStartDate.value?.focus())
+      }
+      return true
+    }
+
+    if (activeHistoryMenu.value === 'pembelian' && activePembelianFilter.value) {
+      if (!showPembelianFilterModal.value && filteredPembelian.value.length) {
+        focusPembelianRow(pembelianFocusedRowIndex.value)
+      } else if (showPembelianFilterModal.value) {
+        nextTick(() => inputPembelianStartDate.value?.focus())
+      }
+      return true
+    }
+
+    if (activeHistoryMenu.value === 'barang' && showBarangFilterModal.value) {
+      nextTick(() => inputBarangStartDate.value?.focus())
+      return true
+    }
+
+    if (activeHistoryMenu.value === 'pembelian' && showPembelianFilterModal.value) {
+      nextTick(() => inputPembelianStartDate.value?.focus())
+      return true
+    }
+
+    return true
+  } catch (err) {
+    console.error('[restoreHistoryState]', err)
+    return false
+  }
+}
+
 function goToMenu() {
-  router.push('/pembelian')
+  router.push('/dashboard')
+}
+
+function backToHistoryMenu() {
+  activeHistoryMenu.value = ''
+  showPembelianFilterModal.value = false
+  showBarangFilterModal.value = false
+  nextTick(() => pageEl.value?.focus())
 }
 
 function goPenjualanHistory() {
-  router.push('/penjualan/list')
+  router.push({
+    path: '/penjualan/list',
+    query: { from: 'history' },
+  })
 }
 
 function onHistoryCardClick(idx) {
@@ -542,7 +768,6 @@ function onHistoryCardEnter() {
   if (!selected) return
 
   if (selected.key === 'penjualan') {
-    activeHistoryMenu.value = 'penjualan'
     goPenjualanHistory()
     return
   }
@@ -552,7 +777,10 @@ function onHistoryCardEnter() {
     return
   }
 
-  router.push('/pembelian/history-pembelian')
+  router.push({
+    path: '/pembelian/history-pembelian',
+    query: { from: 'history' },
+  })
 }
 
 function openHistoryPembelian() {
@@ -565,12 +793,15 @@ function openHistoryPembelian() {
   }
 }
 
-function openHistoryBarang() {
+async function openHistoryBarang() {
   activeHistoryMenu.value = 'barang'
   showPembelianFilterModal.value = false
   if (!hasSubmittedBarangFilter.value) {
     openBarangFilterModal()
   } else {
+    if (!barangRows.value.length) {
+      await loadBarangHistory()
+    }
     focusFirstBarangRow()
   }
 }
@@ -678,6 +909,8 @@ async function submitBarangFilter() {
 
   await loadBarangHistory()
   searchNoBarang.value = ''
+  searchPartyBarang.value = ''
+  searchItemBarang.value = ''
   showBarangFilterModal.value = false
   focusFirstBarangRow()
 }
@@ -707,6 +940,9 @@ async function loadBarangHistory() {
             date: toDateOnly(order.received_at || order.order_date),
             no_faktur: order.no_faktur || order.faktur || '-',
             party_name: order.supplier?.nama || '-',
+            supplier_name: order.supplier?.nama || '-',
+            customer_name: '-',
+            product_kode: item.product_kode || '-',
             product_name: item.product_nama || '-',
             stock_out: 0,
             stock_in: Number(item.qty || 0),
@@ -728,7 +964,7 @@ async function loadBarangHistory() {
     if (saleIds.length > 0) {
       const { data: saleItemsData, error: saleItemsError } = await supabase
         .from('sale_items')
-        .select('sale_id, product_nama, qty')
+        .select('sale_id, product_kode, product_nama, qty')
         .in('sale_id', saleIds)
 
       if (saleItemsError) throw saleItemsError
@@ -753,6 +989,9 @@ async function loadBarangHistory() {
           date: toDateOnly(order.order_date),
           no_faktur: order.no_faktur || '-',
           party_name: order.customer_nama || '-',
+          supplier_name: '-',
+          customer_name: order.customer_nama || '-',
+          product_kode: item.product_kode || '-',
           product_name: item.product_nama || '-',
           stock_out: Number(item.qty || 0),
           stock_in: 0,
@@ -780,8 +1019,11 @@ function handlePembelianShortcuts(e) {
 
   if (e.key === 'Escape') {
     e.preventDefault()
-    if (showPembelianFilterModal.value) goToMenu()
-    else openPembelianFilterModal()
+    if (showPembelianFilterModal.value) {
+      backToHistoryMenu()
+    } else {
+      openPembelianFilterModal()
+    }
     return true
   }
 
@@ -809,10 +1051,37 @@ function handleBarangShortcuts(e) {
     return true
   }
 
+  if (e.key === 'F2') {
+    e.preventDefault()
+    if (!showBarangFilterModal.value && hasSubmittedBarangFilter.value) {
+      inputBarangParty.value?.focus()
+    }
+    return true
+  }
+
+  if (e.key === 'F3') {
+    e.preventDefault()
+    if (!showBarangFilterModal.value && hasSubmittedBarangFilter.value) {
+      inputBarangItem.value?.focus()
+    }
+    return true
+  }
+
+  if (e.key === 'F4') {
+    e.preventDefault()
+    if (!showBarangFilterModal.value && hasSubmittedBarangFilter.value) {
+      focusFirstBarangRow()
+    }
+    return true
+  }
+
   if (e.key === 'Escape') {
     e.preventDefault()
-    if (showBarangFilterModal.value) goToMenu()
-    else openBarangFilterModal()
+    if (showBarangFilterModal.value) {
+      backToHistoryMenu()
+    } else {
+      openBarangFilterModal()
+    }
     return true
   }
 
@@ -870,7 +1139,35 @@ function handleKeydown(e) {
   handlePembelianShortcuts(e)
 }
 
-onMounted(() => {
+watch(
+  [
+    activeHistoryMenu,
+    selectedHistoryCardIndex,
+    activePembelianFilter,
+    searchNoPembelian,
+    showPembelianFilterModal,
+    pembelianStartDate,
+    pembelianEndDate,
+    pembelianSupplierFilter,
+    pembelianFocusedRowIndex,
+    activeBarangFilter,
+    searchNoBarang,
+    searchPartyBarang,
+    searchItemBarang,
+    showBarangFilterModal,
+    barangStartDate,
+    barangEndDate,
+    barangNameFilter,
+    barangFocusedRowIndex,
+    barangRows,
+  ],
+  () => {
+    persistHistoryState()
+  },
+  { deep: true }
+)
+
+onMounted(async () => {
   pageEl.value?.focus()
   orders.value = listPurchaseOrders()
   historyStats.value.totalPembelian = orders.value.length
@@ -878,6 +1175,8 @@ onMounted(() => {
 
   setDefaultDateRange(pembelianStartDate, pembelianEndDate)
   setDefaultDateRange(barangStartDate, barangEndDate)
+
+  await restoreHistoryState()
 
   window.addEventListener('keydown', handleKeydown)
 })

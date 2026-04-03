@@ -227,6 +227,7 @@ const rowRefs          = new Map()
 
 const PAGE_SIZE   = 20
 const currentPage = ref(1)
+const GUDANG_ARCHIVE_STATE_KEY = 'gudang-archive-state-v1'
 
 const unarchiveModal = reactive({ show: false, row: null, saving: false })
 
@@ -382,13 +383,75 @@ function onGlobalKey(e) {
   }
 }
 
+function getSelectedArchivedProductId() {
+  if (selectedRowIndex.value < 0) return null
+  return pagedRows.value[selectedRowIndex.value]?.id ?? null
+}
+
+function persistArchiveState() {
+  const payload = {
+    searchQuery: searchQuery.value,
+    currentPage: currentPage.value,
+    selectedProductId: getSelectedArchivedProductId(),
+  }
+
+  sessionStorage.setItem(GUDANG_ARCHIVE_STATE_KEY, JSON.stringify(payload))
+}
+
+function restoreArchiveState() {
+  const raw = sessionStorage.getItem(GUDANG_ARCHIVE_STATE_KEY)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    const restored = {
+      searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : '',
+      currentPage: Number.isInteger(parsed.currentPage) && parsed.currentPage > 0 ? parsed.currentPage : 1,
+      selectedProductId: parsed.selectedProductId == null ? null : String(parsed.selectedProductId),
+    }
+
+    searchQuery.value = restored.searchQuery
+    return restored
+  } catch (error) {
+    console.warn('[GudangArchive] gagal restore state:', error)
+    return null
+  }
+}
+
+function applyArchiveSelection(restored) {
+  if (!restored) return
+
+  currentPage.value = Math.min(Math.max(restored.currentPage, 1), totalPages.value)
+
+  if (!restored.selectedProductId) return
+
+  const globalIndex = filteredRows.value.findIndex(
+    row => String(row.id) === String(restored.selectedProductId)
+  )
+  if (globalIndex < 0) return
+
+  currentPage.value = Math.floor(globalIndex / PAGE_SIZE) + 1
+  selectedRowIndex.value = globalIndex % PAGE_SIZE
+
+  nextTick(() => rowRefs.get(selectedRowIndex.value)?.scrollIntoView({ block: 'nearest' }))
+}
+
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   await loadArchivedProducts()
+
+  const restored = restoreArchiveState()
+  applyArchiveSelection(restored)
+
   nextTick(() => { searchInput.value?.focus() })
 })
 onUnmounted(() => {
+  persistArchiveState()
   window.removeEventListener('keydown', onGlobalKey)
+})
+
+watch([searchQuery, currentPage, selectedRowIndex], () => {
+  persistArchiveState()
 })
 </script>
 

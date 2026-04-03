@@ -10,7 +10,7 @@
                 <div class="modal-header-icon">
                   <i class="pi pi-filter"></i>
                 </div>
-                <h3 class="modal-title">Filter Revisi Transaksi</h3>
+                <h3 class="modal-title">Filter Edit Order Penjualan</h3>
               </div>
             </div>
 
@@ -72,7 +72,7 @@
     <div v-if="order && !loading" class="form-card">
       <div class="form-header">
         <div class="form-header-content">
-          <h1 class="form-header-title">Pemutakhiran Informasi Order</h1>
+          <h1 class="form-header-title">Edit Order Penjualan</h1>
           <p class="form-header-subtitle">No. Order: {{ order.no_order }} · No. Fraktur: {{ order.no_faktur || '-' }}</p>
         </div>
         <div class="form-header-info">
