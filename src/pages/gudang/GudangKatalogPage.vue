@@ -4,7 +4,7 @@
     <!-- ── PAGE HEADER ──────────────────────────────────── -->
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Manajemen Katalog Produk</h1>
+        <h1 class="g-title">Manajemen Data Produk</h1>
         <p class="g-subtitle">Kelola data produk, stok, harga, dan dokumentasi foto</p>
       </div>
       <button class="btn-tambah-header" @click="openAdd" title="Tambah Barang Baru (F2)">
@@ -77,9 +77,9 @@
               <th class="col-no">#</th>
               <th class="col-kode">Kode</th>
               <th class="col-nama">Nama Barang</th>
-              <th class="col-stok">Stok</th>
-              <th class="col-supplier">Supplier</th>
-              <th class="col-harga">Harga Beli</th>
+              <th class="col-stok" style="text-align: center;">Stok Gudang</th>
+              <th class="col-supplier" style="text-align: center;">Supplier (Stok)</th>
+              <th class="col-harga" style="text-align: center;">Harga Beli</th>
             </tr>
           </thead>
           <tbody v-if="loading">
@@ -98,14 +98,14 @@
           <tbody v-else>
             <template v-for="(row, i) in pagedRows" :key="row.product_id">
               <tr
-                v-for="(price, priceIdx) in (row.prices.length ? row.prices : [{ id: `empty-${row.product_id}`, stok: row.stok ?? 0, supplier_nama: '-', harga_beli: null }])"
+                v-for="(price, priceIdx) in (row.prices.length ? row.prices : [{ id: `empty-${row.product_id}`, stok: null, supplier_nama: '-', harga_beli: null }])"
                 :key="`${row.product_id}-${price.id}`"
                 :ref="el => { if (priceIdx === 0) setRowRef(el, i); }"
                 :data-index="i"
                 class="g-row"
                 :class="{
                   'g-row--active': selectedRowIndex === i,
-                  'g-row--lowstok': row.prices.length > 0 && price.stok <= 3,
+                  'g-row--lowstok': Number(row.stok || 0) <= 3,
                 }"
                 @click="onRowClick(row, i)"
                 @dblclick="openEdit(row)"
@@ -120,15 +120,18 @@
                   <span class="nama-text">{{ row.nama }}</span>
                   <span v-if="row.deskripsi" class="deskripsi-text">{{ row.deskripsi }}</span>
                 </td>
-                <td class="col-stok">
-                  <span class="stok-val" :class="{ 'stok-low': row.prices.length > 0 && price.stok <= 3 }">
-                    {{ price.stok }} {{ row.satuan }}
+                <td v-if="priceIdx === 0" :rowspan="Math.max(1, row.prices.length)" class="col-stok" style="text-align: center; vertical-align: middle;">
+                  <span class="stok-val" :class="{ 'stok-low': Number(row.stok || 0) <= 3 }">
+                    {{ Number(row.stok || 0) }} {{ row.satuan }}
                   </span>
                 </td>
-                <td class="col-supplier">
-                  <span class="supplier-chip">{{ price.supplier_nama }}</span>
+                <td class="col-supplier" style="text-align: center;">
+                  <span class="supplier-chip">
+                    {{ price.supplier_nama }}
+                    <template v-if="price.stok != null"> · {{ Number(price.stok || 0) }} {{ row.satuan }}</template>
+                  </span>
                 </td>
-                <td class="col-harga">
+                <td class="col-harga" style="text-align: center;">
                   <span class="harga-val">{{ price.harga_beli == null ? '-' : formatRp(price.harga_beli) }}</span>
                 </td>
 
@@ -176,7 +179,7 @@
           @click.self="closeEditModeModal"
         >
           <div class="modal-box modal-box--choice" role="dialog" aria-label="Pilih mode edit" ref="editModeModalRef" tabindex="0">
-            <div class="modal-header modal-header--blue">
+            <div class="modal-header modal-header--blue modal-header--center">
               <h3 class="modal-title">Pilih Mode Edit</h3>
               <button class="modal-close" @click="closeEditModeModal" tabindex="-1">
                 <i class="pi pi-times"></i>
@@ -225,7 +228,7 @@
         <div v-if="modal.show && !isStockOnlyEdit" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal">
           <div class="modal-box modal-box--edit" role="dialog" :aria-label="modal.title">
             <!-- Blue header -->
-            <div class="modal-header modal-header--blue">
+            <div class="modal-header modal-header--blue modal-header--center">
               <h3 class="modal-title">{{ modal.title }}</h3>
               <button class="modal-close" @click="closeModal" tabindex="-1">
                 <i class="pi pi-times"></i>
@@ -243,8 +246,8 @@
                     ref="inputKode"
                     class="mfield-input"
                     placeholder="CDX-001"
-                    :readonly="isStockOnlyEdit"
-                    :class="{ 'mfield-input--readonly': isStockOnlyEdit }"
+                    :readonly="true"
+                    :class="{ 'mfield-input--readonly': true }"
                     @keydown.enter.prevent="focusField('inputNama')"
                     required
                   />
@@ -497,7 +500,7 @@
       <Transition name="modal">
         <div v-if="modal.show && isStockOnlyEdit" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal({ backToChoice: true })">
           <div class="modal-box modal-box--stock" role="dialog" aria-label="Edit stok dan harga">
-            <div class="modal-header modal-header--blue">
+            <div class="modal-header modal-header--blue modal-header--center">
               <h3 class="modal-title">Edit Stok & Harga</h3>
               <button class="modal-close" @click="closeModal({ backToChoice: true })" tabindex="-1">
                 <i class="pi pi-times"></i>
@@ -518,10 +521,11 @@
 
               <div class="price-section">
                 <div class="price-section-header">
-                  <span class="price-section-title"><i class="pi pi-truck"></i> Stok & Harga per Supplier</span>
+                  <span class="price-section-title"><i class="pi pi-truck"></i> Harga per Supplier</span>
                   <button type="button" class="btn-add-supplier" @click="addPriceRow" tabindex="-1">
                     <i class="pi pi-plus"></i>
                     <span class="btn-label">Tambah</span>
+                    <kbd class="kbd-f2">F4</kbd>
                   </button>
                 </div>
 
@@ -536,40 +540,10 @@
                       :ref="el => { if (el) priceSupplierRefs[idx] = el }"
                       v-model="pr.supplierSearch"
                       class="price-supplier-input"
-                      placeholder="Cari supplier..."
+                      placeholder="Ketik nama supplier (F1)"
                       autocomplete="off"
-                      @focus="modal.activePriceRow = idx; openSupplierDropdown(idx)"
-                      @input="filterSuppliers(idx)"
+                      @focus="modal.activePriceRow = idx"
                       @keydown="onSupplierSearchKey($event, idx)"
-                    />
-                    <Teleport to="body">
-                      <div
-                        v-if="pr.dropdownOpen && pr.filteredSuppliers?.length"
-                        class="supplier-dropdown"
-                        :style="{ top: dropdownPos.top + 'px', left: dropdownPos.left + 'px', width: dropdownPos.width + 'px' }"
-                      >
-                        <div
-                          v-for="(s, si) in pr.filteredSuppliers"
-                          :key="s.id"
-                          class="supplier-dropdown-item"
-                          :class="{ active: pr.dropdownIndex === si }"
-                          @mousedown.prevent="selectSupplier(idx, s)"
-                        >
-                          {{ s.nama }}
-                        </div>
-                      </div>
-                    </Teleport>
-                  </div>
-
-                  <div class="price-input-wrap price-input-wrap--stok">
-                    <input
-                      :ref="el => { if (el) priceStokRefs[idx] = el }"
-                      v-model.number="pr.stok"
-                      type="number"
-                      class="price-input"
-                      min="0"
-                      placeholder="0"
-                      @keydown.enter.prevent="focusPriceHarga(idx)"
                     />
                   </div>
 
@@ -594,6 +568,26 @@
                     :disabled="form.prices.length === 1"
                     tabindex="-1"
                   ><i class="pi pi-trash"></i></button>
+                </div>
+              </div>
+
+              <div class="stock-validate-section">
+                <div class="stock-validate-title"><i class="pi pi-box"></i> Penyesuaian Stok Gudang Global</div>
+                <div class="mfield-row">
+                  <div class="mfield mfield--grow">
+                    <label class="mfield-label">Stok Gudang Global <kbd>F2</kbd></label>
+                    <input
+                      v-model.number="stockGlobalForm.targetStok"
+                      ref="stockGlobalRef"
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      class="mfield-input"
+                      placeholder="Input total stok gudang"
+                      @keydown.enter.prevent="stockTanggalRef?.focus()"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -664,34 +658,34 @@
     </Teleport>
 
     <!-- ═══════════════════════════════════════════════════
-         MODAL KONFIRMASI HAPUS
+         MODAL KONFIRMASI ARCHIVE
     ════════════════════════════════════════════════════ -->
     <Teleport to="body">
       <Transition name="modal">
-        <div v-if="deleteModal.show" class="modal-overlay" @click.self="deleteModal.show = false">
+        <div v-if="archiveModal.show" class="modal-overlay" @click.self="archiveModal.show = false">
           <div class="modal-box modal-box--sm" role="dialog">
-            <div class="modal-header modal-header--danger">
-              <h3 class="modal-title">Hapus Barang</h3>
-              <button class="modal-close" @click="deleteModal.show = false" tabindex="-1">
+            <div class="modal-header modal-header--archive modal-header--center">
+              <h3 class="modal-title"><i class="pi pi-inbox"></i> Archive Barang</h3>
+              <button class="modal-close" @click="archiveModal.show = false" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
             </div>
             <div class="modal-body delete-body">
-              <i class="pi pi-exclamation-triangle del-icon"></i>
-              <p>Yakin hapus barang <b>{{ deleteModal.row?.nama }}</b>?</p>
-              <p class="del-warn">Semua data harga dari semua supplier akan ikut terhapus.</p>
+              <i class="pi pi-inbox del-icon" style="color:#f59e0b"></i>
+              <p>Archive barang <b>{{ archiveModal.row?.nama }}</b>?</p>
+              <p class="del-warn">Barang akan dipindahkan ke menu Archive dan bisa dibuka kembali kapan saja.</p>
             </div>
             <div class="modal-footer">
-              <button class="btn-cancel" @click="deleteModal.show = false">
+              <button class="btn-cancel" @click="archiveModal.show = false">
                 <i class="pi pi-times"></i>
                 <span class="btn-label">Batal</span>
                 <kbd>Esc</kbd>
               </button>
-              <button class="btn-danger" @click="doDelete" :disabled="deleteModal.saving">
-                <i v-if="deleteModal.saving" class="pi pi-spin pi-spinner"></i>
+              <button class="btn-archive" @click="doArchive" :disabled="archiveModal.saving">
+                <i v-if="archiveModal.saving" class="pi pi-spin pi-spinner"></i>
                 <template v-else>
-                  <i class="pi pi-trash"></i>
-                  <span class="btn-label">Hapus</span>
+                  <i class="pi pi-inbox"></i>
+                  <span class="btn-label">Archive</span>
                 </template>
               </button>
             </div>
@@ -705,7 +699,7 @@
       <Transition name="modal-fade">
         <div v-if="barangModal.show" class="modal-backdrop" @click="barangModal.show = false">
           <div class="modal-box modal-lg" @click.stop>
-            <div class="modal-header">
+            <div class="modal-header modal-header--center">
               <h3 class="modal-title">Pilih Barang</h3>
               <button class="modal-close" @click="barangModal.show = false">
                 <i class="pi pi-times"></i>
@@ -821,6 +815,7 @@ const editModeModalRef = ref(null)
 const stockTanggalRef = ref(null)
 const stockPetugasRef = ref(null)
 const stockAlasanRef = ref(null)
+const stockGlobalRef = ref(null)
 const priceSupplierRefs = ref({})
 const priceStokRefs     = ref({})
 const priceHargaRefs    = ref({})
@@ -866,9 +861,11 @@ const form = reactive({
 })
 const photoUpload = reactive({ uploading: false, progress: 0, error: '' })
 const lightbox    = reactive({ show: false, photos: [], currentIndex: 0 })
-const deleteModal  = reactive({ show: false, row: null, saving: false })
+const archiveModal  = reactive({ show: false, row: null, saving: false })
 const stockValidation = reactive({ tanggal: '', diubahOleh: '', alasan: '' })
+const stockGlobalForm = reactive({ targetStok: 0 })
 const pendingFotoFiles = ref([])
+const autoKodeSuffix = ref(generateRandomKodeSuffix())
 
 
 // ── Computed ───────────────────────────────────────────────
@@ -917,6 +914,305 @@ function parseHargaInput(raw) {
   const digits = String(raw ?? '').replace(/\D/g, '')
   if (!digits) return 0
   return Number(digits)
+}
+
+function isMissingSupabaseTableError(err) {
+  const code = String(err?.code || '')
+  if (code === 'PGRST205' || code === '42P01') return true
+  const message = String(err?.message || '').toLowerCase()
+  return message.includes('could not find the table') || (message.includes('relation') && message.includes('does not exist'))
+}
+
+function isMissingSupabaseColumnError(err) {
+  const code = String(err?.code || '')
+  if (code === '42703') return true
+  const message = String(err?.message || '').toLowerCase()
+  return message.includes('column') && message.includes('does not exist')
+}
+
+async function ensureStockAdjustmentHistoryTable() {
+  const { error } = await supabase
+    .from('stock_adjustments')
+    .select('id, product_kode, product_nama, adjustment_date, stock_before, stock_after, qty_delta, staff_nama, alasan')
+    .limit(1)
+
+  if (!error) return
+
+  if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+    throw new Error('Tabel histori penyesuaian stok belum tersedia di database. Jalankan migrasi server/schema/21_add_stock_adjustments_history.sql terlebih dahulu.')
+  }
+
+  throw error
+}
+
+function generateRandomKodeSuffix() {
+  return String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+}
+
+function toSafeNumber(value, fallback = 0) {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : fallback
+}
+
+function extractKodeSuffix(kode) {
+  const match = String(kode || '').trim().match(/(\d{4})$/)
+  return match?.[1] || ''
+}
+
+function normalizeKodeValue(kode) {
+  return String(kode || '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function normalizeNameValue(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKC')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function resolveSupplierIdFromInput(rawName) {
+  const query = normalizeNameValue(rawName)
+  if (!query) return ''
+
+  const exact = suppliers.value.find(s => normalizeNameValue(s.nama) === query)
+  if (exact?.id) return exact.id
+
+  const fuzzy = suppliers.value.filter(s => normalizeNameValue(s.nama).includes(query))
+  if (fuzzy.length === 1) return fuzzy[0].id
+
+  if (fuzzy.length > 1) {
+    throw new Error(`Nama supplier "${rawName}" ambigu. Ketik lebih lengkap.`)
+  }
+
+  throw new Error(`Supplier "${rawName}" tidak ditemukan.`)
+}
+
+function buildNormalizedPriceRowsForSubmit() {
+  return form.prices
+    .map(pr => {
+      const supplierSearch = String(pr.supplierSearch || '').trim()
+      const supplierIdFromName = supplierSearch ? resolveSupplierIdFromInput(supplierSearch) : ''
+      const supplierId = supplierIdFromName || pr.supplier_id || ''
+      return {
+        price_id: pr.price_id || null,
+        supplier_id: supplierId,
+        supplierSearch,
+        stok: Math.max(0, toSafeNumber(pr.stok, 0)),
+        harga_beli: Math.max(0, toSafeNumber(pr.harga_beli, 0)),
+      }
+    })
+    .filter(pr => Boolean(pr.supplier_id))
+}
+
+function applyGlobalStockToSupplierRows(priceRows, targetGlobalStok) {
+  const rows = Array.isArray(priceRows) ? priceRows : []
+  if (!rows.length) {
+    throw new Error('Minimal ada 1 supplier untuk menyimpan stok global.')
+  }
+
+  const target = Math.max(0, toSafeNumber(targetGlobalStok, 0))
+  const currentTotal = rows.reduce((sum, row) => sum + Math.max(0, toSafeNumber(row.stok, 0)), 0)
+  let delta = Number((target - currentTotal).toFixed(3))
+
+  if (Math.abs(delta) < 0.0005) {
+    return rows
+  }
+
+  if (delta > 0) {
+    rows[0].stok = Number((Math.max(0, toSafeNumber(rows[0].stok, 0)) + delta).toFixed(3))
+    return rows
+  }
+
+  let needReduce = Math.abs(delta)
+  const reductionOrder = rows
+    .map((row, index) => ({ index, stok: Math.max(0, toSafeNumber(row.stok, 0)) }))
+    .sort((a, b) => b.stok - a.stok)
+
+  for (const targetRow of reductionOrder) {
+    if (needReduce <= 0) break
+    const idx = targetRow.index
+    const available = Math.max(0, toSafeNumber(rows[idx].stok, 0))
+    if (available <= 0) continue
+
+    const reduced = Math.min(available, needReduce)
+    rows[idx].stok = Number((available - reduced).toFixed(3))
+    needReduce = Number((needReduce - reduced).toFixed(3))
+  }
+
+  if (needReduce > 0.0005) {
+    throw new Error('Gagal menyesuaikan stok global. Periksa nilai stok target.')
+  }
+
+  return rows
+}
+
+function buildKodePrefixFromNama(nama) {
+  const words = String(nama || '')
+    .trim()
+    .split(/\s+/)
+    .map(part => part.replace(/[^A-Za-z]/g, '').toUpperCase())
+    .filter(Boolean)
+
+  const firstWord = words[0] || ''
+  const len = firstWord.length
+  if (!len) return ''
+
+  if (len === 2) return firstWord.slice(0, 2)
+  if (len === 4) return firstWord.slice(0, 4)
+  if (len > 4) {
+    const middleIndex = Math.floor((len - 1) / 2)
+    return `${firstWord[0]}${firstWord[middleIndex]}${firstWord[len - 1]}`
+  }
+
+  return firstWord.slice(0, Math.min(3, len))
+}
+
+function syncAutoGeneratedKodePreview() {
+  if (isStockOnlyEdit.value) return
+  const prefix = buildKodePrefixFromNama(form.nama)
+  form.kode = prefix ? `${prefix} ${autoKodeSuffix.value}` : ''
+}
+
+function isKodeFollowingLatestRule(kode, nama) {
+  const prefix = buildKodePrefixFromNama(nama)
+  if (!prefix) return true
+
+  const normalizedKode = normalizeKodeValue(kode)
+  const match = normalizedKode.match(/^([A-Z]{2,4})\s(\d{4})$/)
+  if (!match) return false
+  return match[1] === prefix
+}
+
+function createUniqueKodeForPrefix(prefix, usedKodeSet) {
+  for (let attempt = 0; attempt < 10000; attempt += 1) {
+    const candidate = `${prefix} ${generateRandomKodeSuffix()}`
+    if (usedKodeSet.has(candidate)) continue
+    usedKodeSet.add(candidate)
+    return candidate
+  }
+
+  throw new Error(`Gagal membuat kode unik untuk prefix ${prefix}.`)
+}
+
+async function autoNormalizeLegacyProductCodes() {
+  const FETCH_SIZE = 1000
+  const rows = []
+  let from = 0
+
+  while (true) {
+    const to = from + FETCH_SIZE - 1
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, nama, kode')
+      .order('id', { ascending: true })
+      .range(from, to)
+
+    if (error) throw error
+
+    const chunk = Array.isArray(data) ? data : []
+    if (!chunk.length) break
+
+    rows.push(...chunk)
+
+    if (chunk.length < FETCH_SIZE) break
+    from += FETCH_SIZE
+  }
+
+  if (!rows.length) return
+
+  const usedKodeSet = new Set(
+    rows
+      .map(row => normalizeKodeValue(row.kode))
+      .filter(Boolean)
+  )
+
+  const updates = []
+
+  for (const row of rows) {
+    const prefix = buildKodePrefixFromNama(row.nama)
+    if (!prefix) continue
+    if (isKodeFollowingLatestRule(row.kode, row.nama)) continue
+
+    const currentKode = normalizeKodeValue(row.kode)
+    if (currentKode) {
+      usedKodeSet.delete(currentKode)
+    }
+
+    const existingSuffix = extractKodeSuffix(row.kode)
+    const preferredKode = /^\d{4}$/.test(existingSuffix) ? `${prefix} ${existingSuffix}` : ''
+
+    let nextKode = ''
+    if (preferredKode && !usedKodeSet.has(preferredKode)) {
+      nextKode = preferredKode
+      usedKodeSet.add(nextKode)
+    } else {
+      nextKode = createUniqueKodeForPrefix(prefix, usedKodeSet)
+    }
+
+    updates.push({ id: row.id, kode: nextKode })
+  }
+
+  if (!updates.length) return
+
+  const CHUNK_SIZE = 30
+  for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
+    const chunk = updates.slice(i, i + CHUNK_SIZE)
+    const results = await Promise.all(
+      chunk.map(item =>
+        supabase
+          .from('products')
+          .update({ kode: item.kode })
+          .eq('id', item.id)
+      )
+    )
+
+    const failed = results.find(result => result.error)
+    if (failed?.error) {
+      throw failed.error
+    }
+  }
+
+}
+
+async function generateUniqueAutoKode(nama, excludeProductId = null, preferredSuffix = '') {
+  const prefix = buildKodePrefixFromNama(nama)
+  if (!prefix) {
+    throw new Error('Nama barang harus berisi huruf agar kode dapat digenerate otomatis.')
+  }
+
+  const usedSuffixes = new Set()
+  const initialSuffix = String(preferredSuffix || '').trim()
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    let suffix = attempt === 0 && /^\d{4}$/.test(initialSuffix)
+      ? initialSuffix
+      : generateRandomKodeSuffix()
+
+    while (usedSuffixes.has(suffix)) {
+      suffix = generateRandomKodeSuffix()
+    }
+    usedSuffixes.add(suffix)
+
+    const kodeCandidate = `${prefix} ${suffix}`
+    const { data, error } = await supabase
+      .from('products')
+      .select('id')
+      .eq('kode', kodeCandidate)
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+
+    if (!data || String(data.id) === String(excludeProductId || '')) {
+      return kodeCandidate
+    }
+  }
+
+  throw new Error('Gagal membuat kode barang unik. Silakan coba simpan lagi.')
 }
 
 function onHargaInput(idx, event) {
@@ -1046,7 +1342,7 @@ async function doSearch(productId = null) {
 
     const grouped = []
     for (const p of data ?? []) {
-      const activePrices = p.product_prices?.filter(pp => pp.aktif) ?? []
+      const activePrices = p.product_prices?.filter(pp => pp.aktif && Number(pp.stok || 0) > 0) ?? []
       const prices = activePrices.map(pp => ({
         id: pp.id,
         supplier_id: pp.suppliers?.id ?? null,
@@ -1124,6 +1420,7 @@ function resetForm() {
   stockValidation.tanggal = ''
   stockValidation.diubahOleh = ''
   stockValidation.alasan = ''
+  stockGlobalForm.targetStok = 0
   photoUpload.uploading = false; photoUpload.progress = 0; photoUpload.error = ''
   priceSupplierRefs.value = {}
   priceStokRefs.value = {}
@@ -1132,9 +1429,11 @@ function resetForm() {
 
 function openAdd() {
   resetForm()
+  autoKodeSuffix.value = generateRandomKodeSuffix()
+  syncAutoGeneratedKodePreview()
   modal.mode = 'add'; modal.variant = 'full'; modal.title = 'Tambah Barang Baru'
   modal.error = ''; modal.activePriceRow = 0; modal.show = true
-  nextTick(() => inputKode.value?.focus())
+  nextTick(() => inputNama.value?.focus())
 }
 
 function openEdit(row, variant = 'full') {
@@ -1154,8 +1453,14 @@ function openEdit(row, variant = 'full') {
       }))
     : [makePriceRowDefault()]
 
+  if (variant !== 'stock') {
+    autoKodeSuffix.value = extractKodeSuffix(row.kode) || generateRandomKodeSuffix()
+    syncAutoGeneratedKodePreview()
+  }
+
   if (variant === 'stock') {
     stockValidation.tanggal = new Date().toISOString().slice(0, 10)
+    stockGlobalForm.targetStok = Math.max(0, toSafeNumber(row.stok, 0))
   }
 
   modal.mode = 'edit'
@@ -1164,7 +1469,7 @@ function openEdit(row, variant = 'full') {
   modal.error = ''; modal.activePriceRow = 0; modal.show = true
   nextTick(() => {
     if (isStockOnlyEdit.value) priceSupplierRefs.value[0]?.focus()
-    else inputKode.value?.focus()
+    else inputNama.value?.focus()
   })
 }
 
@@ -1256,6 +1561,7 @@ function focusFirstSupplier() {
 function isUpdateFormReady() {
   if (!form.kode.trim() || !form.nama.trim()) return false
   if (isStockOnlyEdit.value) {
+    if (!Number.isFinite(Number(stockGlobalForm.targetStok)) || Number(stockGlobalForm.targetStok) < 0) return false
     if (!stockValidation.tanggal) return false
     if (!stockValidation.diubahOleh.trim()) return false
     if (!stockValidation.alasan.trim()) return false
@@ -1290,7 +1596,15 @@ function onModalKeydown(e) {
   if (e.key === 'Escape') {
     e.preventDefault(); closeModal({ backToChoice: true })
   } else if (e.key === 'F1' && isStockOnlyEdit.value) {
-    e.preventDefault(); addPriceRow()
+    e.preventDefault()
+    const activeIdx = Math.max(0, Math.min(modal.activePriceRow, form.prices.length - 1))
+    nextTick(() => priceSupplierRefs.value[activeIdx]?.focus())
+  } else if (e.key === 'F2' && isStockOnlyEdit.value) {
+    e.preventDefault()
+    nextTick(() => stockGlobalRef.value?.focus())
+  } else if (e.key === 'F4' && isStockOnlyEdit.value) {
+    e.preventDefault()
+    addPriceRow()
   } else if (e.key === 'Enter' && !e.shiftKey && shouldSubmitByEnter(e.target)) {
     e.preventDefault(); submitModal()
   } else if (e.key === 'Delete') {
@@ -1347,6 +1661,17 @@ function onSupplierSearchKey(e, idx) {
     e.preventDefault()
     return
   }
+
+  if (isStockOnlyEdit.value) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      modal.activePriceRow = idx
+      nextTick(() => priceHargaRefs.value[idx]?.focus())
+      return
+    }
+    return
+  }
+
   const pr = form.prices[idx]
   if (!pr) return
   if (e.key === 'ArrowDown') {
@@ -1383,7 +1708,7 @@ function onHargaEnter(idx) {
       modal.activePriceRow = idx + 1
       nextTick(() => priceSupplierRefs.value[idx + 1]?.focus())
     } else {
-      nextTick(() => stockTanggalRef.value?.focus())
+      nextTick(() => stockGlobalRef.value?.focus())
     }
     return
   }
@@ -1517,6 +1842,54 @@ async function uploadToCloudinary(file, index, total) {
   return data.secure_url
 }
 
+async function insertStockAdjustmentHistory({
+  productId,
+  productKode,
+  productNama,
+  previousStok,
+  nextStok,
+  validationTanggal,
+  validationStaff,
+  validationAlasan,
+}) {
+  const stockBefore = Math.max(0, toSafeNumber(previousStok, 0))
+  const stockAfter = Math.max(0, toSafeNumber(nextStok, 0))
+  const qtyDelta = Number((stockAfter - stockBefore).toFixed(3))
+
+  if (Math.abs(qtyDelta) < 0.0005) {
+    return false
+  }
+
+  const { data: authData } = await supabase.auth.getUser()
+  const createdBy = authData?.user?.id || null
+
+  const payload = {
+    product_id: productId || null,
+    product_kode: String(productKode || '').trim(),
+    product_nama: String(productNama || '').trim(),
+    adjustment_date: validationTanggal,
+    stock_before: stockBefore,
+    stock_after: stockAfter,
+    qty_delta: qtyDelta,
+    staff_nama: String(validationStaff || '').trim(),
+    alasan: String(validationAlasan || '').trim(),
+    created_by: createdBy,
+  }
+
+  const { error } = await supabase
+    .from('stock_adjustments')
+    .insert(payload)
+
+  if (error) {
+    if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+      throw new Error('Gagal simpan histori stok karena tabel database belum tersedia. Jalankan migrasi server/schema/21_add_stock_adjustments_history.sql.')
+    }
+    throw error
+  }
+
+  return true
+}
+
 // ── Submit ─────────────────────────────────────────────────
 async function submitModal() {
   modal.saving = true; modal.error = ''
@@ -1527,9 +1900,51 @@ async function submitModal() {
       if (!stockValidation.alasan.trim()) throw new Error('Alasan perubahan stok wajib diisi.')
     }
 
-    const totalStok = form.prices.reduce((sum, pr) => {
-      return pr.supplier_id ? sum + (pr.stok ?? 0) : sum
-    }, 0)
+    const shouldAutoGenerateKode = modal.mode === 'add' || !isStockOnlyEdit.value
+    if (shouldAutoGenerateKode) {
+      const preferredSuffix = extractKodeSuffix(form.kode) || autoKodeSuffix.value
+      const generatedKode = await generateUniqueAutoKode(
+        form.nama,
+        modal.mode === 'edit' ? form.id : null,
+        preferredSuffix,
+      )
+      form.kode = generatedKode
+      autoKodeSuffix.value = extractKodeSuffix(generatedKode) || generateRandomKodeSuffix()
+    }
+
+    const normalizedPriceRows = buildNormalizedPriceRowsForSubmit()
+    if (!normalizedPriceRows.length) {
+      throw new Error('Minimal ada 1 supplier yang valid.')
+    }
+
+    const finalPriceRows = isStockOnlyEdit.value
+      ? applyGlobalStockToSupplierRows(
+          normalizedPriceRows,
+          stockGlobalForm.targetStok,
+        )
+      : normalizedPriceRows
+
+    const totalStok = finalPriceRows.reduce((sum, pr) => sum + Math.max(0, toSafeNumber(pr.stok, 0)), 0)
+
+    let previousGlobalStok = null
+    let shouldWriteStockAdjustmentHistory = false
+    if (isStockOnlyEdit.value && modal.mode === 'edit' && form.id) {
+      const { data: currentProductData, error: currentProductError } = await supabase
+        .from('products')
+        .select('stok')
+        .eq('id', form.id)
+        .maybeSingle()
+
+      if (currentProductError) throw currentProductError
+
+      previousGlobalStok = toSafeNumber(currentProductData?.stok, toSafeNumber(form.stok, 0))
+      const delta = Number((totalStok - previousGlobalStok).toFixed(3))
+      shouldWriteStockAdjustmentHistory = Math.abs(delta) >= 0.0005
+
+      if (shouldWriteStockAdjustmentHistory) {
+        await ensureStockAdjustmentHistoryTable()
+      }
+    }
 
     let uploadedPendingUrls = []
     if (pendingFotoFiles.value.length > 0) {
@@ -1560,7 +1975,8 @@ async function submitModal() {
       const { error } = await supabase.from('products').update(payload).eq('id', form.id)
       if (error) throw error
     }
-    for (const pr of form.prices) {
+
+    for (const pr of finalPriceRows) {
       if (!pr.supplier_id) continue
       await supabase.from('product_prices').upsert({
         ...(pr.price_id ? { id: pr.price_id } : {}),
@@ -1568,6 +1984,20 @@ async function submitModal() {
         stok: pr.stok ?? 0, harga_beli: pr.harga_beli ?? 0, aktif: true,
       }, { onConflict: 'product_id,supplier_id' })
     }
+
+    if (shouldWriteStockAdjustmentHistory) {
+      await insertStockAdjustmentHistory({
+        productId,
+        productKode: payload.kode,
+        productNama: payload.nama,
+        previousStok: previousGlobalStok,
+        nextStok: totalStok,
+        validationTanggal: stockValidation.tanggal,
+        validationStaff: stockValidation.diubahOleh,
+        validationAlasan: stockValidation.alasan,
+      })
+    }
+
     closeModal()
     if (hasSearched.value) await doSearch()
     const baseMessage = modal.mode === 'add' ? 'Barang berhasil ditambahkan' : 'Barang berhasil diupdate'
@@ -1584,24 +2014,25 @@ async function submitModal() {
   }
 }
 
-// ── Delete ─────────────────────────────────────────────────
-function openDelete(row) {
+// ── Archive ────────────────────────────────────────────────
+function openArchive(row) {
   if (!row) return
-  deleteModal.row = row; deleteModal.saving = false; deleteModal.show = true
+  archiveModal.row = row; archiveModal.saving = false; archiveModal.show = true
 }
 
-async function doDelete() {
-  deleteModal.saving = true
+async function doArchive() {
+  archiveModal.saving = true
   try {
     const { error } = await supabase
-      .from('products').update({ aktif: false }).eq('id', deleteModal.row.product_id)
+      .from('products').update({ is_archived: true }).eq('id', archiveModal.row.product_id)
     if (error) throw error
-    deleteModal.show = false
+    archiveModal.show = false
     if (hasSearched.value) await doSearch()
+    toast.add({ severity: 'success', summary: 'Diarsipkan', detail: `${archiveModal.row.nama} berhasil diarsipkan.`, life: 3000 })
   } catch (err) {
     console.error(err)
   } finally {
-    deleteModal.saving = false
+    archiveModal.saving = false
   }
 }
 
@@ -1646,7 +2077,7 @@ function onGlobalKey(e) {
     }
     return
   }
-  if (modal.show || deleteModal.show || barangModal.show) return
+  if (modal.show || archiveModal.show || barangModal.show) return
 
   switch (e.key) {
     case 'F1':
@@ -1664,7 +2095,7 @@ function onGlobalKey(e) {
       break
     case 'Delete':
       if (hasSearched.value && selectedRowIndex.value >= 0 && !e.target.matches('input,textarea,select')) {
-        e.preventDefault(); openDelete(pagedRows.value[selectedRowIndex.value])
+        e.preventDefault(); openArchive(pagedRows.value[selectedRowIndex.value])
       }
       break
     case 'ArrowDown':
@@ -1692,7 +2123,7 @@ function onGlobalKey(e) {
 
 function onGlobalEscModal(e) {
   if (e.key !== 'Escape') return
-  if (deleteModal.show) { deleteModal.show = false }
+  if (archiveModal.show) { archiveModal.show = false }
   else if (modal.show)  { closeModal({ backToChoice: true }) }
   else if (editModeModal.show) { closeEditModeModal() }
 }
@@ -1722,75 +2153,12 @@ function serializeFormPrices(prices) {
 }
 
 function persistKatalogState() {
-  const payload = {
-    searchBarang: searchBarang.value,
-    hasSearched: hasSearched.value,
-    lastSearch: lastSearch.value,
-    currentPage: currentPage.value,
-    selectedProductId: getSelectedCatalogProductId(),
-    modal: {
-      show: modal.show,
-      mode: modal.mode,
-      variant: modal.variant,
-      title: modal.title,
-      activePriceRow: modal.activePriceRow,
-    },
-    form: modal.show
-      ? {
-          id: form.id,
-          kode: form.kode,
-          nama: form.nama,
-          deskripsi: form.deskripsi,
-          stok: form.stok,
-          satuan: form.satuan,
-          foto_urls: Array.isArray(form.foto_urls) ? form.foto_urls : [],
-          prices: serializeFormPrices(form.prices),
-        }
-      : null,
-    stockValidation: modal.show
-      ? {
-          tanggal: stockValidation.tanggal,
-          diubahOleh: stockValidation.diubahOleh,
-          alasan: stockValidation.alasan,
-        }
-      : null,
-    editModeModal: {
-      show: editModeModal.show,
-      selected: editModeModal.selected,
-      rowProductId: editModeModal.row?.product_id ?? null,
-    },
-  }
-
-  sessionStorage.setItem(GUDANG_KATALOG_STATE_KEY, JSON.stringify(payload))
+  sessionStorage.removeItem(GUDANG_KATALOG_STATE_KEY)
 }
 
 function restoreKatalogState() {
-  const raw = sessionStorage.getItem(GUDANG_KATALOG_STATE_KEY)
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw)
-    searchBarang.value = typeof parsed.searchBarang === 'string' ? parsed.searchBarang : ''
-    hasSearched.value = Boolean(parsed.hasSearched)
-    lastSearch.value = typeof parsed.lastSearch === 'string' ? parsed.lastSearch : ''
-
-    return {
-      shouldSearch: hasSearched.value && Boolean(searchBarang.value.trim()),
-      currentPage: Number.isInteger(parsed.currentPage) && parsed.currentPage > 0 ? parsed.currentPage : 1,
-      selectedProductId: parsed.selectedProductId == null ? null : String(parsed.selectedProductId),
-      modal: parsed.modal && typeof parsed.modal === 'object' ? parsed.modal : null,
-      form: parsed.form && typeof parsed.form === 'object' ? parsed.form : null,
-      stockValidation: parsed.stockValidation && typeof parsed.stockValidation === 'object'
-        ? parsed.stockValidation
-        : null,
-      editModeModal: parsed.editModeModal && typeof parsed.editModeModal === 'object'
-        ? parsed.editModeModal
-        : null,
-    }
-  } catch (error) {
-    console.warn('[GudangKatalog] gagal restore state:', error)
-    return null
-  }
+  sessionStorage.removeItem(GUDANG_KATALOG_STATE_KEY)
+  return null
 }
 
 function applyKatalogSelection(productId) {
@@ -1884,25 +2252,21 @@ onMounted(async () => {
   window.addEventListener('keydown', onLightboxKey)
 
   await loadSuppliers()
-
-  const restored = restoreKatalogState()
-  if (restored?.shouldSearch) {
-    await doSearch()
-    currentPage.value = Math.min(Math.max(restored.currentPage, 1), totalPages.value)
-    if (restored.selectedProductId) {
-      applyKatalogSelection(restored.selectedProductId)
-    }
+  try {
+    await autoNormalizeLegacyProductCodes()
+  } catch (normalizeError) {
+    console.error('[autoNormalizeLegacyProductCodes]', normalizeError)
   }
-
-  restoreKatalogModalFromState(restored)
-
-  if (!modal.show && !editModeModal.show) {
-    nextTick(() => inputBarang.value?.focus())
-  }
+  restoreKatalogState()
+  clearBarang()
+  resetForm()
+  modal.show = false
+  editModeModal.show = false
+  nextTick(() => inputBarang.value?.focus())
 })
 
 onUnmounted(() => {
-  persistKatalogState()
+  sessionStorage.removeItem(GUDANG_KATALOG_STATE_KEY)
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('keydown', onGlobalEscModal)
   window.removeEventListener('keydown', onLightboxKey)
@@ -1942,6 +2306,11 @@ watch(stockValidation, () => {
     persistKatalogState()
   }
 }, { deep: true })
+
+watch(() => form.nama, () => {
+  if (!modal.show || isStockOnlyEdit.value) return
+  syncAutoGeneratedKodePreview()
+})
 </script>
 
 <style scoped>

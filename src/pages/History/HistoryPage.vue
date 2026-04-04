@@ -119,13 +119,13 @@
                 />
               </div>
               <div class="search-field">
-                <label class="search-label">Supplier/Customer</label>
+                <label class="search-label">Supplier/Customer/Staff</label>
                 <input
                   ref="inputBarangParty"
                   v-model="searchPartyBarang"
                   type="text"
                   class="search-input"
-                  placeholder="Filter nama supplier/customer"
+                  placeholder="Filter nama supplier/customer/staff"
                 />
               </div>
               <div class="search-field">
@@ -163,6 +163,7 @@
                     <th class="col-fraktur">No. Faktur</th>
                     <th class="col-relasi-supplier">Supplier</th>
                     <th class="col-relasi-customer">Customer</th>
+                    <th class="col-relasi-staff">Staff</th>
                     <th class="col-product">Nama Barang</th>
                     <th class="col-stock">Stok Berkurang</th>
                     <th class="col-stock">Stok Bertambah</th>
@@ -170,12 +171,12 @@
                 </thead>
                 <tbody v-if="barangLoading">
                   <tr>
-                    <td colspan="9" class="empty-cell">Memuat histori barang...</td>
+                    <td colspan="10" class="empty-cell">Memuat histori barang...</td>
                   </tr>
                 </tbody>
                 <tbody v-else-if="filteredBarang.length === 0">
                   <tr>
-                    <td colspan="9" class="empty-cell">
+                    <td colspan="10" class="empty-cell">
                       <i class="pi pi-inbox"></i>
                       Data histori barang tidak ditemukan.
                     </td>
@@ -184,7 +185,7 @@
                 <tbody v-else>
                   <tr
                     v-for="(row, idx) in filteredBarang"
-                    :key="`${row.type}-${row.no_order}-${row.product_name}-${idx}`"
+                    :key="`${row.type}-${row.id || row.no_order}-${row.product_name}-${idx}`"
                     :ref="el => setBarangRowRef(el, idx)"
                     :class="{ 'row-focused': barangFocusedRowIndex === idx }"
                     :tabindex="barangFocusedRowIndex === idx ? 0 : -1"
@@ -220,6 +221,12 @@
                       >
                         {{ row.customer_name || (row.type === 'penjualan' ? row.party_name || '-' : '-') }}
                       </span>
+                    </td>
+                    <td>
+                      <div class="staff-cell" :class="{ 'staff-cell--empty': !row.staff_name || row.staff_name === '-' }">
+                        <span class="staff-name">{{ row.staff_name || '-' }}</span>
+                        <span v-if="row.staff_reason && row.staff_reason !== '-'" class="staff-reason">{{ row.staff_reason }}</span>
+                      </div>
                     </td>
                     <td><span class="barang-product-name">{{ row.product_name }}</span></td>
                     <td class="cell-center">
@@ -440,7 +447,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
-import { listPurchaseOrders } from '@/lib/pembelianStore'
+import { listPurchaseOrders, getPurchaseReceivingItemKey } from '@/lib/pembelianStore'
 
 const router = useRouter()
 const HISTORY_PAGE_STATE_KEY = 'history_page_state_v1'
@@ -562,11 +569,13 @@ const filteredBarang = computed(() => {
       const supplierName = String(row.supplier_name || '').toLowerCase()
       const customerName = String(row.customer_name || '').toLowerCase()
       const partyName = String(row.party_name || '').toLowerCase()
+      const staffName = String(row.staff_name || '').toLowerCase()
       const byParty =
         !partyQuery ||
         supplierName.includes(partyQuery) ||
         customerName.includes(partyQuery) ||
-        partyName.includes(partyQuery)
+        partyName.includes(partyQuery) ||
+        staffName.includes(partyQuery)
       if (!byParty) return false
 
       const itemName = String(row.product_name || '').toLowerCase()
@@ -592,6 +601,20 @@ function toDateOnly(value) {
   return String(value || '').slice(0, 10)
 }
 
+function isMissingRelationError(err) {
+  const code = String(err?.code || '')
+  if (code === 'PGRST205' || code === '42P01') return true
+  const message = String(err?.message || '').toLowerCase()
+  return message.includes('could not find the table') || message.includes('relation')
+}
+
+function isMissingColumnError(err) {
+  const code = String(err?.code || '')
+  if (code === '42703') return true
+  const message = String(err?.message || '').toLowerCase()
+  return message.includes('column') && message.includes('does not exist')
+}
+
 function formatDateDdMmYyyy(value) {
   const base = toDateOnly(value)
   if (!base) return '-'
@@ -613,6 +636,24 @@ function formatDateDdMmYyyy(value) {
 
 function formatRp(val) {
   return 'Rp ' + Number(val || 0).toLocaleString('id-ID')
+}
+
+async function loadPurchaseStatsFromDatabase() {
+  const { count: totalPembelian, error: totalError } = await supabase
+    .from('purchases')
+    .select('id', { count: 'exact', head: true })
+
+  if (totalError) throw totalError
+
+  const { count: receivedPembelian, error: receivedError } = await supabase
+    .from('purchases')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'received')
+
+  if (receivedError) throw receivedError
+
+  historyStats.value.totalPembelian = Number(totalPembelian || 0)
+  historyStats.value.receivedPembelian = Number(receivedPembelian || 0)
 }
 
 function persistHistoryState() {
@@ -655,7 +696,6 @@ async function restoreHistoryState() {
 
   try {
     const state = JSON.parse(raw)
-    let hasCachedBarangRows = false
 
     activeHistoryMenu.value =
       state?.activeHistoryMenu === 'barang' || state?.activeHistoryMenu === 'pembelian'
@@ -691,7 +731,6 @@ async function restoreHistoryState() {
         : 0
       if (Array.isArray(state.barang.rows)) {
         barangRows.value = state.barang.rows
-        hasCachedBarangRows = true
       }
     }
 
@@ -703,9 +742,8 @@ async function restoreHistoryState() {
     }
 
     if (activeHistoryMenu.value === 'barang' && activeBarangFilter.value) {
-      if (!hasCachedBarangRows) {
-        await loadBarangHistory()
-      }
+      // Selalu refresh dari DB agar pembatalan validasi receiving langsung tercermin.
+      await loadBarangHistory()
       if (!showBarangFilterModal.value && filteredBarang.value.length) {
         focusBarangRow(barangFocusedRowIndex.value)
       } else if (showBarangFilterModal.value) {
@@ -799,9 +837,7 @@ async function openHistoryBarang() {
   if (!hasSubmittedBarangFilter.value) {
     openBarangFilterModal()
   } else {
-    if (!barangRows.value.length) {
-      await loadBarangHistory()
-    }
+    await loadBarangHistory()
     focusFirstBarangRow()
   }
 }
@@ -915,6 +951,283 @@ async function submitBarangFilter() {
   focusFirstBarangRow()
 }
 
+function resolvePurchaseValidationState(order, item, idx) {
+  const validations = order?.receiving_validations && typeof order.receiving_validations === 'object'
+    ? order.receiving_validations
+    : {}
+  const validatedAtMap = order?.receiving_validated_at && typeof order.receiving_validated_at === 'object'
+    ? order.receiving_validated_at
+    : {}
+
+  const explicitKey = String(item?.receiving_key || '').trim()
+  const generatedKey = String(getPurchaseReceivingItemKey(item, idx) || '').trim()
+  const candidateKeys = []
+
+  if (explicitKey) {
+    candidateKeys.push(explicitKey)
+  } else if (generatedKey) {
+    candidateKeys.push(generatedKey)
+  }
+
+  const baseDate = order?.received_at || order?.updated_at || order?.order_date || null
+  const validationKeys = Object.keys(validations)
+  const hasValidationEntries = validationKeys.length > 0
+  const orderLooksReceived = String(order?.status || '') === 'received' || Boolean(order?.received_at)
+
+  // Jika map validasi tersedia, jadikan itu satu-satunya sumber kebenaran.
+  if (hasValidationEntries) {
+    for (const key of candidateKeys) {
+      if (!key) continue
+      if (Boolean(validations[key])) {
+        return {
+          isValidated: true,
+          matchedKey: key,
+          movementDate: validatedAtMap[key] || baseDate,
+        }
+      }
+    }
+
+    // Fallback khusus data lama tanpa receiving_key item.
+    // Untuk mencegah false-positive, fallback hanya dipakai jika match valid tepat 1 key.
+    if (!explicitKey) {
+      const prefix = `${String(item?.product_id ?? '')}|${String(item?.product_kode ?? '')}|${String(item?.product_nama ?? '')}|${Number(item?.unit_cost || 0)}|`
+      const matchedKeys = validationKeys.filter(key => key.startsWith(prefix) && Boolean(validations[key]))
+      if (matchedKeys.length === 1) {
+        const fallbackKey = matchedKeys[0]
+        return {
+          isValidated: true,
+          matchedKey: fallbackKey,
+          movementDate: validatedAtMap[fallbackKey] || baseDate,
+        }
+      }
+    }
+
+    return {
+      isValidated: false,
+      matchedKey: candidateKeys[0] || '',
+      movementDate: null,
+    }
+  }
+
+  // Legacy fallback (data lama tanpa map validasi).
+  if (orderLooksReceived) {
+    return {
+      isValidated: true,
+      matchedKey: candidateKeys[0] || '',
+      movementDate: baseDate,
+    }
+  }
+
+  return {
+    isValidated: false,
+    matchedKey: candidateKeys[0] || '',
+    movementDate: null,
+  }
+}
+
+function buildLocalPurchaseRows(filter, byProduct) {
+  return orders.value
+    .flatMap(order =>
+      (order.items || [])
+        .map((item, idx) => {
+          const validationState = resolvePurchaseValidationState(order, item, idx)
+          if (!validationState.isValidated) return null
+
+          const movementDate = toDateOnly(validationState.movementDate || order.received_at || order.updated_at || order.order_date)
+          if (!movementDate || movementDate < filter.startDate || movementDate > filter.endDate) {
+            return null
+          }
+
+          return {
+            ...item,
+            __movement_date: movementDate,
+          }
+        })
+        .filter(Boolean)
+        .filter(item => {
+          const nama = (item.product_nama || '').toLowerCase()
+          return !byProduct || nama.includes(byProduct)
+        })
+        .map(item => ({
+          type: 'pembelian',
+          no_order: order.no_order || '-',
+          date: item.__movement_date || toDateOnly(order.received_at || order.order_date),
+          no_faktur: order.no_faktur || order.faktur || '-',
+          party_name: order.supplier?.nama || '-',
+          supplier_name: order.supplier?.nama || '-',
+          staff_name: '-',
+          staff_reason: '-',
+          customer_name: '-',
+          product_kode: item.product_kode || '-',
+          product_name: item.product_nama || '-',
+          stock_out: 0,
+          stock_in: Number(item.qty || 0),
+        }))
+    )
+}
+
+async function loadPurchaseRowsFromDatabase(filter, byProduct) {
+  const { data: purchasesData, error: purchasesError } = await supabase
+    .from('purchases')
+    .select('id, no_order, order_date, received_at, updated_at, no_faktur, supplier_nama, status, receiving_validations, receiving_validated_at')
+    .neq('status', 'draft')
+
+  if (purchasesError) throw purchasesError
+
+  const allPurchases = purchasesData || []
+  const purchaseIds = allPurchases.map(row => row.id).filter(Boolean)
+  if (!purchaseIds.length) return []
+
+  const { data: purchaseItemsData, error: purchaseItemsError } = await supabase
+    .from('purchase_items')
+    .select('purchase_id, product_id, product_kode, product_nama, qty, unit_cost, receiving_key')
+    .in('purchase_id', purchaseIds)
+
+  if (purchaseItemsError) throw purchaseItemsError
+
+  const itemsByPurchase = (purchaseItemsData || []).reduce((acc, item) => {
+    if (!acc[item.purchase_id]) acc[item.purchase_id] = []
+    acc[item.purchase_id].push(item)
+    return acc
+  }, {})
+
+  return allPurchases.flatMap(order =>
+    (itemsByPurchase[order.id] || [])
+      .map((item, idx) => {
+        const validationState = resolvePurchaseValidationState(order, item, idx)
+        if (!validationState.isValidated) return null
+
+        const movementDate = toDateOnly(validationState.movementDate || order.received_at || order.updated_at || order.order_date)
+        if (!movementDate || movementDate < filter.startDate || movementDate > filter.endDate) {
+          return null
+        }
+
+        return {
+          ...item,
+          __movement_date: movementDate,
+        }
+      })
+      .filter(Boolean)
+      .filter(item => {
+        const nama = (item.product_nama || '').toLowerCase()
+        return !byProduct || nama.includes(byProduct)
+      })
+      .map(item => ({
+        type: 'pembelian',
+        no_order: order.no_order || '-',
+        date: item.__movement_date || toDateOnly(order.received_at || order.order_date),
+        no_faktur: order.no_faktur || '-',
+        party_name: order.supplier_nama || '-',
+        supplier_name: order.supplier_nama || '-',
+        staff_name: '-',
+        staff_reason: '-',
+        customer_name: '-',
+        product_kode: item.product_kode || '-',
+        product_name: item.product_nama || '-',
+        stock_out: 0,
+        stock_in: Number(item.qty || 0),
+      }))
+  )
+}
+
+async function loadLegacyPurchaseRowsFromDatabase(filter, byProduct) {
+  const { data: purchasesData, error: purchasesError } = await supabase
+    .from('purchases')
+    .select('id, no_order, order_date, received_at, updated_at, no_faktur, supplier_nama, status')
+    .neq('status', 'draft')
+
+  if (purchasesError) throw purchasesError
+
+  const allPurchases = purchasesData || []
+  const purchaseIds = allPurchases.map(row => row.id).filter(Boolean)
+  if (!purchaseIds.length) return []
+
+  const { data: purchaseItemsData, error: purchaseItemsError } = await supabase
+    .from('purchase_items')
+    .select('purchase_id, product_id, product_kode, product_nama, qty, unit_cost')
+    .in('purchase_id', purchaseIds)
+
+  if (purchaseItemsError) throw purchaseItemsError
+
+  const itemsByPurchase = (purchaseItemsData || []).reduce((acc, item) => {
+    if (!acc[item.purchase_id]) acc[item.purchase_id] = []
+    acc[item.purchase_id].push(item)
+    return acc
+  }, {})
+
+  return allPurchases.flatMap(order => {
+    const isReceived = String(order?.status || '') === 'received' || Boolean(order?.received_at)
+    if (!isReceived) return []
+
+    return (itemsByPurchase[order.id] || [])
+      .filter(item => {
+        const nama = (item.product_nama || '').toLowerCase()
+        return !byProduct || nama.includes(byProduct)
+      })
+      .map(item => {
+        const movementDate = toDateOnly(order.received_at || order.updated_at || order.order_date)
+        if (!movementDate || movementDate < filter.startDate || movementDate > filter.endDate) {
+          return null
+        }
+
+        return {
+          type: 'pembelian',
+          no_order: order.no_order || '-',
+          date: movementDate,
+          no_faktur: order.no_faktur || '-',
+          party_name: order.supplier_nama || '-',
+          supplier_name: order.supplier_nama || '-',
+          staff_name: '-',
+          staff_reason: '-',
+          customer_name: '-',
+          product_kode: item.product_kode || '-',
+          product_name: item.product_nama || '-',
+          stock_out: 0,
+          stock_in: Number(item.qty || 0),
+        }
+      })
+      .filter(Boolean)
+  })
+}
+
+async function loadStaffAdjustmentRowsFromDatabase(filter, byProduct) {
+  const { data, error } = await supabase
+    .from('stock_adjustments')
+    .select('id, product_id, product_kode, product_nama, adjustment_date, qty_delta, staff_nama, alasan, created_at')
+    .gte('adjustment_date', filter.startDate)
+    .lte('adjustment_date', filter.endDate)
+    .order('adjustment_date', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  return (data || [])
+    .filter(row => {
+      const nama = String(row.product_nama || '').toLowerCase()
+      const kode = String(row.product_kode || '').toLowerCase()
+      return !byProduct || nama.includes(byProduct) || kode.includes(byProduct)
+    })
+    .map(row => {
+      const qtyDelta = Number(row.qty_delta || 0)
+      return {
+        id: row.id,
+        type: 'staff',
+        no_order: '-',
+        date: toDateOnly(row.adjustment_date || row.created_at),
+        no_faktur: '-',
+        party_name: '-',
+        supplier_name: '-',
+        staff_name: row.staff_nama || '-',
+        staff_reason: row.alasan || '-',
+        customer_name: '-',
+        product_kode: row.product_kode || '-',
+        product_name: row.product_nama || '-',
+        stock_out: qtyDelta < 0 ? Math.abs(qtyDelta) : 0,
+        stock_in: qtyDelta > 0 ? qtyDelta : 0,
+      }
+    })
+}
+
 async function loadBarangHistory() {
   if (!activeBarangFilter.value) return
 
@@ -922,32 +1235,30 @@ async function loadBarangHistory() {
   barangError.value = ''
   try {
     const byProduct = activeBarangFilter.value.productName.toLowerCase()
-    const purchaseRows = orders.value
-      .filter(order => {
-        if (order.status !== 'received') return false
-        const date = toDateOnly(order.received_at || order.order_date)
-        return date >= activeBarangFilter.value.startDate && date <= activeBarangFilter.value.endDate
-      })
-      .flatMap(order =>
-        (order.items || [])
-          .filter(item => {
-            const nama = (item.product_nama || '').toLowerCase()
-            return !byProduct || nama.includes(byProduct)
-          })
-          .map(item => ({
-            type: 'pembelian',
-            no_order: order.no_order || '-',
-            date: toDateOnly(order.received_at || order.order_date),
-            no_faktur: order.no_faktur || order.faktur || '-',
-            party_name: order.supplier?.nama || '-',
-            supplier_name: order.supplier?.nama || '-',
-            customer_name: '-',
-            product_kode: item.product_kode || '-',
-            product_name: item.product_nama || '-',
-            stock_out: 0,
-            stock_in: Number(item.qty || 0),
-          }))
-      )
+    let purchaseRows = []
+
+    try {
+      purchaseRows = await loadPurchaseRowsFromDatabase(activeBarangFilter.value, byProduct)
+    } catch (purchaseError) {
+      console.warn('[loadBarangHistory] fallback purchase rows', purchaseError)
+
+      try {
+        purchaseRows = await loadLegacyPurchaseRowsFromDatabase(activeBarangFilter.value, byProduct)
+      } catch (legacyError) {
+        console.warn('[loadBarangHistory] fallback local purchase rows', legacyError)
+        purchaseRows = buildLocalPurchaseRows(activeBarangFilter.value, byProduct)
+
+        if (!isMissingRelationError(legacyError) && !isMissingColumnError(legacyError)) {
+          barangError.value =
+            'Riwayat pembelian detail gagal dimuat, menampilkan data sinkron order pembelian dari database.'
+        }
+      }
+
+      if (!purchaseRows.length && isMissingColumnError(purchaseError)) {
+        barangError.value =
+          'Sebagian kolom history pembelian belum tersedia di database. Jalankan migrasi schema terbaru agar data barang masuk tampil lengkap.'
+      }
+    }
 
     const { data: salesData, error: salesError } = await supabase
       .from('sales')
@@ -990,6 +1301,8 @@ async function loadBarangHistory() {
           no_faktur: order.no_faktur || '-',
           party_name: order.customer_nama || '-',
           supplier_name: '-',
+          staff_name: '-',
+          staff_reason: '-',
           customer_name: order.customer_nama || '-',
           product_kode: item.product_kode || '-',
           product_name: item.product_nama || '-',
@@ -998,7 +1311,22 @@ async function loadBarangHistory() {
         }))
     )
 
-    barangRows.value = [...purchaseRows, ...saleRows]
+    let staffRows = []
+    try {
+      staffRows = await loadStaffAdjustmentRowsFromDatabase(activeBarangFilter.value, byProduct)
+    } catch (staffError) {
+      console.warn('[loadBarangHistory] load staff adjustment rows', staffError)
+      if (!isMissingRelationError(staffError) && !isMissingColumnError(staffError)) {
+        if (!barangError.value) {
+          barangError.value = 'Sebagian histori perubahan stok staff gagal dimuat dari database.'
+        }
+      } else if (!barangError.value) {
+        barangError.value =
+          'Tabel histori penyesuaian stok staff belum tersedia. Jalankan migrasi schema terbaru agar data edit stok gudang tampil di history barang.'
+      }
+    }
+
+    barangRows.value = [...purchaseRows, ...saleRows, ...staffRows]
   } catch (err) {
     console.error('[loadBarangHistory]', err)
     barangError.value = 'Gagal memuat histori barang: ' + err.message
@@ -1169,9 +1497,22 @@ watch(
 
 onMounted(async () => {
   pageEl.value?.focus()
-  orders.value = listPurchaseOrders()
+  try {
+    orders.value = await listPurchaseOrders()
+  } catch (err) {
+    console.error('[listPurchaseOrders history menu]', err)
+    orders.value = []
+  }
   historyStats.value.totalPembelian = orders.value.length
   historyStats.value.receivedPembelian = orders.value.filter(o => o.status === 'received').length
+
+  try {
+    await loadPurchaseStatsFromDatabase()
+  } catch (statsError) {
+    if (!isMissingRelationError(statsError)) {
+      console.warn('[loadPurchaseStatsFromDatabase]', statsError)
+    }
+  }
 
   setDefaultDateRange(pembelianStartDate, pembelianEndDate)
   setDefaultDateRange(barangStartDate, barangEndDate)

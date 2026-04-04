@@ -14,6 +14,28 @@
   width: 96%;
 }
 
+.modal-header--archive {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.btn-archive {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .5rem 1.1rem;
+  border-radius: 7px;
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: #f59e0b;
+  color: #fff;
+  transition: background .15s;
+}
+
+.btn-archive:hover:not(:disabled) { background: #d97706; }
+.btn-archive:disabled { opacity: .6; cursor: not-allowed; }
+
 /* Deskripsi textarea */
 .mfield-textarea {
   min-height: 76px;

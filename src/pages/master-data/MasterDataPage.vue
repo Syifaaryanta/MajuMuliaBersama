@@ -903,6 +903,32 @@ function closeModal() {
   modal.show = false
 }
 
+function isMissingColumnSchemaCacheError(err) {
+  return err?.code === 'PGRST204' && /could not find/i.test(String(err?.message || ''))
+}
+
+function extractMissingColumnName(err) {
+  const msg = String(err?.message || '')
+  const singleQuote = msg.match(/Could not find the '([^']+)' column/i)
+  if (singleQuote?.[1]) return singleQuote[1]
+
+  const doubleQuote = msg.match(/Could not find the "([^"]+)" column/i)
+  if (doubleQuote?.[1]) return doubleQuote[1]
+
+  return null
+}
+
+async function saveMasterDataRow(table, mode, payload, rowId) {
+  if (mode === 'add') {
+    return supabase.from(table).insert([payload])
+  }
+
+  return supabase
+    .from(table)
+    .update(payload)
+    .eq('id', rowId)
+}
+
 async function submitModal() {
   if (saving.value) return
   saving.value = true
@@ -924,17 +950,33 @@ async function submitModal() {
 
     const table = modal.type === 'customer' ? 'customers' : 'suppliers'
 
-    if (modal.mode === 'add') {
-      const { error } = await supabase.from(table).insert([payload])
-      if (error) throw error
-      alert(`${modal.type === 'customer' ? 'Customer' : 'Supplier'} berhasil ditambahkan!`)
+    const retryPayload = { ...payload }
+    const skippedColumns = []
+
+    let { error } = await saveMasterDataRow(table, modal.mode, retryPayload, form.id)
+
+    // Retry otomatis jika PostgREST schema cache belum mengenali kolom tertentu.
+    for (let i = 0; i < 5 && error && isMissingColumnSchemaCacheError(error); i += 1) {
+      const missingColumn = extractMissingColumnName(error)
+      if (!missingColumn || !(missingColumn in retryPayload)) break
+
+      delete retryPayload[missingColumn]
+      skippedColumns.push(missingColumn)
+
+      const retry = await saveMasterDataRow(table, modal.mode, retryPayload, form.id)
+      error = retry.error
+    }
+
+    if (error) throw error
+
+    if (skippedColumns.length > 0) {
+      alert(
+        `Data ${modal.type === 'customer' ? 'customer' : 'supplier'} tersimpan, ` +
+        `tetapi kolom ${skippedColumns.join(', ')} belum aktif di database. ` +
+        `Jalankan ulang SQL sinkronisasi schema.`
+      )
     } else {
-      const { error } = await supabase
-        .from(table)
-        .update(payload)
-        .eq('id', form.id)
-      if (error) throw error
-      alert(`${modal.type === 'customer' ? 'Customer' : 'Supplier'} berhasil diperbarui!`)
+      alert(`${modal.type === 'customer' ? 'Customer' : 'Supplier'} berhasil ${modal.mode === 'add' ? 'ditambahkan' : 'diperbarui'}!`)
     }
 
     closeModal()

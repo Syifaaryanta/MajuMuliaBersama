@@ -6,9 +6,35 @@
 
   BEGIN;
 
+  -- Guard kolom agar script tetap jalan di schema yang belum lengkap.
+  ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS aktif BOOLEAN NOT NULL DEFAULT TRUE;
+
+  ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+
+  ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS satuan TEXT NOT NULL DEFAULT 'pcs';
+
+  DO $$
+  BEGIN
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'products'
+        AND column_name = 'stok'
+        AND data_type IN ('smallint', 'integer', 'bigint')
+    ) THEN
+      ALTER TABLE products
+        ALTER COLUMN stok TYPE NUMERIC(15,3)
+        USING stok::NUMERIC(15,3);
+    END IF;
+  END $$;
+
   CREATE TEMP TABLE tmp_import_stok (
     nama TEXT NOT NULL,
-    stok INTEGER NOT NULL
+    stok NUMERIC(15,3) NOT NULL
   ) ON COMMIT DROP;
 
   INSERT INTO tmp_import_stok (nama, stok) VALUES
@@ -3975,12 +4001,19 @@
     ('water pump zebra espass', 0);
 
   CREATE TEMP TABLE tmp_import_stok_dedup AS
+  WITH normalized AS (
+    SELECT
+      LOWER(BTRIM(nama)) AS nama_key,
+      BTRIM(nama)        AS nama,
+      GREATEST(COALESCE(stok, 0), 0) AS stok
+    FROM tmp_import_stok
+  )
   SELECT
-    LOWER(BTRIM(nama)) AS nama_key,
-    BTRIM(nama)        AS nama,
+    nama_key,
+    (ARRAY_AGG(nama ORDER BY stok DESC, nama ASC))[1] AS nama,
     GREATEST(MAX(stok), 0) AS stok
-  FROM tmp_import_stok
-  GROUP BY LOWER(BTRIM(nama)), BTRIM(nama);
+  FROM normalized
+  GROUP BY nama_key;
 
   -- 1) Update produk yang sudah ada (cocok berdasarkan nama, case-insensitive)
   UPDATE products p

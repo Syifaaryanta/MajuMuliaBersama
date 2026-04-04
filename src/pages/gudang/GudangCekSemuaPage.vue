@@ -75,17 +75,24 @@
         </span>
       </div>
 
+      <div class="cs-kbd-bar">
+        <span><kbd>F1</kbd> fokus cari</span>
+        <span><kbd>Enter</kbd> lihat detail</span>
+        <span><kbd>Del</kbd> archive barang</span>
+      </div>
+
       <!-- Table -->
-      <div class="table-wrap" ref="tableWrap">
+      <div class="table-wrap" ref="tableWrap" @mouseleave="hoveredRowIndex = -1">
         <table class="g-table cs-table">
           <thead>
             <tr>
               <th class="col-no">#</th>
               <th class="col-kode">Kode</th>
               <th class="col-nama">Nama Barang</th>
-              <th class="col-stok">Stok</th>
-              <th class="col-supplier">Supplier</th>
-              <th class="col-harga">Harga Beli</th>
+              <th class="col-stok" style="text-align: center;">Stok Gudang</th>
+              <th class="col-supplier" style="text-align: center;">Supplier (Stok)</th>
+              <th class="col-harga" style="text-align: center;">Harga Beli</th>
+              <th class="col-aksi" style="text-align: center;">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -103,6 +110,7 @@
                   'g-row--active-sub': selectedRowIndex === i && priceIdx > 0,
                   'g-row--sub':        selectedRowIndex !== i && priceIdx > 0,
                 }"
+                @mouseenter="hoveredRowIndex = i"
                 @click="onRowClick(row, i)"
                 @dblclick="viewDetail(row)"
               >
@@ -119,16 +127,39 @@
                     {{ row.prices.length }} supplier
                   </span>
                 </td>
-                <td class="col-stok">
-                  <span class="stok-val" :class="{ 'stok-low': price.stok <= 3 }">
-                    {{ price.stok }} <span class="stok-satuan">{{ row.satuan }}</span>
+                <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-stok" style="text-align: center; vertical-align: middle;">
+                  <span class="stok-val" :class="{ 'stok-low': Number(row.stok || 0) <= 3 }">
+                    {{ Number(row.stok || 0) }} <span class="stok-satuan">{{ row.satuan }}</span>
                   </span>
                 </td>
-                <td class="col-supplier">
-                  <span class="supplier-chip">{{ price.supplier_nama }}</span>
+                <td class="col-supplier" style="text-align: center;">
+                  <span class="supplier-chip">
+                    {{ price.supplier_nama }}
+                    <template v-if="price.stok != null"> · {{ Number(price.stok || 0) }} {{ row.satuan }}</template>
+                  </span>
                 </td>
-                <td class="col-harga">
+                <td class="col-harga" style="text-align: center;">
                   <span class="harga-val">{{ price.is_placeholder ? '-' : formatRp(price.harga_beli) }}</span>
+                </td>
+                <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-aksi" style="text-align: center; vertical-align: middle;">
+                  <div class="cs-row-actions" :class="{ 'is-visible': hoveredRowIndex === i || selectedRowIndex === i }">
+                    <button
+                      class="btn-to-detail"
+                      @click.stop="viewDetail(row)"
+                      title="Lihat Detail (Enter)"
+                      aria-label="Lihat Detail (Enter)"
+                    >
+                      <i class="pi pi-external-link"></i>
+                    </button>
+                    <button
+                      class="btn-archive-cs"
+                      @click.stop="openArchive(row)"
+                      title="Archive barang ini (Del/F3)"
+                      aria-label="Archive barang ini (Del/F3)"
+                    >
+                      <i class="pi pi-inbox"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
 
@@ -138,7 +169,7 @@
                 :key="`photo-${row.product_id}`"
                 class="photo-inline-row"
               >
-                <td colspan="6" class="photo-inline-cell">
+                <td colspan="7" class="photo-inline-cell">
                   <div class="photo-inline-content">
                     <template v-if="row.foto_urls?.length > 0">
                       <div class="photo-inline-strip">
@@ -153,27 +184,11 @@
                           <div class="photo-thumb-overlay"><i class="pi pi-search-plus"></i></div>
                         </div>
                       </div>
-                      <button class="btn-to-detail" @click="viewDetail(row)">
-                        <i class="pi pi-arrow-right"></i>
-                        <span class="btn-label">Lihat Detail</span>
-                      </button>
                     </template>
                     <div v-else class="photo-no-foto">
                       <i class="pi pi-image"></i>
                       <span>Belum ada foto</span>
-                      <button class="btn-to-detail btn-to-detail--outline" @click="viewDetail(row)">
-                        <i class="pi pi-external-link"></i>
-                        <span class="btn-label">Lihat Detail</span>
-                      </button>
                     </div>
-
-                    <!-- Archive action -->
-                    <div class="photo-inline-sep"></div>
-                    <button class="btn-archive-cs" @click.stop="openArchive(row)" title="Archive barang ini (F3)">
-                      <i class="pi pi-inbox"></i>
-                      <span class="btn-label">Archive</span>
-                      <kbd class="kbd-cs">F3</kbd>
-                    </button>
                   </div>
                 </td>
               </tr>
@@ -192,7 +207,7 @@
     <Transition name="modal">
       <div v-if="archiveModal.show" class="modal-overlay" @click.self="archiveModal.show = false">
         <div class="modal-box modal-box--sm" role="dialog">
-          <div class="modal-header modal-header--archive">
+          <div class="modal-header modal-header--archive modal-header--center">
             <h3 class="modal-title"><i class="pi pi-inbox"></i> Archive Barang</h3>
             <button class="modal-close" @click="archiveModal.show = false" tabindex="-1">
               <i class="pi pi-times"></i>
@@ -244,6 +259,7 @@ const searchFocused = ref(false)
 const loading       = ref(true)
 const allRows       = ref([])
 const selectedRowIndex = ref(-1)
+const hoveredRowIndex = ref(-1)
 const rowRefs       = new Map()
 
 const archiveModal = reactive({ show: false, row: null, saving: false })
@@ -254,6 +270,7 @@ const GUDANG_CEK_SEMUA_STATE_KEY = 'gudang-cek-semua-state-v1'
 // ── Reset selection when user types ─────────────────────────
 watch(searchQuery, () => {
   selectedRowIndex.value = -1
+  hoveredRowIndex.value = -1
 })
 
 // ───────────────────────────────────────────────────────────
@@ -357,12 +374,12 @@ async function loadAllProducts() {
     }
 
     allRows.value = data.map(p => {
-      const activePrices = p.product_prices?.filter(pp => pp.aktif) ?? []
+      const activePrices = p.product_prices?.filter(pp => pp.aktif && Number(pp.stok || 0) > 0) ?? []
       const fallbackPrice = {
         id:            `no-price-${p.id}`,
-        stok:          p.stok ?? 0,
+        stok:          null,
         harga_beli:    0,
-        supplier_nama: 'Belum ada supplier',
+        supplier_nama: '-',
         is_placeholder: true,
       }
 
@@ -370,6 +387,7 @@ async function loadAllProducts() {
         product_id: p.id,
         kode:       p.kode,
         nama:       p.nama,
+        stok:       p.stok ?? 0,
         deskripsi:  p.deskripsi ?? '',
         satuan:     p.satuan,
         foto_urls:  p.foto_urls ?? [],
@@ -542,6 +560,13 @@ function onGlobalKey(e) {
       if (row) { e.preventDefault(); openArchive(row) }
       break
     }
+    case 'Delete': {
+      const row = filteredRows.value[selectedRowIndex.value]
+      if (row && !e.target.matches('input,textarea,select,button')) {
+        e.preventDefault(); openArchive(row)
+      }
+      break
+    }
   }
 }
 
@@ -573,31 +598,12 @@ function getSelectedFilteredProductId() {
 }
 
 function persistPageState() {
-  const payload = {
-    searchQuery: searchQuery.value,
-    selectedProductId: getSelectedFilteredProductId(),
-  }
-
-  sessionStorage.setItem(GUDANG_CEK_SEMUA_STATE_KEY, JSON.stringify(payload))
+  sessionStorage.removeItem(GUDANG_CEK_SEMUA_STATE_KEY)
 }
 
 function restorePageState() {
-  const raw = sessionStorage.getItem(GUDANG_CEK_SEMUA_STATE_KEY)
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw)
-    searchQuery.value = typeof parsed.searchQuery === 'string' ? parsed.searchQuery : ''
-
-    if (parsed.selectedProductId == null) {
-      return { selectedProductId: null }
-    }
-
-    return { selectedProductId: String(parsed.selectedProductId) }
-  } catch (error) {
-    console.warn('[GudangCekSemua] gagal restore state:', error)
-    return null
-  }
+  sessionStorage.removeItem(GUDANG_CEK_SEMUA_STATE_KEY)
+  return null
 }
 
 function restoreSelectedRowByProductId(productId) {
@@ -623,16 +629,15 @@ onMounted(async () => {
     return
   }
 
-  const restored = restorePageState()
-  if (restored?.selectedProductId) {
-    restoreSelectedRowByProductId(restored.selectedProductId)
-  }
+  restorePageState()
+  searchQuery.value = ''
+  selectedRowIndex.value = -1
 
   nextTick(() => { searchInput.value?.focus() })
 })
 
 onUnmounted(() => {
-  persistPageState()
+  sessionStorage.removeItem(GUDANG_CEK_SEMUA_STATE_KEY)
   window.removeEventListener('keydown', onGlobalKey)
 })
 

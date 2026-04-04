@@ -158,7 +158,8 @@
                       v-model.number="item.qty"
                       type="number"
                       class="qty-input"
-                      min="1"
+                      min="0.01"
+                      step="any"
                       @input="updateItemTotal(idx)"
                       @keydown="handleTableKeydown($event, idx, 'qty')"
                     />
@@ -210,7 +211,8 @@
                       v-model.number="newItem.qty"
                       type="number"
                       class="qty-input"
-                      min="1"
+                      min="0.01"
+                      step="any"
                       placeholder="0"
                       @keydown.enter.prevent="focusPrice"
                       @keydown="handleNewItemKeydown($event, 'qty')"
@@ -416,7 +418,7 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
-import { getPurchaseOrderByNo, upsertPurchaseOrder, listPurchaseOrders } from '@/lib/pembelianStore'
+import { getPurchaseOrderByNo, upsertPurchaseOrder } from '@/lib/pembelianStore'
 
 const PEMBELIAN_FLASH_KEY = 'pembelian_flash_notice'
 const EDIT_WORKING_STATE_KEY = 'pembelian_edit_working_state'
@@ -804,7 +806,7 @@ async function searchOrder() {
   items.value = []
 
   try {
-    const row = getPurchaseOrderByNo(searchQuery.value.trim())
+    const row = await getPurchaseOrderByNo(searchQuery.value.trim())
     if (!row) {
       notFound.value = true
       formVisible.value = false
@@ -823,6 +825,11 @@ async function searchOrder() {
     formVisible.value = false
     await nextTick()
     focusFirstItemNameOrNewInput()
+  } catch (err) {
+    console.error('[searchOrder edit pembelian]', err)
+    notFound.value = true
+    formVisible.value = false
+    searchModalError.value = 'Gagal memuat order dari database.'
   } finally {
     loading.value = false
   }
@@ -905,8 +912,8 @@ function addItem() {
     return
   }
 
-  if (!newItem.qty || Number(newItem.qty) < 1) {
-    alert('Qty minimal 1.')
+  if (!newItem.qty || Number(newItem.qty) <= 0) {
+    alert('Qty harus lebih dari 0.')
     return
   }
 
@@ -956,7 +963,7 @@ function saveWorkingState() {
   sessionStorage.setItem(EDIT_WORKING_STATE_KEY, JSON.stringify(payload))
 }
 
-function restoreWorkingState() {
+async function restoreWorkingState() {
   const raw = sessionStorage.getItem(EDIT_WORKING_STATE_KEY)
   if (!raw) return false
 
@@ -978,7 +985,7 @@ function restoreWorkingState() {
       return true
     }
 
-    const row = getPurchaseOrderByNo(state.orderNo)
+    const row = await getPurchaseOrderByNo(state.orderNo)
     if (!row) {
       clearWorkingState()
       return false
@@ -1018,7 +1025,7 @@ function saveOrder() {
   confirmModal.value = true
 }
 
-function persistOrder(status) {
+async function persistOrder(status) {
   if (!order.value) return
 
   const payload = {
@@ -1033,7 +1040,7 @@ function persistOrder(status) {
     subtotal: subtotal.value,
   }
 
-  upsertPurchaseOrder(payload)
+  await upsertPurchaseOrder(payload)
 }
 
 function setFlashToast(summary, detail, severity = 'success', life = 3200) {
@@ -1048,13 +1055,13 @@ function setFlashToast(summary, detail, severity = 'success', life = 3200) {
   )
 }
 
-function confirmSave() {
+async function confirmSave() {
   if (!order.value || saving.value) return
 
   saving.value = true
 
   try {
-    persistOrder('ordered')
+    await persistOrder('ordered')
     confirmModal.value = false
     setFlashToast(
       'Masuk Receiving',
@@ -1076,9 +1083,9 @@ function closeDraftConfirmModal() {
   draftConfirmModal.show = false
 }
 
-function saveAsDraftAndBack() {
+async function saveAsDraftAndBack() {
   if (!order.value) return
-  persistOrder('draft')
+  await persistOrder('draft')
   draftConfirmModal.show = false
   setFlashToast(
     'Draft Tersimpan',
@@ -1217,7 +1224,7 @@ async function selectProduct(product) {
 
 async function resolveDefaultPurchasePrice(productId) {
   const supplierId = order.value?.supplier?.id
-  const historyRows = collectLatestSupplierPrices(productId)
+  const historyRows = await collectLatestSupplierPrices(productId)
   const currentHistory = historyRows.find(row => String(row.supplier_id) === String(supplierId))
 
   if (currentHistory?.harga_beli) {
@@ -1240,31 +1247,39 @@ async function resolveDefaultPurchasePrice(productId) {
   }
 }
 
-function collectLatestSupplierPrices(productId) {
-  const allOrders = listPurchaseOrders()
+async function collectLatestSupplierPrices(productId) {
+  if (!productId) return []
+
+  const { data: historyData, error: historyError } = await supabase
+    .from('purchase_items')
+    .select('unit_cost, purchases(status, supplier_id, supplier_nama, order_date, updated_at, created_at)')
+    .eq('product_id', productId)
+
+  if (historyError) {
+    console.error('[collectLatestSupplierPrices edit pembelian]', historyError)
+    return []
+  }
+
   const entries = []
 
-  for (const po of allOrders) {
-    if (!po || po.status === 'draft') continue
-    const poItems = Array.isArray(po.items) ? po.items : []
-    const supplierName = po.supplier?.nama || '-'
-    const supplierId = po.supplier?.id ?? null
+  for (const row of historyData || []) {
+    const purchase = Array.isArray(row.purchases) ? row.purchases[0] : row.purchases
+    if (!purchase || purchase.status === 'draft') continue
+
+    const supplierName = purchase.supplier_nama || '-'
+    const supplierId = purchase.supplier_id ?? null
     const supplierKey = supplierId != null ? `id:${supplierId}` : `nama:${supplierName}`
-    const orderDate = po.order_date || po.updated_at || po.created_at || null
+    const orderDate = purchase.order_date || purchase.updated_at || purchase.created_at || null
     const time = orderDate ? new Date(orderDate).getTime() : 0
 
-    for (const item of poItems) {
-      if (String(item.product_id) !== String(productId)) continue
-
-      entries.push({
-        supplier_key: supplierKey,
-        supplier_id: supplierId,
-        supplier_nama: supplierName,
-        harga_beli: Number(item.unit_cost || 0),
-        last_order_date: orderDate,
-        time: Number.isFinite(time) ? time : 0,
-      })
-    }
+    entries.push({
+      supplier_key: supplierKey,
+      supplier_id: supplierId,
+      supplier_nama: supplierName,
+      harga_beli: Number(row.unit_cost || 0),
+      last_order_date: orderDate,
+      time: Number.isFinite(time) ? time : 0,
+    })
   }
 
   entries.sort((a, b) => b.time - a.time)
@@ -1295,7 +1310,7 @@ async function openPriceHistoryModal(row, focusEl = null) {
   priceHistoryModal.comparisons = []
 
   const supplierId = order.value?.supplier?.id
-  const historyRows = collectLatestSupplierPrices(row.product_id)
+  const historyRows = await collectLatestSupplierPrices(row.product_id)
 
   const comparisons = historyRows
     .map(item => ({
@@ -1355,10 +1370,10 @@ function formatDateDisplay(value) {
   return `${dd}-${mm}-${yyyy}`
 }
 
-onMounted(() => {
+onMounted(async () => {
   pageEl.value?.focus()
 
-  const restored = restoreWorkingState()
+  const restored = await restoreWorkingState()
   if (restored && order.value) {
     nextTick(() => focusFirstItemNameOrNewInput())
   }
@@ -1367,7 +1382,9 @@ onMounted(() => {
   if (!restored && pendingSearchNo) {
     searchQuery.value = pendingSearchNo
     sessionStorage.removeItem('pembelian_edit_search_no_order')
-    nextTick(() => submitSearchModal())
+    nextTick(async () => {
+      await submitSearchModal()
+    })
   } else if (!restored) {
     nextTick(() => searchInput.value?.focus())
   }

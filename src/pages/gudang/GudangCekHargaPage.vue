@@ -155,9 +155,9 @@
               <th class="col-no">#</th>
               <th class="col-kode">Kode</th>
               <th class="col-nama">Nama Barang</th>
-              <th class="col-stok">Stok</th>
-              <th class="col-supplier">Supplier</th>
-              <th class="col-harga">Harga Beli</th>
+              <th class="col-stok" style="text-align: center;">Stok Gudang</th>
+              <th class="col-supplier" style="text-align: center;">Supplier (Stok)</th>
+              <th class="col-harga" style="text-align: center;">Harga Beli</th>
             </tr>
           </thead>
           <tbody v-if="loading">
@@ -183,7 +183,7 @@
                 class="g-row"
                 :class="{
                   'g-row--active': selectedRowIndex === i,
-                  'g-row--lowstok': price.stok <= 3,
+                  'g-row--lowstok': Number(row.stok || 0) <= 3,
                 }"
                 @click="selectedRowIndex = i"
                 @dblclick="viewDetail(row)"
@@ -197,15 +197,18 @@
                 <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-nama">
                   {{ row.nama }}
                 </td>
-                <td class="col-stok">
-                  <span class="stok-val" :class="{ 'stok-low': price.stok <= 3 }">
-                    {{ price.stok }} {{ row.satuan }}
+                <td v-if="priceIdx === 0" :rowspan="row.prices.length" class="col-stok" style="text-align: center; vertical-align: middle;">
+                  <span class="stok-val" :class="{ 'stok-low': Number(row.stok || 0) <= 3 }">
+                    {{ Number(row.stok || 0) }} {{ row.satuan }}
                   </span>
                 </td>
-                <td class="col-supplier">
-                  <span class="supplier-chip">{{ price.supplier_nama }}</span>
+                <td class="col-supplier" style="text-align: center;">
+                  <span class="supplier-chip">
+                    {{ price.supplier_nama }}
+                    <template v-if="price.stok != null"> · {{ Number(price.stok || 0) }} {{ row.satuan }}</template>
+                  </span>
                 </td>
-                <td class="col-harga">
+                <td class="col-harga" style="text-align: center;">
                   <span class="harga-val">{{ price.is_placeholder ? '-' : formatRp(price.harga_beli) }}</span>
                 </td>
               </tr>
@@ -224,7 +227,7 @@
       <Transition name="modal-fade">
         <div v-if="barangModal.show" class="modal-backdrop" @click="barangModal.show = false">
           <div class="modal-box modal-lg" @click.stop>
-            <div class="modal-header">
+            <div class="modal-header modal-header--center">
               <h3 class="modal-title">Pilih Barang</h3>
               <button class="modal-close" @click="barangModal.show = false">
                 <i class="pi pi-times"></i>
@@ -274,7 +277,7 @@
       <Transition name="modal-fade">
         <div v-if="customerModal.show" class="modal-backdrop" @click="customerModal.show = false">
           <div class="modal-box modal-lg" @click.stop>
-            <div class="modal-header">
+            <div class="modal-header modal-header--center">
               <h3 class="modal-title">Pilih Customer</h3>
               <button class="modal-close" @click="customerModal.show = false">
                 <i class="pi pi-times"></i>
@@ -400,6 +403,7 @@ const focusedField   = ref('')
 const lastSearch     = ref('')
 const hasSearched    = ref(false)
 const loading        = ref(false)
+const productsHasFotoUrlsColumn = ref(true)
 
 // ── State: customer modal ──────────────────────────────────
 const customerModal = reactive({
@@ -483,7 +487,6 @@ const lightbox = reactive({
   photos: [],
   currentIndex: 0,
 })
-const deleteModal = reactive({ show: false, row: null, saving: false })
 
 // ───────────────────────────────────────────────────────────
 // UTILITY
@@ -498,6 +501,133 @@ function formatDate(d) {
   })
 }
 
+function isMissingFotoUrlsColumnError(error) {
+  const code = String(error?.code || '').toLowerCase()
+  const message = String(error?.message || '').toLowerCase()
+  const details = String(error?.details || '').toLowerCase()
+  const hint = String(error?.hint || '').toLowerCase()
+
+  if (code === '42703') return true
+  return (
+    message.includes('foto_urls') ||
+    details.includes('foto_urls') ||
+    hint.includes('foto_urls')
+  )
+}
+
+function normalizeSearch(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFKC')
+    .trim()
+}
+
+function normalizeLooseSearch(value) {
+  return normalizeSearch(value)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function normalizeCompactSearch(value) {
+  return normalizeSearch(value).replace(/[^a-z0-9]+/g, '')
+}
+
+function buildProductSearchTokens(query) {
+  const loose = normalizeLooseSearch(query)
+  if (!loose) return []
+  const tokens = loose.split(' ').filter(Boolean)
+  const preferred = tokens.filter(t => t.length >= 2)
+  return preferred.length ? preferred : tokens
+}
+
+function buildProductSearchConditions(query) {
+  const tokens = buildProductSearchTokens(query)
+  if (!tokens.length) {
+    const raw = normalizeSearch(query)
+    if (!raw) return []
+    return [`nama.ilike.%${raw}%`, `kode.ilike.%${raw}%`]
+  }
+
+  const conditions = []
+  for (const token of tokens) {
+    const patterns = [`%${token}%`]
+    if (token.length >= 2 && token.length <= 6) {
+      patterns.push(`%${token.split('').join('%')}%`)
+    }
+
+    for (const pattern of patterns) {
+      conditions.push(`nama.ilike.${pattern}`)
+      conditions.push(`kode.ilike.${pattern}`)
+    }
+  }
+
+  return Array.from(new Set(conditions))
+}
+
+function rankProductsByQuery(rows, query) {
+  const q = normalizeSearch(query)
+  if (!q) return rows
+
+  const qLoose = normalizeLooseSearch(q)
+  const qCompact = normalizeCompactSearch(q)
+  const qTokens = buildProductSearchTokens(q)
+  const matches = []
+
+  rows.forEach((row, idx) => {
+    const namaRaw = normalizeSearch(row.nama)
+    const namaLoose = normalizeLooseSearch(row.nama)
+    const namaCompact = normalizeCompactSearch(row.nama)
+    const allRaw = normalizeSearch(`${row.kode || ''} ${row.nama || ''}`)
+    const allLoose = normalizeLooseSearch(`${row.kode || ''} ${row.nama || ''}`)
+    const allCompact = normalizeCompactSearch(`${row.kode || ''} ${row.nama || ''}`)
+
+    const namaStartsWith = namaRaw.startsWith(q) || namaLoose.startsWith(qLoose) || (qCompact && namaCompact.startsWith(qCompact))
+    const allStartsWith = allRaw.startsWith(q) || allLoose.startsWith(qLoose) || (qCompact && allCompact.startsWith(qCompact))
+    const namaContains = namaRaw.includes(q) || namaLoose.includes(qLoose) || (qCompact && namaCompact.includes(qCompact))
+    const allContains = allRaw.includes(q) || allLoose.includes(qLoose) || (qCompact && allCompact.includes(qCompact))
+    const tokenHitCount = qTokens.reduce((count, token) => {
+      const hit = namaLoose.includes(token) || allLoose.includes(token) || namaCompact.includes(token) || allCompact.includes(token)
+      return hit ? count + 1 : count
+    }, 0)
+    const allTokenMatch = qTokens.length > 0 && tokenHitCount === qTokens.length
+    const partialTokenMatch = tokenHitCount > 0
+
+    let rank = 9
+    if (namaStartsWith) rank = 0
+    else if (allStartsWith) rank = 1
+    else if (namaContains) rank = 2
+    else if (allContains) rank = 3
+    else if (allTokenMatch) rank = 4
+    else if (partialTokenMatch) rank = 5
+
+    const namaPos = qLoose ? namaLoose.indexOf(qLoose) : -1
+    const allPos = qLoose ? allLoose.indexOf(qLoose) : -1
+    const compactPosNama = qCompact ? namaCompact.indexOf(qCompact) : -1
+    const compactPosAll = qCompact ? allCompact.indexOf(qCompact) : -1
+    const phrasePos = namaPos >= 0
+      ? namaPos
+      : (allPos >= 0
+          ? allPos
+          : (compactPosNama >= 0
+              ? compactPosNama
+              : (compactPosAll >= 0 ? compactPosAll : Number.MAX_SAFE_INTEGER)))
+
+    matches.push({ row, rank, phrasePos, idx, namaLoose, tokenHitCount })
+  })
+
+  matches.sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank
+    if (a.tokenHitCount !== b.tokenHitCount) return b.tokenHitCount - a.tokenHitCount
+    if (a.phrasePos !== b.phrasePos) return a.phrasePos - b.phrasePos
+    const namaCompare = a.namaLoose.localeCompare(b.namaLoose)
+    if (namaCompare !== 0) return namaCompare
+    return a.idx - b.idx
+  })
+
+  return matches.map(m => m.row)
+}
+
 // ───────────────────────────────────────────────────────────
 // GLOBAL KEYBOARD HANDLER
 // ───────────────────────────────────────────────────────────
@@ -510,7 +640,7 @@ function onGlobalKey(e) {
     return
   }
 
-  if (modal.show || deleteModal.show) return
+  if (modal.show) return
 
   switch (e.key) {
     case 'F1':
@@ -574,8 +704,7 @@ function onGlobalKey(e) {
 
 function onModalEscKey(e) {
   if (e.key !== 'Escape') return
-  if (deleteModal.show)   deleteModal.show = false
-  else if (modal.show)    closeModal()
+  if (modal.show)    closeModal()
 }
 
 // ───────────────────────────────────────────────────────────
@@ -639,23 +768,30 @@ function onCustomerInput() {
 async function openBarangModal() {
   const q = searchBarang.value.trim()
   if (!q) return
+
+  const searchConditions = buildProductSearchConditions(q)
+  if (!searchConditions.length) return
   
   // Fetch barang yang cocok (exclude archived)
-  const { data, error } = await supabase
+  let query = supabase
     .from('products')
     .select('*')
-    .or(`nama.ilike.%${q}%,kode.ilike.%${q}%`)
     .eq('aktif', true)
     .eq('is_archived', false)
     .order('nama')
+
+  query = query.or(searchConditions.join(','))
+
+  const { data, error } = await query
   
   if (error) {
     console.error('[openBarangModal]', error)
     return
   }
   
-  barangModal.results = data || []
-  barangModal.filtered = data || []
+  const ranked = rankProductsByQuery(data || [], q)
+  barangModal.results = ranked
+  barangModal.filtered = ranked
   barangModal.query = ''
   barangModal.selectedIndex = 0
   barangModal.show = true
@@ -797,6 +933,14 @@ async function doSearch(productId = null) {
   const q = searchBarang.value.trim()
   if (!productId && !q) return
 
+  const searchConditions = buildProductSearchConditions(q)
+  if (!productId && !searchConditions.length) {
+    allRows.value = []
+    hasSearched.value = true
+    lastSearch.value = q
+    return
+  }
+
   loading.value          = true
   hasSearched.value      = true
   lastSearch.value       = q
@@ -805,15 +949,25 @@ async function doSearch(productId = null) {
   allRows.value          = []
 
   try {
-    let query = supabase
-      .from('products')
-      .select(`
+    const selectFields = productsHasFotoUrlsColumn.value
+      ? `
         id, kode, nama, deskripsi, stok, satuan, foto_urls,
         product_prices (
           id, harga_beli, aktif, stok,
           suppliers ( id, nama )
         )
-      `)
+      `
+      : `
+        id, kode, nama, deskripsi, stok, satuan,
+        product_prices (
+          id, harga_beli, aktif, stok,
+          suppliers ( id, nama )
+        )
+      `
+
+    let query = supabase
+      .from('products')
+      .select(selectFields)
       .eq('aktif', true)
       .eq('is_archived', false)
       .order('kode')
@@ -821,16 +975,47 @@ async function doSearch(productId = null) {
     if (productId) {
       query = query.eq('id', productId)
     } else {
-      query = query.or(`nama.ilike.%${q}%,kode.ilike.%${q}%`)
+      query = query.or(searchConditions.join(','))
     }
 
-    const { data, error } = await query
+    let { data, error } = await query
+
+    if (error && productsHasFotoUrlsColumn.value && isMissingFotoUrlsColumnError(error)) {
+      productsHasFotoUrlsColumn.value = false
+
+      let fallbackQuery = supabase
+        .from('products')
+        .select(`
+          id, kode, nama, deskripsi, stok, satuan,
+          product_prices (
+            id, harga_beli, aktif, stok,
+            suppliers ( id, nama )
+          )
+        `)
+        .eq('aktif', true)
+        .eq('is_archived', false)
+        .order('kode')
+
+      if (productId) {
+        fallbackQuery = fallbackQuery.eq('id', productId)
+      } else {
+        fallbackQuery = fallbackQuery.or(searchConditions.join(','))
+      }
+
+      const fallbackResult = await fallbackQuery
+      data = fallbackResult.data
+      error = fallbackResult.error
+    }
+
     if (error) throw error
+
+    const baseRows = data ?? []
+    const rankedRows = productId ? baseRows : rankProductsByQuery(baseRows, q)
 
     // Group per product: 1 row per product dengan array prices
     const grouped = []
-    for (const p of data ?? []) {
-      const activePrices = p.product_prices?.filter(pp => pp.aktif) ?? []
+    for (const p of rankedRows) {
+      const activePrices = p.product_prices?.filter(pp => pp.aktif && Number(pp.stok || 0) > 0) ?? []
       const prices = activePrices.length
         ? activePrices.map(pp => ({
             id: pp.id,
@@ -843,9 +1028,9 @@ async function doSearch(productId = null) {
         : [{
             id: `no-price-${p.id}`,
             supplier_id: null,
-            supplier_nama: 'Belum ada supplier',
+            supplier_nama: '-',
             harga_beli: 0,
-            stok: p.stok ?? 0,
+            stok: null,
             is_placeholder: true,
           }]
 
@@ -856,7 +1041,7 @@ async function doSearch(productId = null) {
         deskripsi: p.deskripsi,
         stok: p.stok,
         satuan: p.satuan,
-        foto_urls: p.foto_urls ?? [],
+        foto_urls: productsHasFotoUrlsColumn.value ? (p.foto_urls ?? []) : [],
         prices: prices,  // array of supplier prices
       })
     }
@@ -1415,94 +1600,18 @@ function nextPhoto() {
   }
 }
 
-// ───────────────────────────────────────────────────────────
-// DELETE
-// ───────────────────────────────────────────────────────────
-function openDelete(row) {
-  if (!row) return
-  deleteModal.row = row; deleteModal.saving = false; deleteModal.show = true
-}
-
-async function doDelete() {
-  deleteModal.saving = true
-  try {
-    const { error } = await supabase
-      .from('products').update({ aktif: false }).eq('id', deleteModal.row.product_id)
-    if (error) throw error
-    deleteModal.show = false
-    if (hasSearched.value) await doSearch()
-  } catch (err) {
-    console.error(err)
-  } finally {
-    deleteModal.saving = false
-  }
-}
-
 function getSelectedPagedProductId() {
   if (selectedRowIndex.value < 0) return null
   return pagedRows.value[selectedRowIndex.value]?.product_id ?? null
 }
 
 function persistCekHargaState() {
-  const payload = {
-    searchBarang: searchBarang.value,
-    searchCustomer: searchCustomer.value,
-    selectedCustomer: selectedCustomer.value
-      ? {
-          id: selectedCustomer.value.id,
-          kode: selectedCustomer.value.kode,
-          nama: selectedCustomer.value.nama,
-        }
-      : null,
-    hasSearched: hasSearched.value,
-    lastSearch: lastSearch.value,
-    currentPage: currentPage.value,
-    selectedProductId: getSelectedPagedProductId(),
-  }
-
-  sessionStorage.setItem(GUDANG_CEK_HARGA_STATE_KEY, JSON.stringify(payload))
+  sessionStorage.removeItem(GUDANG_CEK_HARGA_STATE_KEY)
 }
 
 function restoreCekHargaState() {
-  const raw = sessionStorage.getItem(GUDANG_CEK_HARGA_STATE_KEY)
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw)
-
-    searchBarang.value = typeof parsed.searchBarang === 'string' ? parsed.searchBarang : ''
-    searchCustomer.value = typeof parsed.searchCustomer === 'string' ? parsed.searchCustomer : ''
-    hasSearched.value = Boolean(parsed.hasSearched)
-    lastSearch.value = typeof parsed.lastSearch === 'string' ? parsed.lastSearch : ''
-
-    const restoredCurrentPage = Number.isInteger(parsed.currentPage) && parsed.currentPage > 0
-      ? parsed.currentPage
-      : 1
-
-    const savedCustomer = parsed.selectedCustomer
-    if (savedCustomer && savedCustomer.id != null) {
-      selectedCustomer.value = {
-        id: savedCustomer.id,
-        kode: savedCustomer.kode || '',
-        nama: savedCustomer.nama || '',
-      }
-
-      if (!searchCustomer.value && selectedCustomer.value.nama) {
-        searchCustomer.value = selectedCustomer.value.nama
-      }
-    } else {
-      selectedCustomer.value = null
-    }
-
-    return {
-      shouldSearch: hasSearched.value && Boolean(searchBarang.value.trim()),
-      currentPage: restoredCurrentPage,
-      selectedProductId: parsed.selectedProductId == null ? null : String(parsed.selectedProductId),
-    }
-  } catch (error) {
-    console.warn('[GudangCekHarga] gagal restore state:', error)
-    return null
-  }
+  sessionStorage.removeItem(GUDANG_CEK_HARGA_STATE_KEY)
+  return null
 }
 
 function applyCekHargaSelection(productId) {
@@ -1537,26 +1646,18 @@ onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   window.addEventListener('keydown', onLightboxKey)
 
-  const restored = restoreCekHargaState()
-  if (restored?.shouldSearch) {
-    await doSearch()
-
-    currentPage.value = Math.min(Math.max(restored.currentPage, 1), totalPages.value)
-
-    if (restored.selectedProductId) {
-      applyCekHargaSelection(restored.selectedProductId)
-    }
-
-    if (selectedCustomer.value && pagedRows.value[selectedRowIndex.value]) {
-      await fetchCustomerHistory(selectedCustomer.value.id, pagedRows.value[selectedRowIndex.value].product_id)
-    }
-  }
+  restoreCekHargaState()
+  clearBarang()
+  searchCustomer.value = ''
+  selectedCustomer.value = null
+  currentPage.value = 1
+  selectedRowIndex.value = -1
 
   nextTick(() => inputBarang.value?.focus())
 })
 
 onUnmounted(() => {
-  persistCekHargaState()
+  sessionStorage.removeItem(GUDANG_CEK_HARGA_STATE_KEY)
   window.removeEventListener('keydown', onGlobalKey)
   window.removeEventListener('keydown', onLightboxKey)
   clearTimeout(barangTimer)

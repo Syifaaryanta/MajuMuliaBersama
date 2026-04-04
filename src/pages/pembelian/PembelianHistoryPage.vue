@@ -545,8 +545,13 @@ function handleKeydown(e) {
   }
 }
 
-onMounted(() => {
-  orders.value = listPurchaseOrders()
+onMounted(async () => {
+  try {
+    orders.value = await listPurchaseOrders()
+  } catch (err) {
+    console.error('[listPurchaseOrders history pembelian]', err)
+    orders.value = []
+  }
   setDefaultDateRange()
   openFilterModal()
   pageEl.value?.focus()

@@ -75,6 +75,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { supabase } from '@/lib/supabase'
 import { listPurchaseOrders } from '@/lib/pembelianStore'
 import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
@@ -129,14 +130,19 @@ const menuOptions = [
   }
 ]
 
-function loadInfoStats() {
-  const orders = listPurchaseOrders()
+async function loadInfoStats() {
+  const orders = await listPurchaseOrders()
   infoStats.value.totalOrder = orders.length
   infoStats.value.sudahDiterima = orders.filter(o => o.status === 'received').length
   infoStats.value.menungguTerima = Math.max(0, orders.length - infoStats.value.sudahDiterima)
-  infoStats.value.supplierAktif = new Set(
-    orders.map(o => o.supplier?.nama).filter(Boolean)
-  ).size
+
+  const { count: supplierCount, error: supplierError } = await supabase
+    .from('suppliers')
+    .select('id', { count: 'exact', head: true })
+    .eq('aktif', true)
+
+  if (supplierError) throw supplierError
+  infoStats.value.supplierAktif = Number(supplierCount || 0)
 }
 
 function selectOption(index) {
@@ -198,8 +204,12 @@ function handleKeydown(e) {
   }
 }
 
-onMounted(() => {
-  loadInfoStats()
+onMounted(async () => {
+  try {
+    await loadInfoStats()
+  } catch (err) {
+    console.error('[loadInfoStats pembelian]', err)
+  }
   pageEl.value?.focus()
   window.addEventListener('keydown', handleKeydown)
 

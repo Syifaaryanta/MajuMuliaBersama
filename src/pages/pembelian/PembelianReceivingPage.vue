@@ -326,8 +326,9 @@ function focusItemRow(idx = 0) {
   })
 }
 
-function listPendingOrdersOnly() {
-  return listPurchaseOrders()
+async function listPendingOrdersOnly() {
+  const orders = await listPurchaseOrders()
+  return orders
     .filter(row => row?.no_order && row.status !== 'draft')
     .sort((a, b) => {
       const timeA = new Date(a.updated_at || a.created_at || a.order_date || 0).getTime()
@@ -448,8 +449,9 @@ function pendingStatusClass(order) {
   return 'status-chip--none'
 }
 
-function refreshPendingOrders() {
-  pendingOrders.value = applyPendingFilters(listPendingOrdersOnly())
+async function refreshPendingOrders() {
+  const dbOrders = await listPendingOrdersOnly()
+  pendingOrders.value = applyPendingFilters(dbOrders)
   pendingRowRefs.value = {}
 
   if (!pendingOrders.value.length) {
@@ -483,7 +485,7 @@ function focusFilterSupplier() {
   nextTick(() => filterSupplierInput.value?.focus?.())
 }
 
-function applyFiltersAndCloseModal() {
+async function applyFiltersAndCloseModal() {
   const { start, end } = getFilterDateRange()
   if (start && end && start > end) {
     toast.add({
@@ -496,7 +498,7 @@ function applyFiltersAndCloseModal() {
     return
   }
 
-  refreshPendingOrders()
+  await refreshPendingOrders()
   hasAppliedFilter.value = true
   filterModal.value.show = false
   nextTick(() => {
@@ -533,8 +535,16 @@ function onPendingRowClick(idx) {
   focusPendingRow(idx)
 }
 
-function openOrderModal(noOrder, idx = 0) {
-  const order = getPurchaseOrderByNo(noOrder)
+async function openOrderModal(noOrder, idx = 0) {
+  let order = null
+  try {
+    order = await getPurchaseOrderByNo(noOrder)
+  } catch (err) {
+    console.error('[openOrderModal receiving]', err)
+    alert('Gagal memuat order dari database: ' + err.message)
+    return
+  }
+
   if (!order || order.status === 'draft') return
 
   selectedPendingRow.value = idx
@@ -545,7 +555,7 @@ function openOrderModal(noOrder, idx = 0) {
   focusItemRow(0)
 }
 
-function loadOrder() {
+async function loadOrder() {
   const typedNo = searchQuery.value.trim()
   if (!typedNo) return
 
@@ -555,7 +565,7 @@ function loadOrder() {
     return
   }
 
-  openOrderModal(typedNo, idx)
+  await openOrderModal(typedNo, idx)
   searchQuery.value = ''
 }
 
@@ -572,7 +582,7 @@ function goBackToMenu() {
   router.push('/pembelian')
 }
 
-function persistOrderFromChecks(nextChecks) {
+async function persistOrderFromChecks(nextChecks) {
   if (!poModal.value.order) return
 
   const receivingValidations = {}
@@ -590,16 +600,16 @@ function persistOrderFromChecks(nextChecks) {
 
   const allValidated = nextChecks.length > 0 && nextChecks.every(row => row.validated)
 
-  upsertPurchaseOrder({
+  await upsertPurchaseOrder({
     ...poModal.value.order,
     status: allValidated ? 'received' : 'ordered',
     received_at: allValidated ? now : null,
     receiving_validations: receivingValidations,
     receiving_validated_at: receivingValidatedAt,
-    items: nextChecks.map(({ validated, checked, receiving_key, received_at, ...rest }) => ({ ...rest })),
+    items: nextChecks.map(({ validated, checked, received_at, ...rest }) => ({ ...rest })),
   })
 
-  const latest = getPurchaseOrderByNo(poModal.value.order.no_order)
+  const latest = await getPurchaseOrderByNo(poModal.value.order.no_order)
   if (latest) {
     poModal.value.order = latest
   }
@@ -607,7 +617,8 @@ function persistOrderFromChecks(nextChecks) {
 
 async function applyReceivingForItem(item) {
   const supplierId = poModal.value.order?.supplier?.id
-  if (!supplierId) return
+  const qty = Number(item?.qty || 0)
+  if (!supplierId || qty <= 0) return
 
   const { data: currentProduct, error: productGetError } = await supabase
     .from('products')
@@ -617,31 +628,34 @@ async function applyReceivingForItem(item) {
 
   if (productGetError) throw productGetError
 
-  const { error: productUpdateError } = await supabase
-    .from('products')
-    .update({ stok: Number(currentProduct?.stok || 0) + Number(item.qty) })
-    .eq('id', item.product_id)
-
-  if (productUpdateError) throw productUpdateError
-
-  const { data: existingPrice, error: priceGetError } = await supabase
+  const { data: priceRows, error: priceRowsError } = await supabase
     .from('product_prices')
-    .select('id, stok')
+    .select('id, supplier_id, stok, aktif')
     .eq('product_id', item.product_id)
-    .eq('supplier_id', supplierId)
-    .single()
 
-  if (priceGetError && priceGetError.code !== 'PGRST116') throw priceGetError
+  if (priceRowsError) throw priceRowsError
 
-  if (existingPrice?.id) {
+  const allPriceRows = Array.isArray(priceRows) ? priceRows : []
+  const activeRows = allPriceRows.filter(row => row.aktif !== false)
+  const totalActiveStok = activeRows.reduce((sum, row) => sum + Number(row.stok || 0), 0)
+  const productStokBefore = Number(currentProduct?.stok || 0)
+
+  // Jika ada selisih stok lama antara products vs product_prices,
+  // injeksikan selisih ke supplier baris ini agar trigger tetap menghasilkan stok yang benar.
+  const stokGap = Math.max(0, productStokBefore - totalActiveStok)
+
+  const targetRow = allPriceRows.find(row => String(row.supplier_id) === String(supplierId))
+
+  if (targetRow?.id) {
+    const nextSupplierStok = Number(targetRow.stok || 0) + qty + stokGap
     const { error: priceUpdateError } = await supabase
       .from('product_prices')
       .update({
-        stok: Number(existingPrice.stok || 0) + Number(item.qty),
+        stok: nextSupplierStok,
         harga_beli: Number(item.unit_cost || 0),
         aktif: true,
       })
-      .eq('id', existingPrice.id)
+      .eq('id', targetRow.id)
 
     if (priceUpdateError) throw priceUpdateError
   } else {
@@ -650,7 +664,7 @@ async function applyReceivingForItem(item) {
       .insert({
         product_id: item.product_id,
         supplier_id: supplierId,
-        stok: Number(item.qty),
+        stok: qty + stokGap,
         harga_beli: Number(item.unit_cost || 0),
         aktif: true,
       })
@@ -662,25 +676,7 @@ async function applyReceivingForItem(item) {
 async function rollbackReceivingForItem(item) {
   const supplierId = poModal.value.order?.supplier?.id
   const qty = Number(item?.qty || 0)
-  if (qty <= 0) return
-
-  const { data: currentProduct, error: productGetError } = await supabase
-    .from('products')
-    .select('stok')
-    .eq('id', item.product_id)
-    .single()
-
-  if (productGetError) throw productGetError
-
-  const nextProductStok = Math.max(0, Number(currentProduct?.stok || 0) - qty)
-  const { error: productUpdateError } = await supabase
-    .from('products')
-    .update({ stok: nextProductStok })
-    .eq('id', item.product_id)
-
-  if (productUpdateError) throw productUpdateError
-
-  if (!supplierId) return
+  if (!supplierId || qty <= 0) return
 
   const { data: existingPrice, error: priceGetError } = await supabase
     .from('product_prices')
@@ -690,7 +686,9 @@ async function rollbackReceivingForItem(item) {
     .single()
 
   if (priceGetError && priceGetError.code !== 'PGRST116') throw priceGetError
-  if (!existingPrice?.id) return
+  if (!existingPrice?.id) {
+    throw new Error('Data stok supplier tidak ditemukan untuk rollback receiving.')
+  }
 
   const nextPriceStok = Math.max(0, Number(existingPrice.stok || 0) - qty)
   const { error: priceUpdateError } = await supabase
@@ -780,8 +778,9 @@ async function confirmFinalize() {
     })
 
     checks.value = nextChecks
-    persistOrderFromChecks(nextChecks)
-    refreshPendingOrders()
+    await persistOrderFromChecks(nextChecks)
+
+    await refreshPendingOrders()
     closeFinalizeConfirm()
     closeOrderStep()
 
@@ -843,6 +842,8 @@ async function rollbackValidatedItemsFromWarehouse(order) {
   const items = Array.isArray(order?.items) ? order.items : []
   const validations = order?.receiving_validations || {}
 
+  if (!supplierId) return
+
   for (let idx = 0; idx < items.length; idx += 1) {
     const item = items[idx]
     const key = getPurchaseReceivingItemKey(item, idx)
@@ -850,24 +851,6 @@ async function rollbackValidatedItemsFromWarehouse(order) {
 
     const qty = Number(item.qty || 0)
     if (qty <= 0) continue
-
-    const { data: currentProduct, error: productGetError } = await supabase
-      .from('products')
-      .select('stok')
-      .eq('id', item.product_id)
-      .single()
-
-    if (productGetError) throw productGetError
-
-    const nextStok = Math.max(0, Number(currentProduct?.stok || 0) - qty)
-    const { error: productUpdateError } = await supabase
-      .from('products')
-      .update({ stok: nextStok })
-      .eq('id', item.product_id)
-
-    if (productUpdateError) throw productUpdateError
-
-    if (!supplierId) continue
 
     const { data: existingPrice, error: priceGetError } = await supabase
       .from('product_prices')
@@ -877,7 +860,9 @@ async function rollbackValidatedItemsFromWarehouse(order) {
       .single()
 
     if (priceGetError && priceGetError.code !== 'PGRST116') throw priceGetError
-    if (!existingPrice?.id) continue
+    if (!existingPrice?.id) {
+      throw new Error('Data stok supplier tidak ditemukan untuk rollback order receiving.')
+    }
 
     const nextPriceStok = Math.max(0, Number(existingPrice.stok || 0) - qty)
     const { error: priceUpdateError } = await supabase
@@ -896,19 +881,19 @@ async function confirmDeleteRow() {
   closeDeleteConfirm()
 
   if (mode === 'order') {
-    const order = getPurchaseOrderByNo(orderNo)
+    const order = await getPurchaseOrderByNo(orderNo)
     if (!order?.no_order) return
 
     validating.value = true
     try {
       await rollbackValidatedItemsFromWarehouse(order)
-      removePurchaseOrder(order.no_order)
+      await removePurchaseOrder(order.no_order)
 
       if (poModal.value.order?.no_order === order.no_order) {
         closeOrderStep()
       }
 
-      refreshPendingOrders()
+      await refreshPendingOrders()
       selectedPendingRow.value = Math.max(0, Math.min(idx, pendingOrders.value.length - 1))
       focusPendingRow(selectedPendingRow.value)
     } catch (err) {
@@ -930,17 +915,20 @@ async function confirmDeleteRow() {
 
   const nextChecks = checks.value.filter((_, i) => i !== idx)
   if (!nextChecks.length) {
-    removePurchaseOrder(poModal.value.order.no_order)
+    const currentNoOrder = poModal.value.order.no_order
+    await removePurchaseOrder(currentNoOrder)
+
     poModal.value = { show: false, order: null }
     checks.value = []
     selectedRow.value = 0
-    refreshPendingOrders()
+    await refreshPendingOrders()
     return
   }
 
   checks.value = nextChecks
-  persistOrderFromChecks(nextChecks)
-  refreshPendingOrders()
+  await persistOrderFromChecks(nextChecks)
+
+  await refreshPendingOrders()
   focusItemRow(Math.min(idx, nextChecks.length - 1))
 }
 
@@ -1053,7 +1041,7 @@ function handleKeydown(e) {
     e.preventDefault()
     const target = pendingOrders.value[selectedPendingRow.value]
     if (target?.no_order) {
-      openOrderModal(target.no_order, selectedPendingRow.value)
+      void openOrderModal(target.no_order, selectedPendingRow.value)
     }
     return
   }

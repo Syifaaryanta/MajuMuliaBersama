@@ -224,7 +224,12 @@ const ALL_NAV = [
 
 const navItems = computed(() => {
   const role   = authStore.userRole
-  const allowed = role ? (ROLE_ROUTES[role] ?? []) : []
+  if (!role) {
+    console.warn('[MainLayout] userRole kosong, pakai fallback ALL_NAV sementara')
+    return ALL_NAV
+  }
+
+  const allowed = ROLE_ROUTES[role] ?? []
   
   // Debug logging
   console.log('🔍 [MainLayout] userRole:', role)

@@ -111,6 +111,36 @@
 .meta-filter   { color: #3b82f6; }
 .meta-selected { color: #059669; }
 
+.cs-kbd-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .55rem .8rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 9px;
+  font-size: .72rem;
+  color: #475569;
+}
+
+.cs-kbd-bar span {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.cs-kbd-bar kbd {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: .64rem;
+  font-family: 'Courier New', monospace;
+  color: #334155;
+  font-weight: 700;
+}
+
 .pagination-wrap {
   display: flex;
   align-items: center;
@@ -164,10 +194,48 @@
 .col-stok     { width: 110px; text-align: center; }
 .col-supplier { width: 180px; }
 .col-harga    { width: 145px; text-align: right; }
+.col-aksi     { width: 76px; text-align: center; }
 
 /* Align th text to match td alignment */
 .cs-table thead .col-stok    { text-align: center; }
 .cs-table thead .col-harga   { text-align: right; }
+.cs-table thead .col-aksi    { text-align: center; }
+
+.cs-row-actions {
+  display: inline-flex;
+  flex-direction: row;
+  gap: .28rem;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity .14s ease, transform .14s ease;
+}
+
+.cs-row-actions.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.cs-row-actions .btn-to-detail,
+.cs-row-actions .btn-archive-cs {
+  width: 1.75rem;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  gap: 0;
+  border-radius: 7px;
+  justify-content: center;
+}
+
+.cs-row-actions .btn-to-detail i,
+.cs-row-actions .btn-archive-cs i {
+  font-size: .72rem;
+}
 
 .row-num {
   font-size: .72rem;
@@ -447,6 +515,10 @@
     padding: .6rem .75rem;
   }
 
+  .cs-kbd-bar {
+    display: none;
+  }
+
   .cs-table {
     min-width: 0;
     width: 100%;
@@ -461,6 +533,7 @@
   .cs-table .col-stok { width: 72px; }
   .cs-table .col-supplier { width: 98px; }
   .cs-table .col-harga { width: 88px; }
+  .cs-table .col-aksi { width: 52px; }
 
   .cs-table th,
   .cs-table td {
@@ -480,6 +553,24 @@
     white-space: nowrap;
     font-size: .62rem;
     padding: .1rem .3rem;
+  }
+
+  .cs-row-actions {
+    gap: .2rem;
+  }
+
+  .cs-row-actions .btn-to-detail,
+  .cs-row-actions .btn-archive-cs {
+    width: 1.5rem;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    font-size: .62rem;
+  }
+
+  .cs-row-actions .btn-to-detail i,
+  .cs-row-actions .btn-archive-cs i {
+    font-size: .62rem;
   }
 
   .deskripsi-text {

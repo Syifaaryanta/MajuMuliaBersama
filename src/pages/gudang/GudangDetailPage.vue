@@ -44,7 +44,7 @@
             <div class="hero-stat">
               <i class="pi pi-box"></i>
               <div>
-                <span class="hs-label">Total Stok</span>
+                <span class="hs-label">Stok Gudang</span>
                 <span class="hs-value" :class="{ 'hs-value--low': totalStok <= 3 }">
                   {{ totalStok }} <small>{{ product.satuan }}</small>
                 </span>
@@ -53,7 +53,7 @@
             <div class="hero-stat">
               <i class="pi pi-users"></i>
               <div>
-                <span class="hs-label">Supplier</span>
+                <span class="hs-label">Supplier Aktif</span>
                 <span class="hs-value">{{ product.prices?.length ?? 0 }}</span>
               </div>
             </div>
@@ -130,7 +130,7 @@
               </div>
               <div class="pc-body">
                 <div class="pc-item">
-                  <span class="pc-label">Stok</span>
+                  <span class="pc-label">Stok Supplier</span>
                   <span class="pc-value stok-val" :class="{ 'stok-low': price.stok <= 3 }">
                     {{ price.stok }} {{ product.satuan }}
                   </span>
@@ -148,7 +148,7 @@
             <thead>
               <tr>
                 <th>Supplier</th>
-                <th class="tr">Stok</th>
+                <th class="tr">Stok Supplier</th>
                 <th class="tr">Harga Beli</th>
               </tr>
             </thead>
@@ -163,7 +163,7 @@
                 <td class="tr"><span class="harga-val">{{ formatRp(price.harga_beli) }}</span></td>
               </tr>
               <tr class="total-row">
-                <td><b>Total</b></td>
+                <td><b>Stok Gudang</b></td>
                 <td class="tr"><b>{{ totalStok }} {{ product.satuan }}</b></td>
                 <td class="tr"><span class="total-hint">terendah: {{ formatRp(lowestPrice) }}</span></td>
               </tr>
@@ -244,7 +244,7 @@ async function loadProduct(productId) {
 
     if (error) throw error
 
-    const activePrices = data.product_prices?.filter(pp => pp.aktif) ?? []
+    const activePrices = data.product_prices?.filter(pp => pp.aktif && Number(pp.stok || 0) > 0) ?? []
     product.value = {
       id: data.id,
       kode: data.kode,

@@ -471,8 +471,9 @@ function focusDateEnd() {
   nextTick(() => inputTglAkhir.value?.focus())
 }
 
-function getPendingOrders() {
-  return listPurchaseOrders().filter(order => order.status === 'draft')
+async function getPendingOrders() {
+  const rows = await listPurchaseOrders()
+  return rows.filter(order => order.status === 'draft')
 }
 
 async function loadAllDrafts() {
@@ -481,10 +482,15 @@ async function loadAllDrafts() {
   rowRefs.clear()
 
   try {
-    orders.value = sortOrdersNewestFirst(getPendingOrders())
+    const pendingRows = await getPendingOrders()
+    orders.value = sortOrdersNewestFirst(pendingRows)
     showResults.value = true
     currentPage.value = 1
     selectedRowIndex.value = 0
+  } catch (err) {
+    console.error('[loadAllDrafts]', err)
+    orders.value = []
+    showResults.value = true
   } finally {
     loading.value = false
   }
@@ -555,10 +561,10 @@ function editDraft(order) {
   router.push('/pembelian/edit-order')
 }
 
-function saveDraftToReceiving(order) {
+async function saveDraftToReceiving(order) {
   if (!order?.no_order) return
 
-  upsertPurchaseOrder({
+  await upsertPurchaseOrder({
     ...order,
     status: 'ordered',
     received_at: null,
@@ -598,7 +604,7 @@ async function confirmDelete() {
   const order = deleteModal.order
   if (!order?.no_order) return
 
-  const removed = removePurchaseOrder(order.no_order)
+  const removed = await removePurchaseOrder(order.no_order)
   if (!removed) {
     alert('Order tidak ditemukan atau sudah dihapus sebelumnya.')
     cancelDelete()
@@ -621,7 +627,7 @@ function onGlobalKey(e) {
   if (deleteModal.show) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      confirmDelete()
+      void confirmDelete()
       return
     }
     if (e.key === 'Escape') {
@@ -650,7 +656,7 @@ function onGlobalKey(e) {
     if (e.key === 'F10') {
       e.preventDefault()
       if (detailModal.order) {
-        saveDraftToReceiving(detailModal.order)
+        void saveDraftToReceiving(detailModal.order)
       }
       return
     }
@@ -735,10 +741,10 @@ function onGlobalKey(e) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   pageEl.value?.focus()
-  loadAllDrafts()
+  await loadAllDrafts()
 })
 
 onUnmounted(() => {

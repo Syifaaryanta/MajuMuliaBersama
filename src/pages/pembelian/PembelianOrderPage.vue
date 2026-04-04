@@ -194,7 +194,7 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
-import { generatePurchaseOrderNo } from '@/lib/pembelianStore'
+import { generatePurchaseOrderNo, upsertPurchaseOrder } from '@/lib/pembelianStore'
 
 const router = useRouter()
 const pageEl = ref(null)
@@ -463,7 +463,7 @@ function onTermsFieldKeydown(e) {
   }
 }
 
-function goToInputItem() {
+async function goToInputItem() {
   if (!canProceed.value) {
     alert('Lengkapi data order pembelian dulu.')
     return
@@ -476,8 +476,24 @@ function goToInputItem() {
     supplier: selectedSupplier.value,
   }
 
-  sessionStorage.setItem('pembelian_draft', JSON.stringify(payload))
-  router.push('/pembelian/input')
+  try {
+    await upsertPurchaseOrder({
+      ...payload,
+      status: 'draft',
+      items: [],
+      subtotal: 0,
+      received_at: null,
+    })
+
+    sessionStorage.setItem('pembelian_draft', JSON.stringify(payload))
+    router.push({
+      path: '/pembelian/input',
+      query: { no_order: payload.no_order },
+    })
+  } catch (err) {
+    console.error('[goToInputItem]', err)
+    alert('Gagal menyimpan draft order awal ke database: ' + err.message)
+  }
 }
 
 function persistWorkingState() {
@@ -526,10 +542,16 @@ watch(
   { immediate: true }
 )
 
-onMounted(() => {
+onMounted(async () => {
   restoreWorkingState()
   if (!form.no_order) {
-    form.no_order = generatePurchaseOrderNo()
+    try {
+      form.no_order = await generatePurchaseOrderNo()
+    } catch (err) {
+      console.error('[generatePurchaseOrderNo]', err)
+      const year = new Date().getFullYear().toString().slice(-2)
+      form.no_order = `PO${year}001`
+    }
   }
   pageEl.value?.focus()
   nextTick(() => focusOrderDate())

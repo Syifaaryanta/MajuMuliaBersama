@@ -124,51 +124,43 @@ const stats = ref({
 // ───────────────────────────────────────────────────────────
 async function loadStats() {
   try {
-    // Total products (exclude archived)
-    const { count: totalCount } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_archived', false)
-    
+    const [
+      { count: totalCount, error: totalError },
+      { count: safeCount, error: safeError },
+      { count: lowCount, error: lowError },
+      { count: supplierCount, error: supplierError },
+    ] = await Promise.all([
+      supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_archived', false),
+
+      supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_archived', false)
+        .gt('stok', 3),
+
+      supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_archived', false)
+        .or('stok.lte.3,stok.is.null'),
+
+      supabase
+        .from('suppliers')
+        .select('id', { count: 'exact', head: true }),
+    ])
+
+    if (totalError) throw totalError
+    if (safeError) throw safeError
+    if (lowError) throw lowError
+    if (supplierError) throw supplierError
+
     stats.value.totalProducts = totalCount || 0
-    
-    // Count products with stock > 3 and <= 3
-    const { data: products } = await supabase
-      .from('product_prices')
-      .select('product_id, stok')
-    
-    if (products) {
-      // Group by product_id and sum stock
-      const stockByProduct = {}
-      products.forEach(p => {
-        if (!stockByProduct[p.product_id]) {
-          stockByProduct[p.product_id] = 0
-        }
-        stockByProduct[p.product_id] += p.stok
-      })
-      
-      let safeCount = 0
-      let lowCount = 0
-      
-      Object.values(stockByProduct).forEach(totalStock => {
-        if (totalStock > 3) {
-          safeCount++
-        } else {
-          lowCount++
-        }
-      })
-      
-      stats.value.safeStock = safeCount
-      stats.value.lowStock = lowCount
-    }
-    
-    // Total suppliers
-    const { count: supplierCount } = await supabase
-      .from('suppliers')
-      .select('*', { count: 'exact', head: true })
-    
+    stats.value.safeStock = safeCount || 0
+    stats.value.lowStock = lowCount || 0
     stats.value.suppliers = supplierCount || 0
-    
   } catch (error) {
     console.error('Error loading stats:', error)
   }

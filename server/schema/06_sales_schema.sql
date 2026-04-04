@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS sale_items (
   product_id  UUID          NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
   product_kode TEXT         NOT NULL, -- Denormalisasi
   product_nama TEXT         NOT NULL, -- Denormalisasi
-  qty         INTEGER       NOT NULL CHECK (qty > 0),
+  qty         NUMERIC(15,3) NOT NULL CHECK (qty > 0),
   unit_price  NUMERIC(15,2) NOT NULL CHECK (unit_price >= 0),
   total       NUMERIC(15,2) NOT NULL CHECK (total >= 0),
   created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()

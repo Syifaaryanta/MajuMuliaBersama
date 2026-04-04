@@ -82,6 +82,7 @@
         <span><kbd>↑</kbd><kbd>↓</kbd> navigasi</span>
         <span><kbd>F3</kbd> buka archive</span>
         <span><kbd>Enter</kbd> buka archive</span>
+        <span><kbd>Y</kbd> konfirmasi buka archive</span>
         <span><kbd>F1</kbd> cari</span>
         <span><kbd>Esc</kbd> kembali</span>
       </div>
@@ -142,14 +143,6 @@
                       <i class="pi pi-image"></i>
                       <span>Belum ada foto</span>
                     </div>
-
-                    <!-- Buka Archive action -->
-                    <div class="photo-inline-sep"></div>
-                    <button class="btn-restore-cs" @click.stop="openUnarchiveConfirm(row)" title="Buka Archive (F3)">
-                      <i class="pi pi-folder-open"></i>
-                      <span class="btn-label">Buka Archive</span>
-                      <kbd class="kbd-cs">F3</kbd>
-                    </button>
                   </div>
                 </td>
               </tr>
@@ -166,7 +159,7 @@
       <Transition name="modal">
         <div v-if="unarchiveModal.show" class="modal-overlay" @click.self="unarchiveModal.show = false">
           <div class="modal-box modal-box--sm" role="dialog">
-            <div class="modal-header modal-header--green">
+            <div class="modal-header modal-header--green modal-header--center">
               <h3 class="modal-title"><i class="pi pi-folder-open"></i> Buka Archive</h3>
               <button class="modal-close" @click="unarchiveModal.show = false" tabindex="-1">
                 <i class="pi pi-times"></i>
@@ -192,7 +185,7 @@
                 <template v-else>
                   <i class="pi pi-folder-open"></i>
                   <span class="btn-label">Buka Archive</span>
-                  <kbd>F3</kbd>
+                  <kbd>Y</kbd>
                 </template>
               </button>
             </div>
@@ -343,7 +336,13 @@ function handleSearchEsc() {
 
 function onGlobalKey(e) {
   if (unarchiveModal.show) {
-    if (e.key === 'Escape') { e.preventDefault(); unarchiveModal.show = false }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      unarchiveModal.show = false
+    } else if (e.key === 'y' || e.key === 'Y') {
+      e.preventDefault()
+      doUnarchive()
+    }
     return
   }
   const inSearch = document.activeElement === searchInput.value
@@ -389,33 +388,12 @@ function getSelectedArchivedProductId() {
 }
 
 function persistArchiveState() {
-  const payload = {
-    searchQuery: searchQuery.value,
-    currentPage: currentPage.value,
-    selectedProductId: getSelectedArchivedProductId(),
-  }
-
-  sessionStorage.setItem(GUDANG_ARCHIVE_STATE_KEY, JSON.stringify(payload))
+  sessionStorage.removeItem(GUDANG_ARCHIVE_STATE_KEY)
 }
 
 function restoreArchiveState() {
-  const raw = sessionStorage.getItem(GUDANG_ARCHIVE_STATE_KEY)
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw)
-    const restored = {
-      searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : '',
-      currentPage: Number.isInteger(parsed.currentPage) && parsed.currentPage > 0 ? parsed.currentPage : 1,
-      selectedProductId: parsed.selectedProductId == null ? null : String(parsed.selectedProductId),
-    }
-
-    searchQuery.value = restored.searchQuery
-    return restored
-  } catch (error) {
-    console.warn('[GudangArchive] gagal restore state:', error)
-    return null
-  }
+  sessionStorage.removeItem(GUDANG_ARCHIVE_STATE_KEY)
+  return null
 }
 
 function applyArchiveSelection(restored) {
@@ -443,10 +421,14 @@ onMounted(async () => {
   const restored = restoreArchiveState()
   applyArchiveSelection(restored)
 
+  searchQuery.value = ''
+  currentPage.value = 1
+  selectedRowIndex.value = -1
+
   nextTick(() => { searchInput.value?.focus() })
 })
 onUnmounted(() => {
-  persistArchiveState()
+  sessionStorage.removeItem(GUDANG_ARCHIVE_STATE_KEY)
   window.removeEventListener('keydown', onGlobalKey)
 })
 

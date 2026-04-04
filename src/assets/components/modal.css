@@ -81,6 +81,27 @@
   color: #fff;
 }
 
+.modal-header.modal-header--center {
+  position: relative;
+  justify-content: center;
+}
+
+.modal-header.modal-header--center .modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  width: 100%;
+  text-align: center;
+}
+
+.modal-header.modal-header--center .modal-close {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .modal-header-icon {
   display: flex;
   align-items: center;
