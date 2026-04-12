@@ -1,0 +1,25 @@
+@import '@/assets/pages/penagihan/penagihan-common.css';
+
+.penagihan-piutang-page .g-table {
+  min-width: 1180px;
+}
+
+.penagihan-piutang-page .col-aksi {
+  width: 100px;
+  text-align: center;
+}
+
+.penagihan-piutang-page .aksi-view {
+  color: #0f766e;
+}
+
+.penagihan-piutang-page .aksi-view:hover {
+  background: #ecfeff;
+  color: #115e59;
+}
+
+.penagihan-piutang-page .table-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.62rem;
+}

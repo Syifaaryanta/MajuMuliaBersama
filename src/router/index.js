@@ -159,6 +159,30 @@ const router = createRouter({
           component: () => import('@/pages/penagihan/PenagihanPage.vue')
         },
         {
+          path: 'penagihan/piutang',
+          name: 'PenagihanPiutang',
+          component: () => import('@/pages/penagihan/PenagihanPiutangPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penagihan' }
+        },
+        {
+          path: 'penagihan/nota',
+          name: 'PenagihanNota',
+          component: () => import('@/pages/penagihan/PenagihanNotaPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penagihan' }
+        },
+        {
+          path: 'penagihan/tunai',
+          name: 'PenagihanTunai',
+          component: () => import('@/pages/penagihan/PenagihanTunaiPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penagihan' }
+        },
+        {
+          path: 'penagihan/riwayat',
+          name: 'PenagihanRiwayat',
+          component: () => import('@/pages/penagihan/PenagihanRiwayatPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Penagihan' }
+        },
+        {
           path: 'laporan',
           name: 'Laporan',
           component: () => import('@/pages/laporan/LaporanPage.vue')

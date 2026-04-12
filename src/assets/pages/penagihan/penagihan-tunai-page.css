@@ -1,0 +1,10 @@
+@import '@/assets/pages/penagihan/penagihan-common.css';
+
+.penagihan-tunai-page .g-table {
+  min-width: 980px;
+}
+
+.penagihan-tunai-page .col-aksi {
+  width: 90px;
+  text-align: center;
+}
