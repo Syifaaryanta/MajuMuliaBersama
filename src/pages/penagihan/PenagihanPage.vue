@@ -9,15 +9,6 @@
       </div>
     </div>
 
-    <div class="shortcut-strip">
-      <kbd>1 Piutang</kbd>
-      <kbd>2 Nota</kbd>
-      <kbd>3 Tunai</kbd>
-      <kbd>4 Riwayat</kbd>
-      <kbd>Enter Buka</kbd>
-      <kbd>Esc Kembali</kbd>
-    </div>
-
     <div v-if="schemaError" class="schema-warning">
       <i class="pi pi-exclamation-triangle"></i>
       <div>
@@ -138,17 +129,10 @@ const menuOptions = computed(() => {
     },
     {
       id: 'tunai-selesai',
-      title: 'Tunai Selesai',
-      description: 'Transaksi customer yang langsung bayar',
+      title: 'History Pembayaran',
+      description: 'Transaksi lunas: tunai langsung + piutang lunas',
       icon: 'pi pi-check-circle',
       route: '/penagihan/tunai',
-    },
-    {
-      id: 'riwayat-bayar',
-      title: 'Riwayat Bayar',
-      description: 'Log cicilan dan pelunasan customer',
-      icon: 'pi pi-history',
-      route: '/penagihan/riwayat',
     },
   ]
 })

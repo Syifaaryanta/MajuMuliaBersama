@@ -4,8 +4,8 @@
 
     <div class="g-header">
       <div class="g-header-left">
-        <h1 class="g-title">Tunai Selesai</h1>
-        <p class="g-subtitle">Monitoring transaksi customer yang dibayar langsung saat penjualan</p>
+        <h1 class="g-title">History Pembayaran</h1>
+        <p class="g-subtitle">Monitoring transaksi lunas (tunai langsung dan piutang yang sudah dibayar penuh)</p>
       </div>
       <span v-if="isReadOnly" class="read-only-badge">
         <i class="pi pi-lock"></i>
@@ -18,6 +18,7 @@
       <kbd>Arrow Pilih Baris</kbd>
       <kbd>Enter Detail</kbd>
       <kbd>F4 Normalisasi Nota</kbd>
+      <kbd>Del Batalkan Pelunasan</kbd>
       <kbd>Esc Kembali</kbd>
     </div>
 
@@ -72,8 +73,8 @@
 
       <div class="table-section">
         <div class="result-meta">
-          <span class="result-count"><b>{{ rows.length }}</b> transaksi tunai</span>
-          <span class="page-info">Total omzet: <b>{{ formatRp(totalCashAmount) }}</b></span>
+          <span class="result-count"><b>{{ rows.length }}</b> transaksi selesai</span>
+          <span class="page-info">Total nilai: <b>{{ formatRp(totalCashAmount) }}</b></span>
         </div>
 
         <div class="table-wrap">
@@ -101,7 +102,7 @@
               <tr>
                 <td colspan="10" class="empty-cell">
                   <i class="pi pi-inbox"></i>
-                  Tidak ada data tunai sesuai filter.
+                  Tidak ada data pembayaran selesai sesuai filter.
                 </td>
               </tr>
             </tbody>
@@ -153,6 +154,14 @@
                       <i class="pi pi-eye"></i>
                     </button>
                     <button
+                      class="aksi-btn aksi-delete"
+                      :disabled="isReadOnly || !canRollbackPayment(row) || isRowDeleting(row)"
+                      :title="isReadOnly ? 'Mode read only' : 'Batalkan pelunasan (kembali ke piutang aktif)'"
+                      @click.stop="rollbackPayment(row)"
+                    >
+                      <i :class="isRowDeleting(row) ? 'pi pi-spin pi-spinner' : 'pi pi-trash'"></i>
+                    </button>
+                    <button
                       class="aksi-btn aksi-edit"
                       :disabled="isReadOnly || isRowNormalizing(row) || !isCashNotesMismatch(row)"
                       :title="isReadOnly ? 'Mode read only' : 'Normalisasi nota transaksi tunai'"
@@ -172,9 +181,9 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="detailModal.show" class="modal-overlay" @click.self="closeDetailModal">
-          <div class="modal-box modal-box--detail" role="dialog" aria-label="Detail transaksi tunai">
+          <div class="modal-box modal-box--detail" role="dialog" aria-label="Detail history pembayaran">
             <div class="modal-header">
-              <h3 class="modal-title">Detail Transaksi Tunai: {{ detailModal.sale?.no_order }}</h3>
+              <h3 class="modal-title">Detail History Pembayaran: {{ detailModal.sale?.no_order }}</h3>
               <button class="modal-close" @click="closeDetailModal" tabindex="-1">
                 <i class="pi pi-times"></i>
               </button>
@@ -198,6 +207,11 @@
                   <span class="detail-sub">Status: {{ paymentStatusLabel(detailModal.sale.payment_status) }}</span>
                 </div>
                 <div class="detail-card">
+                  <span class="detail-label">Pembayaran</span>
+                  <strong class="detail-value">{{ detailModal.sale.payment_count || 0 }} kali</strong>
+                  <span class="detail-sub">Terbayar: {{ formatRp(detailModal.sale.total_paid) }}</span>
+                </div>
+                <div class="detail-card">
                   <span class="detail-label">Kelengkapan Nota</span>
                   <div class="detail-note-summary">
                     <span class="note-chip" :class="{ 'note-chip--on': detailModal.sale.nota_merah }">Merah</span>
@@ -212,6 +226,13 @@
 
             <div class="modal-footer">
               <button class="btn-secondary" @click="closeDetailModal">Tutup <kbd>Esc</kbd></button>
+              <button
+                class="btn-danger"
+                :disabled="isReadOnly || !detailModal.sale || !canRollbackPayment(detailModal.sale) || isRowDeleting(detailModal.sale)"
+                @click="rollbackFromDetail"
+              >
+                Batalkan Pelunasan
+              </button>
               <button
                 class="btn-primary"
                 :disabled="isReadOnly || !detailModal.sale || !isCashNotesMismatch(detailModal.sale)"
@@ -233,7 +254,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
 import {
-  fetchPenagihanSales,
+  fetchPenagihanBundle,
   filterBySearch,
   paymentStatusLabel,
   statusClass,
@@ -242,6 +263,7 @@ import {
   isSchemaIssue,
   updateSalesNotes,
   buildAutoNotePayload,
+  deleteSalesPaymentsBySaleId,
   toIsoDate,
   subscribePenagihanAutoSync,
 } from '@/lib/penagihanService'
@@ -260,9 +282,11 @@ const activeFilter = ref('all')
 const selectedRowIndex = ref(0)
 const rowRefs = ref({})
 const normalizingSaleId = ref('')
+const deletingSaleId = ref('')
 let stopAutoSync = () => {}
 
 const salesRows = ref([])
+const paymentRows = ref([])
 
 const detailModal = reactive({
   show: false,
@@ -273,6 +297,8 @@ const isReadOnly = computed(() => Boolean(route.meta.readOnly))
 
 const filterOptions = [
   { id: 'all', label: 'Semua' },
+  { id: 'paid_credit', label: 'Lunas Piutang' },
+  { id: 'cash', label: 'Tunai Langsung' },
   { id: 'today', label: 'Hari Ini' },
   { id: 'week', label: '7 Hari Terakhir' },
   { id: 'need_sync', label: 'Nota Belum Sinkron' },
@@ -292,7 +318,13 @@ function isCashNotesMismatch(row) {
 }
 
 const rows = computed(() => {
-  let data = salesRows.value.filter(row => row.is_cash)
+  let data = salesRows.value.filter(row => row.is_cash || row.payment_status === 'paid')
+
+  if (activeFilter.value === 'paid_credit') {
+    data = data.filter(row => row.is_credit && row.payment_status === 'paid')
+  } else if (activeFilter.value === 'cash') {
+    data = data.filter(row => row.is_cash)
+  }
 
   if (activeFilter.value === 'today') {
     const today = toIsoDate(new Date())
@@ -346,7 +378,9 @@ async function loadData() {
   schemaError.value = ''
 
   try {
-    salesRows.value = await fetchPenagihanSales()
+    const { sales, payments } = await fetchPenagihanBundle()
+    salesRows.value = sales
+    paymentRows.value = payments
   } catch (err) {
     const message = String(err?.message || err || '')
     console.error('[PenagihanTunaiPage.loadData]', err)
@@ -386,6 +420,15 @@ function moveSelection(delta) {
 
 function isRowNormalizing(row) {
   return normalizingSaleId.value === row.sale_id
+}
+
+function isRowDeleting(row) {
+  return deletingSaleId.value === row.sale_id
+}
+
+function canRollbackPayment(row) {
+  if (!row) return false
+  return Boolean(row.is_credit) && row.payment_status === 'paid' && Number(row.payment_count || 0) > 0
 }
 
 async function normalizeCashNotes(row) {
@@ -442,6 +485,64 @@ async function normalizeCashNotes(row) {
   }
 }
 
+async function rollbackPayment(row) {
+  if (!row || isRowDeleting(row)) return
+
+  if (isReadOnly.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Akses Read Only',
+      detail: 'Akun ini tidak memiliki izin membatalkan pelunasan.',
+      life: 2500,
+    })
+    return
+  }
+
+  if (!canRollbackPayment(row)) {
+    toast.add({
+      severity: 'info',
+      summary: 'Tidak Bisa Dibatalkan',
+      detail: 'Hanya transaksi piutang yang sudah lunas yang bisa dibatalkan.',
+      life: 2600,
+    })
+    return
+  }
+
+  const confirmed = window.confirm(
+    `Batalkan pelunasan transaksi ${row.no_order}?\nSemua pembayaran transaksi ini akan dihapus, data kembali ke Piutang Aktif, dan nota akan disinkronkan kembali.`
+  )
+  if (!confirmed) return
+
+  deletingSaleId.value = row.sale_id
+
+  try {
+    const deletedCount = await deleteSalesPaymentsBySaleId(row.sale_id)
+    await updateSalesNotes(row.sale_id, buildAutoNotePayload(Number(row.grand_total || 0)))
+
+    if (detailModal.sale?.sale_id === row.sale_id) {
+      closeDetailModal()
+    }
+
+    await loadData()
+
+    toast.add({
+      severity: 'success',
+      summary: 'Pelunasan Dibatalkan',
+      detail: `Pembayaran ${row.no_order} dibatalkan (${deletedCount} data payment dihapus). Transaksi kembali ke Piutang Aktif.`,
+      life: 3600,
+    })
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Gagal Batalkan Pelunasan',
+      detail: String(err?.message || err || ''),
+      life: 3600,
+    })
+  } finally {
+    deletingSaleId.value = ''
+  }
+}
+
 function openDetailModal(row) {
   detailModal.sale = row
   detailModal.show = true
@@ -457,6 +558,12 @@ async function normalizeFromDetail() {
   const row = detailModal.sale
   if (!row) return
   await normalizeCashNotes(row)
+}
+
+async function rollbackFromDetail() {
+  const row = detailModal.sale
+  if (!row) return
+  await rollbackPayment(row)
 }
 
 function onGlobalKey(e) {
@@ -491,6 +598,9 @@ function onGlobalKey(e) {
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     moveSelection(-1)
+  } else if (e.key === 'Delete') {
+    e.preventDefault()
+    if (selectedRow.value) rollbackPayment(selectedRow.value)
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (selectedRow.value) openDetailModal(selectedRow.value)
@@ -505,7 +615,7 @@ onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   await loadData()
   stopAutoSync = subscribePenagihanAutoSync({
-    key: 'tunai',
+    key: 'pembayaran-selesai',
     onSync: loadData,
   })
 })

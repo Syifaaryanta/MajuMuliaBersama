@@ -456,6 +456,213 @@
   min-height: 260px;
 }
 
+.stock-out-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.stock-out-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.stock-out-name {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.stock-out-qty {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  white-space: nowrap;
+}
+
+.stock-out-empty {
+  font-size: 0.75rem;
+  color: #64748b;
+  padding: 0.45rem 0.2rem;
+  text-align: center;
+  font-style: italic;
+}
+
+.sales-today-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.sales-today-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.sales-today-name {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.sales-today-amount {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f766e;
+  background: #ccfbf1;
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  white-space: nowrap;
+}
+
+.sales-today-empty {
+  font-size: 0.75rem;
+  color: #64748b;
+  padding: 0.45rem 0.2rem;
+  text-align: center;
+  font-style: italic;
+}
+
+.sales-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sales-calendar-legend {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  font-size: 0.68rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.legend-item {
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.legend-item--high {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.legend-item--mid {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.legend-item--low {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.legend-item--future {
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.sales-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sales-calendar-weekdays span {
+  text-align: center;
+}
+
+.sales-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.sales-calendar-cell {
+  min-height: 64px;
+  border-radius: 10px;
+  padding: 0.35rem 0.4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid transparent;
+  background: #f8fafc;
+}
+
+.sales-calendar-cell--empty {
+  background: transparent;
+  border-color: transparent;
+}
+
+.sales-calendar-cell--future {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+.sales-calendar-cell--high {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #14532d;
+}
+
+.sales-calendar-cell--mid {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.sales-calendar-cell--low {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.sales-calendar-cell.is-today {
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.7);
+}
+
+.sales-calendar-date {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.sales-calendar-value {
+  font-size: 0.7rem;
+  font-weight: 700;
+  align-self: flex-end;
+}
+
 .error-banner {
   margin-top: 0.9rem;
   display: flex;
@@ -520,6 +727,36 @@
     grid-column: auto;
   }
 
+  .stock-out-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stock-out-qty {
+    align-self: flex-start;
+  }
+
+  .stock-out-body {
+    max-height: 320px;
+  }
+
+  .sales-today-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sales-today-amount {
+    align-self: flex-start;
+  }
+
+  .sales-today-body {
+    max-height: 320px;
+  }
+
+  .sales-calendar-legend {
+    justify-content: flex-start;
+  }
+
   .chart-body--line,
   .chart-body--bar {
     min-height: 250px;
@@ -578,5 +815,17 @@
   .chart-body--bar-sm,
   .chart-body--donut {
     min-height: 230px;
+  }
+
+  .stock-out-body {
+    max-height: 280px;
+  }
+
+  .sales-today-body {
+    max-height: 280px;
+  }
+
+  .sales-calendar-cell {
+    min-height: 58px;
   }
 }

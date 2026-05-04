@@ -15,10 +15,13 @@
 
     <div class="shortcut-strip">
       <kbd>F1 Cari</kbd>
+      <kbd>F2 Tanggal</kbd>
+      <kbd>F3 Filter Status</kbd>
       <kbd>Arrow Pilih Baris</kbd>
-      <kbd>Enter Simpan</kbd>
+      <kbd>Enter Nota</kbd>
+      <kbd>Arrow Kanan Kolom</kbd>
+      <kbd>Esc Baris</kbd>
       <kbd>F4 Sinkron 1 Baris</kbd>
-      <kbd>Esc Kembali</kbd>
     </div>
 
     <div v-if="schemaError" class="schema-warning">
@@ -55,18 +58,38 @@
         </div>
 
         <div class="toolbar-actions">
-          <div class="filter-chip-group">
-            <button
-              v-for="chip in filterOptions"
-              :key="chip.id"
-              type="button"
-              class="filter-chip"
-              :class="{ 'filter-chip--active': activeFilter === chip.id }"
-              @click="activeFilter = chip.id"
-            >
-              {{ chip.label }}
-            </button>
+          <div class="date-filter-wrap">
+            <label class="search-label">
+              Tanggal Order
+              <kbd class="label-kbd">F2</kbd>
+            </label>
+            <div class="date-filter-row">
+              <input
+                ref="dateStartInput"
+                v-model="dateFilter.start"
+                type="date"
+                class="mfield-input date-filter-input"
+                @keydown.enter.prevent="onDateStartEnter"
+              />
+              <span class="date-separator">s/d</span>
+              <input
+                ref="dateEndInput"
+                v-model="dateFilter.end"
+                type="date"
+                class="mfield-input date-filter-input"
+              />
+            </div>
           </div>
+
+          <button
+            type="button"
+            class="btn-filter-popup"
+            @click="openStatusFilterModal"
+          >
+            <i class="pi pi-sliders-h"></i>
+            <span>Filter: {{ activeFilterLabel }}</span>
+            <kbd>F3</kbd>
+          </button>
         </div>
       </div>
 
@@ -90,17 +113,16 @@
                 <th class="col-nota">Merah</th>
                 <th class="col-nota">Putih</th>
                 <th class="col-nota">Kuning</th>
-                <th class="col-aksi">Aksi</th>
               </tr>
             </thead>
             <tbody v-if="loading">
               <tr v-for="n in 6" :key="`loading-${n}`">
-                <td colspan="11"><div class="skeleton"></div></td>
+                <td colspan="10"><div class="skeleton"></div></td>
               </tr>
             </tbody>
             <tbody v-else-if="rows.length === 0">
               <tr>
-                <td colspan="11" class="empty-cell">
+                <td colspan="10" class="empty-cell">
                   <i class="pi pi-inbox"></i>
                   Tidak ada data nota sesuai filter.
                 </td>
@@ -112,7 +134,7 @@
                 :key="row.sale_id"
                 :ref="el => setRowRef(el, idx)"
                 :class="{ 'g-row--active': selectedRowIndex === idx }"
-                @click="selectedRowIndex = idx"
+                @click="() => onRowClick(idx)"
               >
                 <td class="col-no">{{ idx + 1 }}</td>
                 <td class="col-order">
@@ -136,6 +158,7 @@
                   <span class="status-pill" :class="statusClass(row.payment_status)">
                     {{ paymentStatusLabel(row.payment_status) }}
                   </span>
+                  <p v-if="getRowError(row)" class="row-error">{{ getRowError(row) }}</p>
                 </td>
                 <td class="col-nota">
                   <label class="note-check">
@@ -143,6 +166,7 @@
                       type="checkbox"
                       :checked="getNoteState(row, 'nota_merah')"
                       :disabled="isReadOnly || isRowSaving(row)"
+                      :ref="el => setNoteRef(el, idx, 'nota_merah')"
                       @change="onToggleNote(row, 'nota_merah', $event.target.checked)"
                     />
                   </label>
@@ -153,6 +177,7 @@
                       type="checkbox"
                       :checked="getNoteState(row, 'nota_putih')"
                       :disabled="isReadOnly || isRowSaving(row)"
+                      :ref="el => setNoteRef(el, idx, 'nota_putih')"
                       @change="onToggleNote(row, 'nota_putih', $event.target.checked)"
                     />
                   </label>
@@ -163,30 +188,10 @@
                       type="checkbox"
                       :checked="getNoteState(row, 'nota_kuning')"
                       :disabled="isReadOnly || isRowSaving(row)"
+                      :ref="el => setNoteRef(el, idx, 'nota_kuning')"
                       @change="onToggleNote(row, 'nota_kuning', $event.target.checked)"
                     />
                   </label>
-                </td>
-                <td class="col-aksi">
-                  <div class="aksi-wrap">
-                    <button
-                      class="aksi-btn aksi-edit"
-                      :disabled="isReadOnly || !hasDraftChanges(row) || isRowSaving(row)"
-                      :title="isReadOnly ? 'Mode read only' : 'Simpan perubahan nota'"
-                      @click.stop="saveRow(row)"
-                    >
-                      <i class="pi pi-save"></i>
-                    </button>
-                    <button
-                      class="aksi-btn aksi-view"
-                      :disabled="isReadOnly || isRowSaving(row)"
-                      :title="isReadOnly ? 'Mode read only' : 'Sinkron otomatis berdasar status pembayaran'"
-                      @click.stop="syncRowByRule(row)"
-                    >
-                      <i class="pi pi-check-square"></i>
-                    </button>
-                  </div>
-                  <p v-if="getRowError(row)" class="row-error">{{ getRowError(row) }}</p>
                 </td>
               </tr>
             </tbody>
@@ -194,6 +199,39 @@
         </div>
       </div>
     </template>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="statusFilterModal.show" class="modal-overlay" @click.self="closeStatusFilterModal">
+          <div class="modal-box modal-box--status-filter" role="dialog" aria-label="Filter status nota">
+            <div class="modal-header modal-header--blue">
+              <h3 class="modal-title">Filter Status Nota</h3>
+              <button class="modal-close" @click="closeStatusFilterModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body status-filter-body">
+              <button
+                v-for="opt in statusFilterLayout"
+                :key="opt.id"
+                type="button"
+                class="status-filter-option"
+                :class="{ 'status-filter-option--active': statusFilterModal.selectedId === opt.id }"
+                @mouseenter="statusFilterModal.selectedId = opt.id"
+                @click="applyStatusFilterById(opt.id)"
+              >
+                <span class="status-filter-label">
+                  <i :class="statusFilterIcon(opt.id)"></i>
+                  {{ opt.label }}
+                </span>
+                <i v-if="activeFilter === opt.id" class="pi pi-check"></i>
+              </button>
+              <p class="status-filter-hint">Arrow: pilih · Enter: terapkan · Esc: batal</p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -208,9 +246,9 @@ import {
   paymentStatusLabel,
   statusClass,
   formatRp,
+  toIsoDate,
   isSchemaIssue,
   updateSalesNotes,
-  buildAutoNotePayload,
   subscribePenagihanAutoSync,
 } from '@/lib/penagihanService'
 
@@ -220,13 +258,20 @@ const toast = useToast()
 
 const pageEl = ref(null)
 const searchInput = ref(null)
+const dateStartInput = ref(null)
+const dateEndInput = ref(null)
 const focusKey = ref('')
 const loading = ref(false)
 const schemaError = ref('')
 const searchQuery = ref('')
 const activeFilter = ref('all')
+const dateFilter = reactive({
+  start: '',
+  end: toIsoDate(new Date()),
+})
 const selectedRowIndex = ref(0)
 const rowRefs = ref({})
+const noteRefs = ref({})
 let stopAutoSync = () => {}
 
 const salesRows = ref([])
@@ -241,8 +286,37 @@ const filterOptions = [
   { id: 'need_sync', label: 'Perlu Sinkron' },
 ]
 
+const statusFilterModal = reactive({
+  show: false,
+  selectedId: 'all',
+})
+
+const noteNav = reactive({
+  mode: 'row',
+  col: 'nota_merah',
+})
+
+const statusFilterLayout = computed(() => {
+  return [
+    filterOptions[0],
+    filterOptions[1],
+    filterOptions[2],
+    filterOptions[3],
+  ].filter(Boolean)
+})
+
+const activeFilterLabel = computed(() => {
+  const found = filterOptions.find(opt => opt.id === activeFilter.value)
+  return found?.label || 'Semua'
+})
+
 function getExpectedNotes(row) {
-  return buildAutoNotePayload(row.outstanding_amount)
+  const isPaid = Number(row.outstanding_amount || 0) <= 0
+  return {
+    nota_merah: isPaid,
+    nota_putih: !isPaid,
+    nota_kuning: true,
+  }
 }
 
 function isNotaMismatch(row) {
@@ -256,6 +330,15 @@ function isNotaMismatch(row) {
 
 const rows = computed(() => {
   let data = salesRows.value.slice()
+
+  const start = String(dateFilter.start || '').trim()
+  const end = String(dateFilter.end || '').trim()
+  if (start) {
+    data = data.filter(row => String(row.order_date || '') >= start)
+  }
+  if (end) {
+    data = data.filter(row => String(row.order_date || '') <= end)
+  }
 
   if (activeFilter.value === 'debt') {
     data = data.filter(row => row.is_credit && Number(row.outstanding_amount || 0) > 0)
@@ -353,8 +436,12 @@ function onToggleNote(row, key, checked) {
   refreshDraftDirtyState(row, draft)
 }
 
-function hasDraftChanges(row) {
-  return Boolean(draftNotes[row.sale_id]?.dirty)
+function toggleNoteByKey(row, key) {
+  if (!row) return
+  if (isReadOnly.value || isRowSaving(row)) return
+  const nextChecked = !getNoteState(row, key)
+  onToggleNote(row, key, nextChecked)
+  saveRow(row, { silent: true, silentIfNoChange: true })
 }
 
 function isRowSaving(row) {
@@ -369,7 +456,7 @@ function hasDirtyDrafts() {
   return Object.values(draftNotes).some(draft => draft?.dirty || draft?.saving)
 }
 
-async function saveRow(row, { silentIfNoChange = false } = {}) {
+async function saveRow(row, { silentIfNoChange = false, silent = false } = {}) {
   if (!row) return false
 
   if (isReadOnly.value) {
@@ -387,7 +474,7 @@ async function saveRow(row, { silentIfNoChange = false } = {}) {
   refreshDraftDirtyState(row, draft)
 
   if (!draft.dirty) {
-    if (!silentIfNoChange) {
+    if (!silentIfNoChange && !silent) {
       toast.add({
         severity: 'info',
         summary: 'Tidak Ada Perubahan',
@@ -420,12 +507,14 @@ async function saveRow(row, { silentIfNoChange = false } = {}) {
 
     refreshDraftDirtyState(row, draft)
 
-    toast.add({
-      severity: 'success',
-      summary: 'Nota Tersimpan',
-      detail: `Perubahan nota untuk ${row.no_order} berhasil disimpan.`,
-      life: 2200,
-    })
+    if (!silent) {
+      toast.add({
+        severity: 'success',
+        summary: 'Nota Tersimpan',
+        detail: `Perubahan nota untuk ${row.no_order} berhasil disimpan.`,
+        life: 2200,
+      })
+    }
     return true
   } catch (err) {
     draft.error = String(err?.message || err || 'Gagal menyimpan nota.')
@@ -465,6 +554,26 @@ async function loadData() {
   try {
     salesRows.value = await fetchPenagihanSales()
     clearDraftNotes()
+
+    salesRows.value.forEach((row) => {
+      const expected = getExpectedNotes(row)
+      const mismatch = (
+        Boolean(row.nota_merah) !== Boolean(expected.nota_merah) ||
+        Boolean(row.nota_putih) !== Boolean(expected.nota_putih) ||
+        Boolean(row.nota_kuning) !== Boolean(expected.nota_kuning)
+      )
+
+      if (mismatch) {
+        draftNotes[row.sale_id] = {
+          nota_merah: Boolean(expected.nota_merah),
+          nota_putih: Boolean(expected.nota_putih),
+          nota_kuning: Boolean(expected.nota_kuning),
+          dirty: true,
+          saving: false,
+          error: '',
+        }
+      }
+    })
   } catch (err) {
     const message = String(err?.message || err || '')
     console.error('[PenagihanNotaPage.loadData]', err)
@@ -490,6 +599,20 @@ function setRowRef(el, idx) {
   rowRefs.value[idx] = el
 }
 
+function setNoteRef(el, idx, key) {
+  if (!el) return
+  if (!noteRefs.value[idx]) noteRefs.value[idx] = {}
+  noteRefs.value[idx][key] = el
+}
+
+function focusNoteCell(rowIndex, key) {
+  const rowNotes = noteRefs.value[rowIndex]
+  const el = rowNotes?.[key]
+  if (el && typeof el.focus === 'function') {
+    el.focus()
+  }
+}
+
 function ensureSelectedRowVisible() {
   const rowEl = rowRefs.value[selectedRowIndex.value]
   if (!rowEl || typeof rowEl.scrollIntoView !== 'function') return
@@ -502,7 +625,158 @@ function moveSelection(delta) {
   selectedRowIndex.value = Math.min(max, Math.max(0, selectedRowIndex.value + delta))
 }
 
+function onRowClick(idx) {
+  selectedRowIndex.value = idx
+  noteNav.mode = 'row'
+  noteNav.col = 'nota_merah'
+}
+
+function enterNoteMode(col = 'nota_merah') {
+  if (!rows.value.length) return
+  noteNav.mode = 'note'
+  noteNav.col = col
+  nextTick(() => focusNoteCell(selectedRowIndex.value, col))
+}
+
+function exitNoteMode() {
+  noteNav.mode = 'row'
+  noteNav.col = 'nota_merah'
+  pageEl.value?.focus()
+}
+
+function moveNoteColumn(direction) {
+  const order = ['nota_merah', 'nota_putih', 'nota_kuning']
+  const currentIndex = order.indexOf(noteNav.col)
+  if (currentIndex === -1) return
+  const nextIndex = direction === 'right'
+    ? Math.min(order.length - 1, currentIndex + 1)
+    : Math.max(0, currentIndex - 1)
+  noteNav.col = order[nextIndex]
+  nextTick(() => focusNoteCell(selectedRowIndex.value, noteNav.col))
+}
+
+function moveNoteRow(delta) {
+  if (!rows.value.length) return
+  moveSelection(delta)
+  nextTick(() => focusNoteCell(selectedRowIndex.value, noteNav.col))
+}
+
+function onDateStartEnter() {
+  if (!dateFilter.end) {
+    dateFilter.end = toIsoDate(new Date())
+  }
+  nextTick(() => dateEndInput.value?.focus())
+}
+
+function openStatusFilterModal() {
+  statusFilterModal.selectedId = 'all'
+  statusFilterModal.show = true
+}
+
+function closeStatusFilterModal() {
+  statusFilterModal.show = false
+}
+
+function applyStatusFilterById(filterId) {
+  const opt = filterOptions.find(item => item.id === filterId)
+  if (!opt) return
+  activeFilter.value = opt.id
+  closeStatusFilterModal()
+}
+
+function moveStatusFilterSelection(direction) {
+  const current = statusFilterModal.selectedId || 'all'
+  const nextMap = {
+    all: { down: 'debt', right: 'paid', left: 'all', up: 'all' },
+    debt: { up: 'all', right: 'paid', down: 'need_sync', left: 'debt' },
+    paid: { up: 'all', left: 'debt', down: 'need_sync', right: 'paid' },
+    need_sync: { up: 'debt', left: 'debt', right: 'paid', down: 'need_sync' },
+  }
+
+  const nextId = nextMap[current]?.[direction] || current
+  statusFilterModal.selectedId = nextId
+}
+
+function statusFilterIcon(filterId) {
+  switch (filterId) {
+    case 'debt':
+      return 'pi pi-exclamation-circle'
+    case 'paid':
+      return 'pi pi-check-circle'
+    case 'need_sync':
+      return 'pi pi-sync'
+    default:
+      return 'pi pi-list'
+  }
+}
+
 function onGlobalKey(e) {
+  if (statusFilterModal.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closeStatusFilterModal()
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      moveStatusFilterSelection('down')
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      moveStatusFilterSelection('up')
+      return
+    }
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      moveStatusFilterSelection('left')
+      return
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      moveStatusFilterSelection('right')
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      applyStatusFilterById(statusFilterModal.selectedId)
+      return
+    }
+  }
+
+  if (noteNav.mode === 'note') {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      exitNoteMode()
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (selectedRow.value) toggleNoteByKey(selectedRow.value, noteNav.col)
+      return
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      moveNoteColumn('right')
+      return
+    }
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      moveNoteColumn('left')
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      moveNoteRow(1)
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      moveNoteRow(-1)
+      return
+    }
+  }
+
   if (e.key === 'Escape') {
     e.preventDefault()
     router.push('/penagihan')
@@ -513,6 +787,19 @@ function onGlobalKey(e) {
     e.preventDefault()
     focusKey.value = 'search'
     nextTick(() => searchInput.value?.focus())
+    return
+  }
+
+  if (e.key === 'F2') {
+    e.preventDefault()
+    focusKey.value = 'date-start'
+    nextTick(() => dateStartInput.value?.focus())
+    return
+  }
+
+  if (e.key === 'F3') {
+    e.preventDefault()
+    openStatusFilterModal()
     return
   }
 
@@ -528,7 +815,7 @@ function onGlobalKey(e) {
     moveSelection(-1)
   } else if (e.key === 'Enter') {
     e.preventDefault()
-    if (selectedRow.value) saveRow(selectedRow.value)
+    enterNoteMode('nota_merah')
   } else if (e.key === 'F4') {
     e.preventDefault()
     if (selectedRow.value) syncRowByRule(selectedRow.value)

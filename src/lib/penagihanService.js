@@ -348,6 +348,19 @@ export async function insertSalesPayment({ saleId, paymentDate, amount, paymentM
   ])
 }
 
+export async function deleteSalesPaymentsBySaleId(saleId) {
+  if (!saleId) return 0
+
+  const { data, error } = await supabase
+    .from('sales_payments')
+    .delete()
+    .eq('sale_id', saleId)
+    .select('id')
+
+  if (error) throw error
+  return Array.isArray(data) ? data.length : 0
+}
+
 export async function updateSalesNotes(saleId, payload) {
   const { error } = await supabase
     .from('sales')

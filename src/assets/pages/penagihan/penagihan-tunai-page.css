@@ -8,3 +8,32 @@
   width: 90px;
   text-align: center;
 }
+
+.penagihan-tunai-page .g-table {
+  min-width: 1060px;
+}
+
+.penagihan-tunai-page .aksi-delete {
+  color: #dc2626;
+}
+
+.penagihan-tunai-page .aksi-delete:hover {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.penagihan-tunai-page .btn-danger {
+  border: 1px solid #ef4444;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.62rem 0.95rem;
+  cursor: pointer;
+}
+
+.penagihan-tunai-page .btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

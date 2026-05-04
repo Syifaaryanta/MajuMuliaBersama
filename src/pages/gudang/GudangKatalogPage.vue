@@ -521,11 +521,11 @@
 
               <div class="price-section">
                 <div class="price-section-header">
-                  <span class="price-section-title"><i class="pi pi-truck"></i> Harga per Supplier</span>
+                  <span class="price-section-title"><i class="pi pi-truck"></i> Stok & Harga per Supplier</span>
                   <button type="button" class="btn-add-supplier" @click="addPriceRow" tabindex="-1">
                     <i class="pi pi-plus"></i>
                     <span class="btn-label">Tambah</span>
-                    <kbd class="kbd-f2">F4</kbd>
+                    <kbd class="kbd-f2">F2</kbd>
                   </button>
                 </div>
 
@@ -540,10 +540,41 @@
                       :ref="el => { if (el) priceSupplierRefs[idx] = el }"
                       v-model="pr.supplierSearch"
                       class="price-supplier-input"
-                      placeholder="Ketik nama supplier (F1)"
+                      placeholder="Cari nama supplier (F1)"
                       autocomplete="off"
-                      @focus="modal.activePriceRow = idx"
+                      @focus="modal.activePriceRow = idx; onStockSupplierFocus(idx)"
+                      @input="onStockSupplierInput(idx)"
                       @keydown="onSupplierSearchKey($event, idx)"
+                    />
+                    <Teleport to="body">
+                      <div
+                        v-if="pr.dropdownOpen && pr.filteredSuppliers?.length"
+                        class="supplier-dropdown"
+                        :style="{ top: dropdownPos.top + 'px', left: dropdownPos.left + 'px', width: dropdownPos.width + 'px' }"
+                      >
+                        <div
+                          v-for="(s, si) in pr.filteredSuppliers"
+                          :key="s.id"
+                          class="supplier-dropdown-item"
+                          :class="{ active: pr.dropdownIndex === si }"
+                          @mousedown.prevent="selectSupplier(idx, s)"
+                        >
+                          {{ s.nama }}
+                        </div>
+                      </div>
+                    </Teleport>
+                  </div>
+
+                  <div class="price-input-wrap price-input-wrap--stok">
+                    <input
+                      :ref="el => { if (el) priceStokRefs[idx] = el }"
+                      v-model.number="pr.stok"
+                      type="number"
+                      class="price-input"
+                      min="0"
+                      step="0.001"
+                      placeholder="0"
+                      @keydown.enter.prevent="focusPriceHarga(idx)"
                     />
                   </div>
 
@@ -568,26 +599,6 @@
                     :disabled="form.prices.length === 1"
                     tabindex="-1"
                   ><i class="pi pi-trash"></i></button>
-                </div>
-              </div>
-
-              <div class="stock-validate-section">
-                <div class="stock-validate-title"><i class="pi pi-box"></i> Penyesuaian Stok Gudang Global</div>
-                <div class="mfield-row">
-                  <div class="mfield mfield--grow">
-                    <label class="mfield-label">Stok Gudang Global <kbd>F2</kbd></label>
-                    <input
-                      v-model.number="stockGlobalForm.targetStok"
-                      ref="stockGlobalRef"
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      class="mfield-input"
-                      placeholder="Input total stok gudang"
-                      @keydown.enter.prevent="stockTanggalRef?.focus()"
-                      required
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -815,7 +826,6 @@ const editModeModalRef = ref(null)
 const stockTanggalRef = ref(null)
 const stockPetugasRef = ref(null)
 const stockAlasanRef = ref(null)
-const stockGlobalRef = ref(null)
 const priceSupplierRefs = ref({})
 const priceStokRefs     = ref({})
 const priceHargaRefs    = ref({})
@@ -863,7 +873,6 @@ const photoUpload = reactive({ uploading: false, progress: 0, error: '' })
 const lightbox    = reactive({ show: false, photos: [], currentIndex: 0 })
 const archiveModal  = reactive({ show: false, row: null, saving: false })
 const stockValidation = reactive({ tanggal: '', diubahOleh: '', alasan: '' })
-const stockGlobalForm = reactive({ targetStok: 0 })
 const pendingFotoFiles = ref([])
 const autoKodeSuffix = ref(generateRandomKodeSuffix())
 
@@ -1008,46 +1017,131 @@ function buildNormalizedPriceRowsForSubmit() {
     .filter(pr => Boolean(pr.supplier_id))
 }
 
-function applyGlobalStockToSupplierRows(priceRows, targetGlobalStok) {
-  const rows = Array.isArray(priceRows) ? priceRows : []
-  if (!rows.length) {
-    throw new Error('Minimal ada 1 supplier untuk menyimpan stok global.')
+function consolidatePriceRowsForSubmit(priceRows) {
+  const bySupplier = new Map()
+
+  for (const row of priceRows) {
+    if (!row?.supplier_id) continue
+    const supplierId = String(row.supplier_id)
+    const stok = Math.max(0, toSafeNumber(row.stok, 0))
+    const harga = Math.max(0, toSafeNumber(row.harga_beli, 0))
+
+    if (!bySupplier.has(supplierId)) {
+      bySupplier.set(supplierId, {
+        supplier_id: row.supplier_id,
+        stok: Number(stok.toFixed(3)),
+        harga_beli: harga,
+      })
+      continue
+    }
+
+    const current = bySupplier.get(supplierId)
+    current.stok = Number((current.stok + stok).toFixed(3))
+    current.harga_beli = harga > 0 ? harga : current.harga_beli
+    bySupplier.set(supplierId, current)
   }
 
-  const target = Math.max(0, toSafeNumber(targetGlobalStok, 0))
-  const currentTotal = rows.reduce((sum, row) => sum + Math.max(0, toSafeNumber(row.stok, 0)), 0)
-  let delta = Number((target - currentTotal).toFixed(3))
+  return Array.from(bySupplier.values())
+}
 
-  if (Math.abs(delta) < 0.0005) {
-    return rows
+function getSupplierNamaById(supplierId) {
+  if (!supplierId) return 'Supplier tidak dikenal'
+  const found = suppliers.value.find(item => String(item.id) === String(supplierId))
+  return found?.nama || 'Supplier tidak dikenal'
+}
+
+function buildSupplierStockMap(rows = []) {
+  const map = new Map()
+
+  for (const row of rows) {
+    const supplierId = row?.supplier_id
+    if (!supplierId) continue
+    map.set(String(supplierId), Math.max(0, toSafeNumber(row?.stok, 0)))
   }
 
-  if (delta > 0) {
-    rows[0].stok = Number((Math.max(0, toSafeNumber(rows[0].stok, 0)) + delta).toFixed(3))
-    return rows
+  return map
+}
+
+function buildSupplierAdjustmentEntries({
+  productId,
+  productKode,
+  productNama,
+  validationTanggal,
+  validationStaff,
+  validationAlasan,
+  previousRows,
+  nextRows,
+}) {
+  const previousMap = buildSupplierStockMap(previousRows)
+  const nextMap = buildSupplierStockMap(nextRows)
+  const allSupplierIds = new Set([...previousMap.keys(), ...nextMap.keys()])
+
+  const entries = []
+  for (const supplierId of allSupplierIds) {
+    const stockBefore = Number((previousMap.get(supplierId) || 0).toFixed(3))
+    const stockAfter = Number((nextMap.get(supplierId) || 0).toFixed(3))
+    const qtyDelta = Number((stockAfter - stockBefore).toFixed(3))
+
+    if (Math.abs(qtyDelta) < 0.0005) continue
+
+    const supplierNama = getSupplierNamaById(supplierId)
+    entries.push({
+      productId,
+      productKode,
+      productNama,
+      previousStok: stockBefore,
+      nextStok: stockAfter,
+      validationTanggal,
+      validationStaff,
+      validationAlasan: `${String(validationAlasan || '').trim()} | Supplier ${supplierNama}: ${stockBefore} -> ${stockAfter}`,
+    })
   }
 
-  let needReduce = Math.abs(delta)
-  const reductionOrder = rows
-    .map((row, index) => ({ index, stok: Math.max(0, toSafeNumber(row.stok, 0)) }))
-    .sort((a, b) => b.stok - a.stok)
+  return entries
+}
 
-  for (const targetRow of reductionOrder) {
-    if (needReduce <= 0) break
-    const idx = targetRow.index
-    const available = Math.max(0, toSafeNumber(rows[idx].stok, 0))
-    if (available <= 0) continue
-
-    const reduced = Math.min(available, needReduce)
-    rows[idx].stok = Number((available - reduced).toFixed(3))
-    needReduce = Number((needReduce - reduced).toFixed(3))
+async function syncProductPrices(productId, priceRows) {
+  const finalRows = consolidatePriceRowsForSubmit(priceRows)
+  if (!finalRows.length) {
+    throw new Error('Minimal ada 1 supplier yang valid.')
   }
 
-  if (needReduce > 0.0005) {
-    throw new Error('Gagal menyesuaikan stok global. Periksa nilai stok target.')
+  const { data: existingRows, error: existingError } = await supabase
+    .from('product_prices')
+    .select('id, supplier_id')
+    .eq('product_id', productId)
+
+  if (existingError) throw existingError
+
+  for (const row of finalRows) {
+    const { error: upsertError } = await supabase
+      .from('product_prices')
+      .upsert({
+        product_id: productId,
+        supplier_id: row.supplier_id,
+        stok: row.stok,
+        harga_beli: row.harga_beli,
+        aktif: true,
+      }, { onConflict: 'product_id,supplier_id' })
+
+    if (upsertError) throw upsertError
   }
 
-  return rows
+  const finalSupplierIds = new Set(finalRows.map(row => String(row.supplier_id)))
+  const inactiveIds = (existingRows || [])
+    .filter(row => row?.id && !finalSupplierIds.has(String(row.supplier_id)))
+    .map(row => row.id)
+
+  if (inactiveIds.length) {
+    const { error: deactivateError } = await supabase
+      .from('product_prices')
+      .update({ stok: 0, aktif: false })
+      .in('id', inactiveIds)
+
+    if (deactivateError) throw deactivateError
+  }
+
+  return finalRows
 }
 
 function buildKodePrefixFromNama(nama) {
@@ -1420,7 +1514,6 @@ function resetForm() {
   stockValidation.tanggal = ''
   stockValidation.diubahOleh = ''
   stockValidation.alasan = ''
-  stockGlobalForm.targetStok = 0
   photoUpload.uploading = false; photoUpload.progress = 0; photoUpload.error = ''
   priceSupplierRefs.value = {}
   priceStokRefs.value = {}
@@ -1460,7 +1553,6 @@ function openEdit(row, variant = 'full') {
 
   if (variant === 'stock') {
     stockValidation.tanggal = new Date().toISOString().slice(0, 10)
-    stockGlobalForm.targetStok = Math.max(0, toSafeNumber(row.stok, 0))
   }
 
   modal.mode = 'edit'
@@ -1561,7 +1653,6 @@ function focusFirstSupplier() {
 function isUpdateFormReady() {
   if (!form.kode.trim() || !form.nama.trim()) return false
   if (isStockOnlyEdit.value) {
-    if (!Number.isFinite(Number(stockGlobalForm.targetStok)) || Number(stockGlobalForm.targetStok) < 0) return false
     if (!stockValidation.tanggal) return false
     if (!stockValidation.diubahOleh.trim()) return false
     if (!stockValidation.alasan.trim()) return false
@@ -1597,12 +1688,13 @@ function onModalKeydown(e) {
     e.preventDefault(); closeModal({ backToChoice: true })
   } else if (e.key === 'F1' && isStockOnlyEdit.value) {
     e.preventDefault()
-    const activeIdx = Math.max(0, Math.min(modal.activePriceRow, form.prices.length - 1))
-    nextTick(() => priceSupplierRefs.value[activeIdx]?.focus())
+    modal.activePriceRow = 0
+    nextTick(() => {
+      const firstSupplierInput = priceSupplierRefs.value[0]
+      firstSupplierInput?.focus()
+      firstSupplierInput?.select?.()
+    })
   } else if (e.key === 'F2' && isStockOnlyEdit.value) {
-    e.preventDefault()
-    nextTick(() => stockGlobalRef.value?.focus())
-  } else if (e.key === 'F4' && isStockOnlyEdit.value) {
     e.preventDefault()
     addPriceRow()
   } else if (e.key === 'Enter' && !e.shiftKey && shouldSubmitByEnter(e.target)) {
@@ -1656,24 +1748,102 @@ function selectSupplier(idx, supplier) {
   nextTick(() => priceStokRefs.value[idx]?.focus())
 }
 
+function onStockSupplierInput(idx) {
+  if (!isStockOnlyEdit.value) {
+    filterSuppliers(idx)
+    return
+  }
+
+  const pr = form.prices[idx]
+  if (!pr) return
+  pr.supplier_id = ''
+  const q = String(pr.supplierSearch || '').trim().toLowerCase()
+  if (!q) {
+    pr.filteredSuppliers = []
+    pr.dropdownOpen = false
+    pr.dropdownIndex = 0
+    return
+  }
+
+  pr.filteredSuppliers = suppliers.value
+    .filter(s => String(s.nama || '').toLowerCase().includes(q))
+    .slice(0, 8)
+  pr.dropdownOpen = pr.filteredSuppliers.length > 0
+  pr.dropdownIndex = 0
+
+  if (pr.dropdownOpen) {
+    nextTick(() => calcDropdownPos(idx))
+  }
+}
+
+function onStockSupplierFocus(idx) {
+  if (!isStockOnlyEdit.value) return
+  const pr = form.prices[idx]
+  if (!pr) return
+  const q = String(pr.supplierSearch || '').trim()
+  if (!q) {
+    pr.dropdownOpen = false
+    return
+  }
+  onStockSupplierInput(idx)
+}
+
 function onSupplierSearchKey(e, idx) {
   if (isIdentityOnlyEdit.value) {
     e.preventDefault()
     return
   }
 
+  const pr = form.prices[idx]
+  if (!pr) return
+
   if (isStockOnlyEdit.value) {
     if (e.key === 'Enter') {
       e.preventDefault()
       modal.activePriceRow = idx
-      nextTick(() => priceHargaRefs.value[idx]?.focus())
+
+      const selected = pr.filteredSuppliers?.[pr.dropdownIndex]
+      if (pr.dropdownOpen && selected) {
+        selectSupplier(idx, selected)
+        return
+      }
+
+      const typedName = String(pr.supplierSearch || '').trim()
+      if (typedName) {
+        const exact = suppliers.value.find(s => normalizeNameValue(s.nama) === normalizeNameValue(typedName))
+        if (exact) {
+          pr.supplier_id = exact.id
+          pr.supplierSearch = exact.nama
+        }
+      }
+      nextTick(() => priceStokRefs.value[idx]?.focus())
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      if (!pr.dropdownOpen && String(pr.supplierSearch || '').trim()) {
+        onStockSupplierInput(idx)
+      }
+      if (pr.dropdownOpen) {
+        e.preventDefault()
+        pr.dropdownIndex = Math.min((pr.dropdownIndex ?? 0) + 1, (pr.filteredSuppliers?.length ?? 1) - 1)
+      }
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      if (pr.dropdownOpen) {
+        e.preventDefault()
+        pr.dropdownIndex = Math.max((pr.dropdownIndex ?? 0) - 1, 0)
+      }
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      pr.dropdownOpen = false
       return
     }
     return
   }
 
-  const pr = form.prices[idx]
-  if (!pr) return
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     pr.dropdownIndex = Math.min((pr.dropdownIndex ?? 0) + 1, (pr.filteredSuppliers?.length ?? 1) - 1)
@@ -1708,7 +1878,7 @@ function onHargaEnter(idx) {
       modal.activePriceRow = idx + 1
       nextTick(() => priceSupplierRefs.value[idx + 1]?.focus())
     } else {
-      nextTick(() => stockGlobalRef.value?.focus())
+      nextTick(() => stockTanggalRef.value?.focus())
     }
     return
   }
@@ -1876,6 +2046,13 @@ async function insertStockAdjustmentHistory({
     created_by: createdBy,
   }
 
+  if (!payload.staff_nama) {
+    throw new Error('Nama petugas yang mengubah wajib diisi.')
+  }
+  if (!payload.alasan) {
+    throw new Error('Alasan perubahan stok wajib diisi.')
+  }
+
   const { error } = await supabase
     .from('stock_adjustments')
     .insert(payload)
@@ -1917,17 +2094,14 @@ async function submitModal() {
       throw new Error('Minimal ada 1 supplier yang valid.')
     }
 
-    const finalPriceRows = isStockOnlyEdit.value
-      ? applyGlobalStockToSupplierRows(
-          normalizedPriceRows,
-          stockGlobalForm.targetStok,
-        )
-      : normalizedPriceRows
+    const finalPriceRows = consolidatePriceRowsForSubmit(normalizedPriceRows)
 
     const totalStok = finalPriceRows.reduce((sum, pr) => sum + Math.max(0, toSafeNumber(pr.stok, 0)), 0)
 
     let previousGlobalStok = null
+    let previousSupplierRows = []
     let shouldWriteStockAdjustmentHistory = false
+    let supplierAdjustmentEntries = []
     if (isStockOnlyEdit.value && modal.mode === 'edit' && form.id) {
       const { data: currentProductData, error: currentProductError } = await supabase
         .from('products')
@@ -1937,9 +2111,30 @@ async function submitModal() {
 
       if (currentProductError) throw currentProductError
 
+      const { data: currentSupplierData, error: currentSupplierError } = await supabase
+        .from('product_prices')
+        .select('supplier_id, stok')
+        .eq('product_id', form.id)
+        .eq('aktif', true)
+
+      if (currentSupplierError) throw currentSupplierError
+
       previousGlobalStok = toSafeNumber(currentProductData?.stok, toSafeNumber(form.stok, 0))
+      previousSupplierRows = Array.isArray(currentSupplierData) ? currentSupplierData : []
+
+      supplierAdjustmentEntries = buildSupplierAdjustmentEntries({
+        productId: form.id,
+        productKode: form.kode,
+        productNama: form.nama,
+        validationTanggal: stockValidation.tanggal,
+        validationStaff: stockValidation.diubahOleh,
+        validationAlasan: stockValidation.alasan,
+        previousRows: previousSupplierRows,
+        nextRows: finalPriceRows,
+      })
+
       const delta = Number((totalStok - previousGlobalStok).toFixed(3))
-      shouldWriteStockAdjustmentHistory = Math.abs(delta) >= 0.0005
+      shouldWriteStockAdjustmentHistory = Math.abs(delta) >= 0.0005 || supplierAdjustmentEntries.length > 0
 
       if (shouldWriteStockAdjustmentHistory) {
         await ensureStockAdjustmentHistoryTable()
@@ -1976,26 +2171,30 @@ async function submitModal() {
       if (error) throw error
     }
 
-    for (const pr of finalPriceRows) {
-      if (!pr.supplier_id) continue
-      await supabase.from('product_prices').upsert({
-        ...(pr.price_id ? { id: pr.price_id } : {}),
-        product_id: productId, supplier_id: pr.supplier_id,
-        stok: pr.stok ?? 0, harga_beli: pr.harga_beli ?? 0, aktif: true,
-      }, { onConflict: 'product_id,supplier_id' })
-    }
+    await syncProductPrices(productId, finalPriceRows)
 
     if (shouldWriteStockAdjustmentHistory) {
-      await insertStockAdjustmentHistory({
-        productId,
-        productKode: payload.kode,
-        productNama: payload.nama,
-        previousStok: previousGlobalStok,
-        nextStok: totalStok,
-        validationTanggal: stockValidation.tanggal,
-        validationStaff: stockValidation.diubahOleh,
-        validationAlasan: stockValidation.alasan,
-      })
+      if (supplierAdjustmentEntries.length > 0) {
+        for (const entry of supplierAdjustmentEntries) {
+          await insertStockAdjustmentHistory({
+            ...entry,
+            productId,
+            productKode: payload.kode,
+            productNama: payload.nama,
+          })
+        }
+      } else {
+        await insertStockAdjustmentHistory({
+          productId,
+          productKode: payload.kode,
+          productNama: payload.nama,
+          previousStok: previousGlobalStok,
+          nextStok: totalStok,
+          validationTanggal: stockValidation.tanggal,
+          validationStaff: stockValidation.diubahOleh,
+          validationAlasan: stockValidation.alasan,
+        })
+      }
     }
 
     closeModal()

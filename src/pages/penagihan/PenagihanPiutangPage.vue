@@ -15,6 +15,8 @@
 
     <div class="shortcut-strip">
       <kbd>F1 Cari</kbd>
+      <kbd>F2 Tanggal</kbd>
+      <kbd>F3 Filter Status</kbd>
       <kbd>Arrow Pilih Baris</kbd>
       <kbd>Enter Bayar</kbd>
       <kbd>F4 Detail</kbd>
@@ -55,18 +57,38 @@
         </div>
 
         <div class="toolbar-actions">
-          <div class="filter-chip-group">
-            <button
-              v-for="chip in filterOptions"
-              :key="chip.id"
-              type="button"
-              class="filter-chip"
-              :class="{ 'filter-chip--active': activeFilter === chip.id }"
-              @click="activeFilter = chip.id"
-            >
-              {{ chip.label }}
-            </button>
+          <div class="date-filter-wrap">
+            <label class="search-label">
+              Tanggal Order
+              <kbd class="label-kbd">F2</kbd>
+            </label>
+            <div class="date-filter-row">
+              <input
+                ref="dateStartInput"
+                v-model="dateFilter.start"
+                type="date"
+                class="mfield-input date-filter-input"
+                @keydown.enter.prevent="onDateStartEnter"
+              />
+              <span class="date-separator">s/d</span>
+              <input
+                ref="dateEndInput"
+                v-model="dateFilter.end"
+                type="date"
+                class="mfield-input date-filter-input"
+              />
+            </div>
           </div>
+
+          <button
+            type="button"
+            class="btn-filter-popup"
+            @click="openStatusFilterModal"
+          >
+            <i class="pi pi-sliders-h"></i>
+            <span>Filter: {{ activeFilterLabel }}</span>
+            <kbd>F3</kbd>
+          </button>
         </div>
       </div>
 
@@ -74,7 +96,7 @@
         <div class="result-meta">
           <span class="result-count"><b>{{ rows.length }}</b> transaksi piutang</span>
           <span class="page-info">Total sisa: <b>{{ formatRp(totalOutstanding) }}</b></span>
-          <span class="page-info">Mode tampil: <b>per No. Order</b></span>
+          <span class="page-info">Status: <b>{{ activeFilterLabel }}</b></span>
         </div>
 
         <div class="table-wrap">
@@ -168,7 +190,7 @@
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="paymentModal.show" class="modal-overlay" @click.self="closePaymentModal">
-          <div class="modal-box" role="dialog" aria-label="Input pembayaran customer">
+          <div class="modal-box modal-box--payment" role="dialog" aria-label="Input pembayaran customer">
             <div class="modal-header modal-header--blue">
               <h3 class="modal-title">Input Pembayaran Customer</h3>
               <button class="modal-close" @click="closePaymentModal" tabindex="-1">
@@ -176,23 +198,30 @@
               </button>
             </div>
 
-            <form class="modal-body" @submit.prevent="submitPayment">
+            <form class="modal-body" @submit.prevent="requestPaymentConfirm">
               <div class="mfield-grid">
                 <div class="mfield">
                   <label class="mfield-label">No. Order Acuan</label>
-                  <input :value="paymentModal.sale?.no_order || '-'" type="text" class="mfield-input" disabled />
+                  <input :value="paymentModal.sale?.no_order || '-'" type="text" class="mfield-input mfield-input--readonly" disabled />
                 </div>
                 <div class="mfield">
                   <label class="mfield-label">Customer</label>
-                  <input :value="paymentModal.sale?.customer_nama || '-'" type="text" class="mfield-input" disabled />
+                  <input :value="paymentModal.sale?.customer_nama || '-'" type="text" class="mfield-input mfield-input--readonly" disabled />
                 </div>
                 <div class="mfield">
                   <label class="mfield-label">Sisa Tagihan Customer</label>
-                  <input :value="formatRp(getCustomerOutstanding(paymentModal.sale?.customer_id))" type="text" class="mfield-input" disabled />
+                  <input :value="formatRp(getCustomerOutstanding(paymentModal.sale?.customer_id))" type="text" class="mfield-input mfield-input--readonly" disabled />
                 </div>
                 <div class="mfield">
                   <label class="mfield-label">Tanggal Bayar <span class="required">*</span></label>
-                  <input v-model="paymentModal.paymentDate" type="date" class="mfield-input" required />
+                  <input
+                    ref="paymentDateInput"
+                    v-model="paymentModal.paymentDate"
+                    type="date"
+                    class="mfield-input"
+                    @keydown="onPaymentFieldArrow"
+                    required
+                  />
                 </div>
                 <div class="mfield">
                   <label class="mfield-label">Nominal Bayar <span class="required">*</span></label>
@@ -203,24 +232,35 @@
                     class="mfield-input"
                     placeholder="Contoh: 1.250.000"
                     @input="onPaymentAmountInput"
+                    @keydown="onPaymentFieldArrow"
+                    @keydown.enter.prevent="focusPaymentMethod"
                     required
                   />
                 </div>
                 <div class="mfield">
                   <label class="mfield-label">Metode Bayar</label>
-                  <select v-model="paymentModal.method" class="mfield-input">
+                  <select
+                    ref="paymentMethodInput"
+                    v-model="paymentModal.method"
+                    class="mfield-input"
+                    @keydown="onPaymentFieldArrow"
+                    @keydown.enter.prevent="focusPaymentNote"
+                  >
                     <option v-for="opt in paymentMethodOptions" :key="opt.value" :value="opt.value">
                       {{ opt.label }}
                     </option>
                   </select>
                 </div>
                 <div class="mfield mfield--full">
-                  <label class="mfield-label">Catatan</label>
+                  <label class="mfield-label">Catatan <span class="mfield-optional">(Opsional)</span></label>
                   <textarea
+                    ref="paymentNoteInput"
                     v-model="paymentModal.note"
                     class="mfield-input mfield-textarea"
                     rows="3"
-                    placeholder="Contoh: Cicilan pertama, transfer BCA"
+                    placeholder=""
+                    @keydown="onPaymentFieldArrow"
+                    @keydown.enter.exact.prevent="requestPaymentConfirm"
                   ></textarea>
                 </div>
                 <div class="mfield mfield--full">
@@ -234,13 +274,6 @@
                 </div>
 
                 <div class="mfield mfield--full allocation-preview" v-if="paymentModal.sale">
-                  <h4 class="allocation-preview-title">Preview Breakdown Alokasi</h4>
-                  <div class="allocation-preview-meta">
-                    <span>Nominal Input: <b>{{ formatRp(paymentPreview.requestedAmount) }}</b></span>
-                    <span>Teralokasi: <b>{{ formatRp(paymentPreview.allocatedAmount) }}</b></span>
-                    <span>Sisa Tidak Teralokasi: <b :class="{ 'allocation-preview-warn': paymentPreview.unallocatedAmount > 0 }">{{ formatRp(paymentPreview.unallocatedAmount) }}</b></span>
-                  </div>
-
                   <p v-if="paymentPreview.overLimit" class="allocation-preview-error">
                     Nominal input melebihi total sisa tagihan customer.
                   </p>
@@ -284,9 +317,53 @@
 
             <div class="modal-footer">
               <button type="button" class="btn-secondary" @click="closePaymentModal">Batal <kbd>Esc</kbd></button>
-              <button type="button" class="btn-primary" :disabled="paymentModal.saving" @click="submitPayment">
+              <button ref="paymentSaveButton" type="button" class="btn-primary" :disabled="paymentModal.saving" @click="requestPaymentConfirm">
                 <i class="pi pi-check"></i>
                 <span>{{ paymentModal.saving ? 'Menyimpan...' : 'Simpan Pembayaran' }}</span>
+                <kbd>Enter/F10</kbd>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="paymentConfirm.show" class="modal-overlay" @click.self="cancelPaymentConfirm">
+          <div class="modal-box modal-box--confirm" role="dialog" aria-label="Konfirmasi simpan pembayaran">
+            <div class="modal-header modal-header--center">
+              <h3 class="modal-title">Konfirmasi Pembayaran</h3>
+              <button class="modal-close" @click="cancelPaymentConfirm" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body modal-body--confirm">
+              <p class="confirm-message">Simpan pembayaran ini?</p>
+              <div class="payment-confirm-box">
+                <div>
+                  <span class="payment-confirm-label">Customer</span>
+                  <strong class="payment-confirm-value">{{ paymentModal.sale?.customer_nama || '-' }}</strong>
+                </div>
+                <div>
+                  <span class="payment-confirm-label">Nominal</span>
+                  <strong class="payment-confirm-value">{{ formatRp(paymentConfirm.amount) }}</strong>
+                </div>
+                <div>
+                  <span class="payment-confirm-label">Tanggal Bayar</span>
+                  <strong class="payment-confirm-value">{{ paymentModal.paymentDate || '-' }}</strong>
+                </div>
+                <div>
+                  <span class="payment-confirm-label">Metode</span>
+                  <strong class="payment-confirm-value">{{ paymentMethodLabel(paymentModal.method) }}</strong>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-secondary" @click="cancelPaymentConfirm">Batal <kbd>Esc</kbd></button>
+              <button type="button" class="btn-primary" @click="confirmPayment" :disabled="paymentModal.saving">
+                <i class="pi pi-check"></i>
+                <span>Ya, Simpan</span>
                 <kbd>Enter</kbd>
               </button>
             </div>
@@ -308,6 +385,11 @@
 
             <div class="modal-body" v-if="detailModal.sale">
               <div class="detail-grid">
+                <div class="detail-card detail-card--order">
+                  <span class="detail-label">No. Order / No. Faktur</span>
+                  <strong class="detail-value">{{ detailModal.sale.no_order }}</strong>
+                  <span class="detail-sub">Faktur: {{ detailModal.sale.no_faktur || '-' }}</span>
+                </div>
                 <div class="detail-card">
                   <span class="detail-label">Customer</span>
                   <strong class="detail-value">{{ detailModal.sale.customer_nama }}</strong>
@@ -326,10 +408,56 @@
                 <div class="detail-card">
                   <span class="detail-label">Sisa</span>
                   <strong class="detail-value">{{ formatRp(detailModal.sale.outstanding_amount) }}</strong>
-                  <span class="detail-sub" :class="statusClass(detailModal.sale.payment_status)">
+                  <span class="detail-sub">Overdue: {{ detailModal.sale.is_overdue ? `${detailModal.sale.overdue_days} hari` : '-' }}</span>
+                </div>
+                <div class="detail-card detail-card--status">
+                  <span class="detail-label">Status Pembayaran</span>
+                  <span class="status-pill" :class="statusClass(detailModal.sale.payment_status)">
                     {{ paymentStatusLabel(detailModal.sale.payment_status) }}
                   </span>
+                  <span class="detail-sub">Term: {{ detailModal.sale.payment_term_label }}</span>
                 </div>
+              </div>
+
+              <h4 class="detail-section-title">Item Pada Transaksi</h4>
+              <div class="table-wrap detail-table-wrap detail-items-wrap">
+                <table class="g-table detail-items-table">
+                  <thead>
+                    <tr>
+                      <th class="col-no">#</th>
+                      <th class="col-item">Kode</th>
+                      <th class="col-item-name">Nama Item</th>
+                      <th class="col-money">Qty</th>
+                      <th class="col-money">Harga</th>
+                      <th class="col-money">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody v-if="detailModal.itemsLoading">
+                    <tr>
+                      <td colspan="6" class="empty-cell">Memuat item transaksi...</td>
+                    </tr>
+                  </tbody>
+                  <tbody v-else-if="detailModal.itemsError">
+                    <tr>
+                      <td colspan="6" class="empty-cell">{{ detailModal.itemsError }}</td>
+                    </tr>
+                  </tbody>
+                  <tbody v-else-if="detailItems.length === 0">
+                    <tr>
+                      <td colspan="6" class="empty-cell">Item transaksi tidak ditemukan.</td>
+                    </tr>
+                  </tbody>
+                  <tbody v-else>
+                    <tr v-for="(item, idx) in detailItems" :key="item.id || idx">
+                      <td class="col-no">{{ idx + 1 }}</td>
+                      <td class="col-item">{{ item.product_kode || '-' }}</td>
+                      <td class="col-item-name">{{ item.product_nama || '-' }}</td>
+                      <td class="col-money">{{ Number(item.qty || 0).toLocaleString('id-ID') }}</td>
+                      <td class="col-money">{{ formatRp(item.unit_price) }}</td>
+                      <td class="col-money"><span class="harga-val">{{ formatRp(item.total) }}</span></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
               <h4 class="detail-section-title">Riwayat Pembayaran</h4>
@@ -376,6 +504,42 @@
         </div>
       </Transition>
     </Teleport>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="statusFilterModal.show" class="modal-overlay" @click.self="closeStatusFilterModal">
+          <div class="modal-box modal-box--status-filter" role="dialog" aria-label="Filter status piutang">
+            <div class="modal-header modal-header--blue">
+              <h3 class="modal-title">Filter Status Piutang</h3>
+              <button class="modal-close" @click="closeStatusFilterModal" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body status-filter-body">
+              <button
+                v-for="opt in statusFilterLayout"
+                :key="opt.id"
+                type="button"
+                class="status-filter-option"
+                :class="[
+                  `status-filter-option--${opt.id}`,
+                  { 'status-filter-option--active': statusFilterModal.selectedId === opt.id },
+                ]"
+                @mouseenter="statusFilterModal.selectedId = opt.id"
+                @click="applyStatusFilterById(opt.id)"
+              >
+                <span class="status-filter-label">
+                  <i :class="statusFilterIcon(opt.id)"></i>
+                  {{ opt.label }}
+                </span>
+                <i v-if="activeFilter === opt.id" class="pi pi-check"></i>
+              </button>
+              <p class="status-filter-hint">Arrow: pilih · Enter: terapkan · Esc: batal</p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -384,6 +548,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
+import { supabase } from '@/lib/supabase'
 import {
   fetchPenagihanBundle,
   filterBySearch,
@@ -412,12 +577,22 @@ const toast = useToast()
 
 const pageEl = ref(null)
 const searchInput = ref(null)
+const dateStartInput = ref(null)
+const dateEndInput = ref(null)
+const paymentDateInput = ref(null)
 const paymentAmountInput = ref(null)
+const paymentMethodInput = ref(null)
+const paymentNoteInput = ref(null)
+const paymentSaveButton = ref(null)
 const focusKey = ref('')
 const loading = ref(false)
 const schemaError = ref('')
 const searchQuery = ref('')
 const activeFilter = ref('all')
+const dateFilter = reactive({
+  start: '',
+  end: toIsoDate(new Date()),
+})
 const selectedRowIndex = ref(0)
 const rowRefs = ref({})
 let stopAutoSync = () => {}
@@ -437,9 +612,24 @@ const paymentModal = reactive({
   saving: false,
 })
 
+const paymentConfirm = reactive({
+  show: false,
+  allocation: null,
+  amount: 0,
+  openedAt: 0,
+})
+
 const detailModal = reactive({
   show: false,
   sale: null,
+  items: [],
+  itemsLoading: false,
+  itemsError: '',
+})
+
+const statusFilterModal = reactive({
+  show: false,
+  selectedId: 'all',
 })
 
 const isReadOnly = computed(() => Boolean(route.meta.readOnly))
@@ -448,9 +638,24 @@ const filterOptions = [
   { id: 'all', label: 'Semua' },
   { id: 'overdue', label: 'Overdue' },
   { id: 'due_soon', label: 'Jatuh Tempo <= 7 Hari' },
-  { id: 'partial', label: 'Cicilan' },
   { id: 'unpaid', label: 'Belum Bayar' },
 ]
+
+const statusFilterLayout = computed(() => {
+  return [
+    filterOptions[0],
+    filterOptions[2],
+    filterOptions[1],
+    filterOptions[3],
+  ].filter(Boolean)
+})
+
+const activeFilterLabel = computed(() => {
+  const found = filterOptions.find(opt => opt.id === activeFilter.value)
+  return found?.label || 'Semua'
+})
+
+const detailItems = computed(() => detailModal.items || [])
 
 function comparePiutangByOrder(a, b) {
   const dateA = String(a?.order_date || '')
@@ -473,12 +678,19 @@ function comparePiutangByOrder(a, b) {
 const rows = computed(() => {
   let data = billingRows.value.filter(row => row.is_credit && Number(row.outstanding_amount || 0) > 0)
 
+  const start = String(dateFilter.start || '').trim()
+  const end = String(dateFilter.end || '').trim()
+  if (start) {
+    data = data.filter(row => String(row.order_date || '') >= start)
+  }
+  if (end) {
+    data = data.filter(row => String(row.order_date || '') <= end)
+  }
+
   if (activeFilter.value === 'overdue') {
     data = data.filter(row => row.is_overdue)
   } else if (activeFilter.value === 'due_soon') {
     data = data.filter(row => isDueSoon(row))
-  } else if (activeFilter.value === 'partial') {
-    data = data.filter(row => row.payment_status === 'partial')
   } else if (activeFilter.value === 'unpaid') {
     data = data.filter(row => row.payment_status === 'unpaid')
   }
@@ -571,6 +783,55 @@ function moveSelection(delta) {
   selectedRowIndex.value = Math.min(max, Math.max(0, selectedRowIndex.value + delta))
 }
 
+function onDateStartEnter() {
+  if (!dateFilter.end) {
+    dateFilter.end = toIsoDate(new Date())
+  }
+  nextTick(() => dateEndInput.value?.focus())
+}
+
+function openStatusFilterModal() {
+  statusFilterModal.selectedId = 'all'
+  statusFilterModal.show = true
+}
+
+function closeStatusFilterModal() {
+  statusFilterModal.show = false
+}
+
+function applyStatusFilterById(filterId) {
+  const opt = filterOptions.find(item => item.id === filterId)
+  if (!opt) return
+  activeFilter.value = opt.id
+  closeStatusFilterModal()
+}
+
+function moveStatusFilterSelection(direction) {
+  const current = statusFilterModal.selectedId || 'all'
+  const nextMap = {
+    all: { down: 'overdue', right: 'due_soon', left: 'all', up: 'all' },
+    overdue: { up: 'all', right: 'unpaid', down: 'overdue', left: 'overdue' },
+    due_soon: { down: 'unpaid', left: 'all', right: 'due_soon', up: 'due_soon' },
+    unpaid: { up: 'due_soon', left: 'overdue', right: 'unpaid', down: 'unpaid' },
+  }
+
+  const nextId = nextMap[current]?.[direction] || current
+  statusFilterModal.selectedId = nextId
+}
+
+function statusFilterIcon(filterId) {
+  switch (filterId) {
+    case 'overdue':
+      return 'pi pi-exclamation-circle'
+    case 'due_soon':
+      return 'pi pi-clock'
+    case 'unpaid':
+      return 'pi pi-times-circle'
+    default:
+      return 'pi pi-list'
+  }
+}
+
 function getCustomerOutstanding(customerId) {
   return getCustomerOutstandingAmount(billingRows.value, customerId)
 }
@@ -646,6 +907,7 @@ function closePaymentModal() {
   paymentModal.sale = null
   paymentModal.error = ''
   paymentModal.saving = false
+  cancelPaymentConfirm()
   nextTick(() => pageEl.value?.focus())
 }
 
@@ -654,8 +916,64 @@ function onPaymentAmountInput(e) {
   paymentModal.amountInput = parsed > 0 ? formatAmountInput(parsed) : ''
 }
 
-async function submitPayment() {
-  if (!paymentModal.sale || paymentModal.saving) return
+function focusPaymentMethod() {
+  nextTick(() => paymentMethodInput.value?.focus())
+}
+
+function focusPaymentNote() {
+  nextTick(() => paymentNoteInput.value?.focus())
+}
+
+function onPaymentFieldArrow(e) {
+  const key = e.key
+  if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) return
+  e.preventDefault()
+
+  const order = [
+    paymentDateInput.value,
+    paymentAmountInput.value,
+    paymentMethodInput.value,
+    paymentNoteInput.value,
+  ]
+
+  const current = e.target
+  const currentIndex = order.findIndex(el => el === current)
+  if (currentIndex === -1) return
+
+  const step = (key === 'ArrowDown' || key === 'ArrowRight') ? 1 : -1
+  const nextIndex = Math.min(order.length - 1, Math.max(0, currentIndex + step))
+  order[nextIndex]?.focus()
+}
+
+async function loadSaleItemsForDetail(saleId) {
+  if (!saleId) {
+    detailModal.items = []
+    detailModal.itemsError = ''
+    return
+  }
+
+  detailModal.itemsLoading = true
+  detailModal.itemsError = ''
+
+  try {
+    const { data, error } = await supabase
+      .from('sale_items')
+      .select('id, product_kode, product_nama, qty, unit_price, total')
+      .eq('sale_id', saleId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    detailModal.items = data || []
+  } catch (err) {
+    detailModal.items = []
+    detailModal.itemsError = String(err?.message || err || 'Gagal memuat item transaksi.')
+  } finally {
+    detailModal.itemsLoading = false
+  }
+}
+
+function buildPaymentAllocation() {
+  if (!paymentModal.sale || paymentModal.saving) return null
 
   const amount = parseAmountInput(paymentModal.amountInput)
   const customerId = paymentModal.sale.customer_id
@@ -664,22 +982,22 @@ async function submitPayment() {
 
   if (!customerId) {
     paymentModal.error = 'Data customer pada transaksi ini tidak valid.'
-    return
+    return null
   }
 
   if (!paymentModal.paymentDate) {
     paymentModal.error = 'Tanggal bayar wajib diisi.'
-    return
+    return null
   }
 
   if (!amount || amount <= 0) {
     paymentModal.error = 'Nominal bayar harus lebih dari 0.'
-    return
+    return null
   }
 
   if (amount > customerOutstanding) {
     paymentModal.error = `Nominal bayar tidak boleh melebihi sisa tagihan customer (${formatRp(customerOutstanding)}).`
-    return
+    return null
   }
 
   const allocation = allocateCustomerPaymentFifo({
@@ -690,13 +1008,40 @@ async function submitPayment() {
 
   if (!allocation.allocations.length || allocation.allocatedAmount <= 0) {
     paymentModal.error = 'Tidak ada transaksi yang bisa dialokasikan untuk pembayaran ini.'
-    return
+    return null
   }
 
   if (allocation.unallocatedAmount > 0) {
     paymentModal.error = `Sebagian nominal belum teralokasi (${formatRp(allocation.unallocatedAmount)}). Periksa data piutang customer.`
-    return
+    return null
   }
+
+  return allocation
+}
+
+function requestPaymentConfirm() {
+  const allocation = buildPaymentAllocation()
+  if (!allocation) return
+  paymentConfirm.allocation = allocation
+  paymentConfirm.amount = allocation.allocatedAmount
+  paymentConfirm.show = true
+  paymentConfirm.openedAt = Date.now()
+}
+
+function cancelPaymentConfirm() {
+  paymentConfirm.show = false
+  paymentConfirm.allocation = null
+  paymentConfirm.amount = 0
+  paymentConfirm.openedAt = 0
+}
+
+async function confirmPayment() {
+  if (!paymentConfirm.allocation) return
+  await submitPayment(paymentConfirm.allocation)
+}
+
+async function submitPayment(allocation) {
+  if (!paymentModal.sale || paymentModal.saving || !allocation) return
 
   paymentModal.saving = true
 
@@ -724,6 +1069,7 @@ async function submitPayment() {
       }
     }
 
+    cancelPaymentConfirm()
     closePaymentModal()
     await loadData()
 
@@ -742,14 +1088,19 @@ async function submitPayment() {
   }
 }
 
-function openDetailModal(row) {
+async function openDetailModal(row) {
+  if (!row) return
   detailModal.sale = row
   detailModal.show = true
+  await loadSaleItemsForDetail(row.sale_id)
 }
 
 function closeDetailModal() {
   detailModal.show = false
   detailModal.sale = null
+  detailModal.items = []
+  detailModal.itemsError = ''
+  detailModal.itemsLoading = false
   nextTick(() => pageEl.value?.focus())
 }
 
@@ -760,10 +1111,62 @@ function openPaymentFromDetail() {
 }
 
 function onGlobalKey(e) {
+  if (statusFilterModal.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closeStatusFilterModal()
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      moveStatusFilterSelection('down')
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      moveStatusFilterSelection('up')
+      return
+    }
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      moveStatusFilterSelection('left')
+      return
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      moveStatusFilterSelection('right')
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      applyStatusFilterById(statusFilterModal.selectedId)
+      return
+    }
+  }
+
+  if (paymentConfirm.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelPaymentConfirm()
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (Date.now() - (paymentConfirm.openedAt || 0) < 250) return
+      confirmPayment()
+    }
+    return
+  }
+
   if (paymentModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
       closePaymentModal()
+      return
+    }
+    if (e.key === 'F10') {
+      e.preventDefault()
+      requestPaymentConfirm()
     }
     return
   }
@@ -786,6 +1189,19 @@ function onGlobalKey(e) {
     e.preventDefault()
     focusKey.value = 'search'
     nextTick(() => searchInput.value?.focus())
+    return
+  }
+
+  if (e.key === 'F2') {
+    e.preventDefault()
+    focusKey.value = 'date-start'
+    nextTick(() => dateStartInput.value?.focus())
+    return
+  }
+
+  if (e.key === 'F3') {
+    e.preventDefault()
+    openStatusFilterModal()
     return
   }
 
@@ -826,55 +1242,4 @@ onUnmounted(() => {
 
 <style scoped>
 @import '@/assets/pages/penagihan/penagihan-piutang-page.css';
-
-.allocation-preview {
-  border: 1px solid #dbe6f3;
-  border-radius: 10px;
-  background: #f8fbff;
-  padding: 0.65rem 0.75rem;
-}
-
-.allocation-preview-title {
-  font-size: 0.84rem;
-  color: #334155;
-  margin-bottom: 0.4rem;
-}
-
-.allocation-preview-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  font-size: 0.74rem;
-  color: #475569;
-  margin-bottom: 0.5rem;
-}
-
-.allocation-preview-warn {
-  color: #b91c1c;
-}
-
-.allocation-preview-error {
-  margin: 0 0 0.45rem;
-  color: #b91c1c;
-  font-size: 0.74rem;
-}
-
-.allocation-preview-table-wrap {
-  max-height: 220px;
-}
-
-.allocation-preview-table {
-  min-width: 760px;
-}
-
-.allocation-preview-paid {
-  color: #166534;
-  font-weight: 700;
-}
-
-.allocation-preview-empty {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.74rem;
-}
 </style>
