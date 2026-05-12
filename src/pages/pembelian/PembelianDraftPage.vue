@@ -754,9 +754,9 @@ onUnmounted(() => {
 
 <style scoped>
 @import '@/assets/styles.css';
-@import '@/assets/pages/gudang/gudang-page.css';
+@import '@/assets/Styles/gudang/gudang-page.css';
 @import '@/assets/components/table.css';
 @import '@/assets/components/form.css';
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/pembelian/pembelian-draft-page.css';
+@import '@/assets/Styles/pembelian/pembelian-draft-page.css';
 </style>

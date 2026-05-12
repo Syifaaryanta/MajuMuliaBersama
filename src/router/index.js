@@ -188,6 +188,54 @@ const router = createRouter({
           component: () => import('@/pages/laporan/LaporanPage.vue')
         },
         {
+          path: 'laporan/ringkasan-bisnis',
+          name: 'LaporanRingkasanBisnis',
+          component: () => import('@/pages/laporan/LaporanRingkasanBisnisPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Laporan' }
+        },
+        {
+          path: 'laporan/penjualan-detail',
+          name: 'LaporanPenjualanDetail',
+          component: () => import('@/pages/laporan/LaporanPenjualanDetailPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Laporan' }
+        },
+        {
+          path: 'laporan/pembelian-detail',
+          name: 'LaporanPembelianDetail',
+          component: () => import('@/pages/laporan/LaporanPembelianDetailPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Laporan' }
+        },
+        {
+          path: 'laporan/stok-persediaan',
+          name: 'LaporanStokPersediaan',
+          component: () => import('@/pages/laporan/LaporanStokPersediaanPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Laporan' }
+        },
+        {
+          path: 'laporan/penagihan-piutang',
+          name: 'LaporanPenagihanPiutang',
+          component: () => import('@/pages/laporan/LaporanPenagihanPiutangPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Laporan' }
+        },
+        {
+          path: 'laporan/hutang',
+          name: 'LaporanHutang',
+          component: () => import('@/pages/laporan/LaporanHutangPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Laporan' }
+        },
+        {
+          path: 'laporan/arus-kas',
+          name: 'LaporanArusKas',
+          component: () => import('@/pages/laporan/LaporanArusKasPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Laporan' }
+        },
+        {
+          path: 'laporan/audit-aktivitas',
+          name: 'LaporanAuditAktivitas',
+          component: () => import('@/pages/laporan/LaporanAuditAktivitasPage.vue'),
+          meta: { requiresAuth: true, parentRoute: 'Laporan' }
+        },
+        {
           path: 'master-data',
           name: 'MasterData',
           component: () => import('@/pages/master-data/MasterDataPage.vue')

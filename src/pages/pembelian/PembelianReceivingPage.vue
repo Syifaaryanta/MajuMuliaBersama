@@ -1118,5 +1118,5 @@ watch(() => filterModal.value.show, (isOpen) => {
 
 <style scoped>
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/pembelian/pembelian-receiving-page.css';
+@import '@/assets/Styles/pembelian/pembelian-receiving-page.css';
 </style>

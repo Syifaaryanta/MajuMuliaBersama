@@ -842,7 +842,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/penagihan/penagihan-nota-page.css';
+@import '@/assets/Styles/penagihan/penagihan-nota-page.css';
 
 .row-error {
   margin-top: 0.3rem;

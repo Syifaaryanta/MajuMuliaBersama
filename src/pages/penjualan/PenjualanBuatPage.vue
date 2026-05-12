@@ -1132,5 +1132,5 @@ function formatRp(val) {
 @import '@/assets/styles.css';
 @import '@/assets/components/form.css';
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/penjualan/penjualan-buat-page.css';
+@import '@/assets/Styles/penjualan/penjualan-buat-page.css';
 </style>

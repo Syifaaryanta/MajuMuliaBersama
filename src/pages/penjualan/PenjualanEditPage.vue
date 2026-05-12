@@ -2475,4 +2475,4 @@ onUnmounted(() => {
 </script>
 
 <style src="@/assets/components/modal.css"></style>
-<style src="@/assets/pages/penjualan/penjualan-edit-page.css"></style>
+<style src="@/assets/Styles/penjualan/penjualan-edit-page.css"></style>

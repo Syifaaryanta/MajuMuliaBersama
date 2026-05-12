@@ -855,5 +855,5 @@ function formatRp(val) {
 @import '@/assets/styles.css';
 @import '@/assets/components/form.css';
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/penjualan/penjualan-page.css';
+@import '@/assets/Styles/penjualan/penjualan-page.css';
 </style>

@@ -1,7 +1,7 @@
-﻿<template>
+<template>
   <div class="gudang-archive-page" ref="pageEl" tabindex="-1">
 
-    <!-- ── PAGE HEADER ──────────────────────────────────── -->
+    <!-- -- PAGE HEADER ------------------------------------ -->
     <div class="g-header">
       <div class="g-header-left">
         <h1 class="g-title">Arsip Produk</h1>
@@ -13,7 +13,7 @@
       </div>
     </div>
 
-    <!-- ── SEARCH BAR ───────────────────────────────────── -->
+    <!-- -- SEARCH BAR ------------------------------------- -->
     <div class="cs-search-wrap">
       <div class="cs-search-inner" :class="{ focused: searchFocused }">
         <i class="pi pi-search cs-search-icon"></i>
@@ -22,7 +22,7 @@
           v-model="searchQuery"
           type="text"
           class="cs-search-input"
-          placeholder="Ketik nama atau kode barang, Enter untuk navigasi…"
+          placeholder="Ketik nama atau kode barang, Enter untuk navigasi�"
           autocomplete="off"
           @focus="searchFocused = true"
           @blur="searchFocused = false"
@@ -38,13 +38,13 @@
       </div>
     </div>
 
-    <!-- ── LOADING ───────────────────────────────────────── -->
+    <!-- -- LOADING ----------------------------------------- -->
     <div v-if="loading" class="loading-state">
       <i class="pi pi-spin pi-spinner"></i>
       <span>Memuat data arsip...</span>
     </div>
 
-    <!-- ── EMPTY ─────────────────────────────────────────── -->
+    <!-- -- EMPTY ------------------------------------------- -->
     <div v-else-if="filteredRows.length === 0" class="empty-state">
       <i class="pi pi-inbox"></i>
       <p v-if="searchQuery">Tidak ada barang arsip yang cocok dengan "<b>{{ searchQuery }}</b>"</p>
@@ -52,7 +52,7 @@
       <span class="empty-sub">Arsipkan barang dari halaman Cek Semua Barang dengan tombol <b>Archive (F3)</b></span>
     </div>
 
-    <!-- ── TABLE ─────────────────────────────────────────── -->
+    <!-- -- TABLE ------------------------------------------- -->
     <template v-else>
 
       <!-- Meta bar -->
@@ -60,10 +60,10 @@
         <span class="result-count">
           <b>{{ totalRows }}</b> barang diarsipkan
           <span v-if="searchQuery" class="meta-filter">
-            · "<b>{{ searchQuery }}</b>"
+            � "<b>{{ searchQuery }}</b>"
           </span>
           <span v-if="selectedRowIndex >= 0" class="meta-selected">
-            · baris <b>{{ selectedRowIndex + 1 }}</b>
+            � baris <b>{{ selectedRowIndex + 1 }}</b>
           </span>
         </span>
         <div v-if="totalPages > 1" class="pagination-wrap">
@@ -79,7 +79,7 @@
 
       <!-- Hints bar -->
       <div class="arc-kbd-bar">
-        <span><kbd>↑</kbd><kbd>↓</kbd> navigasi</span>
+        <span><kbd>?</kbd><kbd>?</kbd> navigasi</span>
         <span><kbd>F3</kbd> buka archive</span>
         <span><kbd>Enter</kbd> buka archive</span>
         <span><kbd>Y</kbd> konfirmasi buka archive</span>
@@ -119,7 +119,7 @@
                 </td>
               </tr>
 
-              <!-- ── Inline Row (foto + restore btn) ── -->
+              <!-- -- Inline Row (foto + restore btn) -- -->
               <tr
                 v-if="selectedRowIndex === i"
                 :key="`inline-${row.id}`"
@@ -133,7 +133,7 @@
                           v-for="(url, idx) in row.foto_urls"
                           :key="url"
                           class="photo-thumb"
-                          :title="`${row.nama} — foto ${idx + 1}`"
+                          :title="`${row.nama} � foto ${idx + 1}`"
                         >
                           <img :src="url" :alt="`${row.nama} foto ${idx + 1}`" loading="lazy" />
                         </div>
@@ -154,7 +154,7 @@
 
     </template>
 
-    <!-- ── MODAL: KONFIRMASI BUKA ARCHIVE ─────────────── -->
+    <!-- -- MODAL: KONFIRMASI BUKA ARCHIVE --------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="unarchiveModal.show" class="modal-overlay" @click.self="unarchiveModal.show = false">
@@ -438,5 +438,5 @@ watch([searchQuery, currentPage, selectedRowIndex], () => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/gudang/gudang-archive-page.css';
+@import '@/assets/Styles/gudang/gudang-archive-page.css';
 </style>

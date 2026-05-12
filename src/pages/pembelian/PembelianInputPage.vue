@@ -1216,5 +1216,5 @@ onUnmounted(() => {
 @import '@/assets/styles.css';
 @import '@/assets/components/form.css';
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/pembelian/pembelian-input-page.css';
+@import '@/assets/Styles/pembelian/pembelian-input-page.css';
 </style>

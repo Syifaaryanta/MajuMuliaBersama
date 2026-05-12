@@ -627,5 +627,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/penagihan/penagihan-tunai-page.css';
+@import '@/assets/Styles/penagihan/penagihan-tunai-page.css';
 </style>

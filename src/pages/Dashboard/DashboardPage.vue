@@ -248,5 +248,5 @@ const {
 </script>
 
 <style scoped>
-@import '@/assets/pages/Dashboard/dashboard-page.css';
+@import '@/assets/Styles/Dashboard/dashboard-page.css';
 </style>

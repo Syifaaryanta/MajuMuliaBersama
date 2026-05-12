@@ -25,5 +25,5 @@ function goBack() { router.go(-1) }
 </script>
 
 <style scoped>
-@import '@/assets/pages/forbidden/forbidden-page.css';
+@import '@/assets/Styles/forbidden/forbidden-page.css';
 </style>

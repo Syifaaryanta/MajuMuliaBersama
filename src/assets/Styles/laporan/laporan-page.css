@@ -1,0 +1,236 @@
+/* ============================================================
+   LAPORAN PAGE — Card Menu Styles
+   ============================================================ */
+
+.laporan-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px 16px 32px;
+}
+
+.laporan-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: center;
+  padding: 0 0 1rem;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+
+.laporan-header__text {
+  max-width: 720px;
+}
+
+.laporan-header__title {
+  margin: 0 0 0.35rem 0;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.laporan-header__desc {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.laporan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.laporan-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.75rem 1.75rem 1.75rem 5.2rem;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.laporan-card::before {
+  content: '';
+  position: absolute;
+  left: 1.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.25);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.laporan-card__icon {
+  position: absolute;
+  left: 1.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 1.3rem;
+  z-index: 1;
+}
+
+.laporan-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.laporan-card--link {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.laporan-card--link:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+}
+
+.laporan-card--link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+  border-color: #3b82f6;
+}
+
+.laporan-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.laporan-card__text {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.laporan-card__desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.laporan-card__chevron {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.laporan-card:nth-child(1) {
+  border-color: #bfdbfe;
+  background: linear-gradient(135deg, #f8fbff 0%, #eff6ff 100%);
+}
+
+.laporan-card:nth-child(1)::before {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.laporan-card:nth-child(2) {
+  border-color: #c7d2fe;
+  background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
+}
+
+.laporan-card:nth-child(2)::before {
+  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+}
+
+.laporan-card:nth-child(3) {
+  border-color: #fde68a;
+  background: linear-gradient(135deg, #fffaf0 0%, #fffbeb 100%);
+}
+
+.laporan-card:nth-child(3)::before {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.laporan-card:nth-child(4) {
+  border-color: #a7f3d0;
+  background: linear-gradient(135deg, #f7fefb 0%, #ecfdf5 100%);
+}
+
+.laporan-card:nth-child(4)::before {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.laporan-card:nth-child(5) {
+  border-color: #fbcfe8;
+  background: linear-gradient(135deg, #fff1f8 0%, #fdf2f8 100%);
+}
+
+.laporan-card:nth-child(5)::before {
+  background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+}
+
+.laporan-card:nth-child(6) {
+  border-color: #fcd34d;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.laporan-card:nth-child(6)::before {
+  background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+}
+
+.laporan-card:nth-child(7) {
+  border-color: #bbf7d0;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.laporan-card:nth-child(7)::before {
+  background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+}
+
+.laporan-card:nth-child(8) {
+  border-color: #c4b5fd;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+}
+
+.laporan-card:nth-child(8)::before {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+}
+
+@media (max-width: 768px) {
+  .laporan-card {
+    gap: 0.9rem;
+    padding: 1rem 1rem 1rem 4.4rem;
+  }
+
+  .laporan-card::before,
+  .laporan-card__icon {
+    left: 1rem;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .laporan-card__icon {
+    font-size: 1.1rem;
+  }
+
+  .laporan-card h3 {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .laporan-header {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

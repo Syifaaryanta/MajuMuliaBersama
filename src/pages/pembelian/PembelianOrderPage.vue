@@ -567,5 +567,5 @@ onUnmounted(() => {
 @import '@/assets/styles.css';
 @import '@/assets/components/form.css';
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/pembelian/pembelian-order-page.css';
+@import '@/assets/Styles/pembelian/pembelian-order-page.css';
 </style>

@@ -1693,5 +1693,5 @@ watch(
 </script>
 
 <style scoped>
-@import '@/assets/pages/gudang/gudang-cek-harga-page.css';
+@import '@/assets/Styles/gudang/gudang-cek-harga-page.css';
 </style>

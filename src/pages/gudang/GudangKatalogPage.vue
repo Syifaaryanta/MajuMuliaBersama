@@ -1,7 +1,7 @@
-﻿<template>
+<template>
   <div class="gudang-page" ref="pageEl" tabindex="-1">
 
-    <!-- ── PAGE HEADER ──────────────────────────────────── -->
+    <!-- -- PAGE HEADER ------------------------------------ -->
     <div class="g-header">
       <div class="g-header-left">
         <h1 class="g-title">Manajemen Data Produk</h1>
@@ -14,7 +14,7 @@
       </button>
     </div>
 
-    <!-- ── SEARCH BAR ───────────────────────────────────── -->
+    <!-- -- SEARCH BAR ------------------------------------- -->
     <div class="ktl-search-wrap">
       <div class="ktl-search-inner" :class="{ focused: isFocused }">
         <i class="pi pi-search ktl-search-icon"></i>
@@ -23,7 +23,7 @@
           v-model="searchBarang"
           type="text"
           class="ktl-search-input"
-          placeholder="Ketik nama atau kode barang, Enter untuk cari…"
+          placeholder="Ketik nama atau kode barang, Enter untuk cari�"
           autocomplete="off"
           @focus="isFocused = true"
           @blur="isFocused = false"
@@ -39,13 +39,13 @@
       </div>
     </div>
 
-    <!-- ── EMPTY HINT ───────────────────────────────────── -->
+    <!-- -- EMPTY HINT ------------------------------------- -->
     <div v-if="!hasSearched" class="ktl-empty-hint">
       <div class="ktl-empty-icon-wrap">
         <i class="pi pi-search"></i>
       </div>
       <p class="ktl-empty-title">Cari barang untuk mulai mengelola</p>
-      <p class="ktl-empty-sub">Ketik nama / kode lalu tekan <kbd>Enter</kbd> · Tambah barang baru dengan <kbd>F2</kbd></p>
+      <p class="ktl-empty-sub">Ketik nama / kode lalu tekan <kbd>Enter</kbd> � Tambah barang baru dengan <kbd>F2</kbd></p>
     </div>
 
     <template v-else>
@@ -53,7 +53,7 @@
       <div class="result-meta">
         <span class="result-count">
           <b>{{ totalRows }}</b> barang
-          <span class="meta-kw">· "{{ lastSearch }}"</span>
+          <span class="meta-kw">� "{{ lastSearch }}"</span>
         </span>
         <div class="ktl-meta-right">
           <template v-if="totalPages > 1">
@@ -128,7 +128,7 @@
                 <td class="col-supplier" style="text-align: center;">
                   <span class="supplier-chip">
                     {{ price.supplier_nama }}
-                    <template v-if="price.stok != null"> · {{ Number(price.stok || 0) }} {{ row.satuan }}</template>
+                    <template v-if="price.stok != null"> � {{ Number(price.stok || 0) }} {{ row.satuan }}</template>
                   </span>
                 </td>
                 <td class="col-harga" style="text-align: center;">
@@ -151,7 +151,7 @@
       >
         <div class="photos-header">
           <span class="photos-title"><i class="pi pi-images"></i> Foto Produk</span>
-          <span class="photos-count">{{ selectedRowData.foto_urls.length }} foto · <kbd>F1</kbd> fullscreen</span>
+          <span class="photos-count">{{ selectedRowData.foto_urls.length }} foto � <kbd>F1</kbd> fullscreen</span>
         </div>
         <div class="photos-grid" :class="`photos-grid--${selectedRowData.foto_urls.length}`">
           <div
@@ -167,9 +167,9 @@
       </div>
     </template>
 
-    <!-- ═══════════════════════════════════════════════════
+    <!-- ---------------------------------------------------
          MODAL PILIH MODE EDIT (ENTER PADA ROW)
-    ════════════════════════════════════════════════════ -->
+    ---------------------------------------------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div
@@ -220,9 +220,9 @@
       </Transition>
     </Teleport>
 
-    <!-- ═══════════════════════════════════════════════════
+    <!-- ---------------------------------------------------
          MODAL TAMBAH / EDIT BARANG
-    ════════════════════════════════════════════════════ -->
+    ---------------------------------------------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="modal.show && !isStockOnlyEdit" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal">
@@ -277,7 +277,7 @@
                   :class="{ 'mfield-input--readonly': isStockOnlyEdit }"
                   :readonly="isStockOnlyEdit"
                   rows="3"
-                  placeholder="Deskripsi barang…"
+                  placeholder="Deskripsi barang�"
                   @keydown.enter.exact.prevent="focusField('photoAreaRef')"
                 ></textarea>
               </div>
@@ -286,7 +286,7 @@
               <div class="photo-section">
                 <div class="photo-section-header">
                   <span class="photo-section-title"><i class="pi pi-images"></i> Foto Barang</span>
-                  <span v-if="!isStockOnlyEdit" class="photo-limit">Maks 3 foto · <kbd>F1</kbd> tambah</span>
+                  <span v-if="!isStockOnlyEdit" class="photo-limit">Maks 3 foto � <kbd>F1</kbd> tambah</span>
                 </div>
 
                 <div class="photo-area" ref="photoAreaRef" tabindex="0"
@@ -356,7 +356,7 @@
                     </div>
                     <div class="photo-upload-label">
                       <i class="pi pi-cloud-upload"></i>
-                      <span v-if="!photoUpload.uploading">Pilih Ambil Foto atau Unggah Foto · <kbd>F1</kbd> unggah cepat</span>
+                      <span v-if="!photoUpload.uploading">Pilih Ambil Foto atau Unggah Foto � <kbd>F1</kbd> unggah cepat</span>
                       <span v-else class="uploading-text">
                         <i class="pi pi-spin pi-spinner"></i> Mengupload... {{ photoUpload.progress }}%
                       </span>
@@ -493,9 +493,9 @@
       </Transition>
     </Teleport>
 
-    <!-- ═══════════════════════════════════════════════════
+    <!-- ---------------------------------------------------
          MODAL KHUSUS EDIT STOK & HARGA
-    ════════════════════════════════════════════════════ -->
+    ---------------------------------------------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="modal.show && isStockOnlyEdit" class="modal-overlay" @keydown="onModalKeydown" @click.self="closeModal({ backToChoice: true })">
@@ -668,9 +668,9 @@
       </Transition>
     </Teleport>
 
-    <!-- ═══════════════════════════════════════════════════
+    <!-- ---------------------------------------------------
          MODAL KONFIRMASI ARCHIVE
-    ════════════════════════════════════════════════════ -->
+    ---------------------------------------------------- -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="archiveModal.show" class="modal-overlay" @click.self="archiveModal.show = false">
@@ -705,7 +705,7 @@
       </Transition>
     </Teleport>
 
-    <!-- ── MODAL: PILIH BARANG ────────────────────────────── -->
+    <!-- -- MODAL: PILIH BARANG ------------------------------ -->
     <Teleport to="body">
       <Transition name="modal-fade">
         <div v-if="barangModal.show" class="modal-backdrop" @click="barangModal.show = false">
@@ -724,7 +724,7 @@
                   v-model="barangModal.query"
                   type="text"
                   class="search-input"
-                  placeholder="Ketik untuk filter…"
+                  placeholder="Ketik untuk filter�"
                   @input="filterBarangModal"
                   @keydown="onBarangModalKey"
                 />
@@ -741,7 +741,7 @@
                   <i class="pi pi-box"></i>
                   <div class="modal-item-detail">
                     <span class="modal-item-nama">{{ p.nama }}</span>
-                    <span class="modal-item-meta">{{ p.kode }} · Stok: <b>{{ p.stok }}</b> {{ p.satuan }}</span>
+                    <span class="modal-item-meta">{{ p.kode }} � Stok: <b>{{ p.stok }}</b> {{ p.satuan }}</span>
                   </div>
                 </div>
                 <div v-if="!barangModal.filtered.length" class="empty-state">
@@ -755,9 +755,9 @@
       </Transition>
     </Teleport>
 
-    <!-- ═══════════════════════════════════════════════════
+    <!-- ---------------------------------------------------
          LIGHTBOX FOTO
-    ════════════════════════════════════════════════════ -->
+    ---------------------------------------------------- -->
     <Teleport to="body">
       <Transition name="modal-fade">
         <div v-if="lightbox.show" class="lightbox-overlay" @click="closeLightbox">
@@ -810,7 +810,7 @@ const toast = useToast()
 const PAGE_SIZE = 15
 const GUDANG_KATALOG_STATE_KEY = 'gudang-katalog-state-v1'
 
-// ── DOM Refs ───────────────────────────────────────────────
+// -- DOM Refs -----------------------------------------------
 const pageEl        = ref(null)
 const inputBarang   = ref(null)
 const photoViewRef  = ref(null)
@@ -835,7 +835,7 @@ function setRowRef(el, i) {
   else    rowRefs.delete(i)
 }
 
-// ── State ──────────────────────────────────────────────────
+// -- State --------------------------------------------------
 const searchBarang     = ref('')
 const isFocused        = ref(false)
 const lastSearch       = ref('')
@@ -877,7 +877,7 @@ const pendingFotoFiles = ref([])
 const autoKodeSuffix = ref(generateRandomKodeSuffix())
 
 
-// ── Computed ───────────────────────────────────────────────
+// -- Computed -----------------------------------------------
 const totalRows  = computed(() => allRows.value.length)
 const totalPages = computed(() => Math.max(1, Math.ceil(totalRows.value / PAGE_SIZE)))
 const pagedRows  = computed(() => {
@@ -908,7 +908,7 @@ const displayedFotos = computed(() => {
 const isIdentityOnlyEdit = computed(() => modal.mode === 'edit' && modal.variant === 'identity')
 const isStockOnlyEdit = computed(() => modal.mode === 'edit' && modal.variant === 'stock')
 
-// ── Utilities ──────────────────────────────────────────────
+// -- Utilities ----------------------------------------------
 function formatRp(val) {
   return 'Rp ' + Number(val).toLocaleString('id-ID')
 }
@@ -1334,7 +1334,7 @@ function clearPendingFotoFiles() {
   pendingFotoFiles.value = []
 }
 
-// ── Search / Table ─────────────────────────────────────────
+// -- Search / Table -----------------------------------------
 async function openBarangModal() {
   const q = searchBarang.value.trim()
   if (!q) return
@@ -1497,14 +1497,14 @@ function nextPage() {
   if (currentPage.value < totalPages.value) { currentPage.value++; selectedRowIndex.value = 0 }
 }
 
-// ── Suppliers ──────────────────────────────────────────────
+// -- Suppliers ----------------------------------------------
 async function loadSuppliers() {
   const { data } = await supabase
     .from('suppliers').select('id, kode, nama').eq('aktif', true).order('nama')
   suppliers.value = data ?? []
 }
 
-// ── Modal Add / Edit ───────────────────────────────────────
+// -- Modal Add / Edit ---------------------------------------
 function resetForm() {
   form.id = null; form.kode = ''; form.nama = ''; form.deskripsi = ''
   form.stok = 0; form.satuan = 'pcs'
@@ -1706,7 +1706,7 @@ function onModalKeydown(e) {
   }
 }
 
-// ── Supplier dropdown ──────────────────────────────────────
+// -- Supplier dropdown --------------------------------------
 function calcDropdownPos(idx) {
   const el = priceSupplierRefs.value[idx]
   if (!el) return
@@ -1891,7 +1891,7 @@ function onHargaEnter(idx) {
   }
 }
 
-// ── Foto upload ────────────────────────────────────────────
+// -- Foto upload --------------------------------------------
 async function compressImage(file, maxSizeKB = 150, maxWidth = 800) {
   if (file.size / 1024 <= maxSizeKB) return file
   return new Promise((resolve, reject) => {
@@ -2067,7 +2067,7 @@ async function insertStockAdjustmentHistory({
   return true
 }
 
-// ── Submit ─────────────────────────────────────────────────
+// -- Submit -------------------------------------------------
 async function submitModal() {
   modal.saving = true; modal.error = ''
   try {
@@ -2213,7 +2213,7 @@ async function submitModal() {
   }
 }
 
-// ── Archive ────────────────────────────────────────────────
+// -- Archive ------------------------------------------------
 function openArchive(row) {
   if (!row) return
   archiveModal.row = row; archiveModal.saving = false; archiveModal.show = true
@@ -2237,7 +2237,7 @@ async function doArchive() {
 
 
 
-// ── Lightbox ───────────────────────────────────────────────
+// -- Lightbox -----------------------------------------------
 function openPhotoLightbox(index) {
   if (!selectedRowData.value?.foto_urls?.length) return
   lightbox.photos = selectedRowData.value.foto_urls
@@ -2248,7 +2248,7 @@ function closeLightbox() { lightbox.show = false; lightbox.photos = []; lightbox
 function prevPhoto() { if (lightbox.currentIndex > 0) lightbox.currentIndex-- }
 function nextPhoto() { if (lightbox.currentIndex < lightbox.photos.length - 1) lightbox.currentIndex++ }
 
-// ── Keyboard ───────────────────────────────────────────────
+// -- Keyboard -----------------------------------------------
 function onBarangKey(e) {
   if (e.key === 'Enter') {
     e.preventDefault(); openBarangModal()
@@ -2444,7 +2444,7 @@ function restoreKatalogModalFromState(restored) {
   }
 }
 
-// ── Lifecycle ──────────────────────────────────────────────
+// -- Lifecycle ----------------------------------------------
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   window.addEventListener('keydown', onGlobalEscModal)
@@ -2513,5 +2513,5 @@ watch(() => form.nama, () => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/gudang/gudang-katalog-page.css';
+@import '@/assets/Styles/gudang/gudang-katalog-page.css';
 </style>

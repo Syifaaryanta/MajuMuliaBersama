@@ -9,6 +9,7 @@ import 'primeicons/primeicons.css'
 import router from './router'
 import App from './App.vue'
 import './assets/styles.css'
+import { startSupabaseKeepAlive } from './lib/supabaseKeepAlive'
 
 const app = createApp(App)
 
@@ -26,3 +27,5 @@ app.use(ToastService)
 app.use(ConfirmationService)
 
 app.mount('#app')
+
+startSupabaseKeepAlive()

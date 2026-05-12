@@ -1417,7 +1417,7 @@ watch(
 @import '@/assets/styles.css';
 @import '@/assets/components/form.css';
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/pembelian/pembelian-edit-page.css';
+@import '@/assets/Styles/pembelian/pembelian-edit-page.css';
 
 .item-input--inline {
   width: 100%;

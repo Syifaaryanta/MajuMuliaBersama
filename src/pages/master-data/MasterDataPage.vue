@@ -1124,5 +1124,5 @@ function formatJatuhTempo(val) {
 @import '@/assets/components/table.css';
 @import '@/assets/components/form.css';
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/master-data/master-data-page.css';
+@import '@/assets/Styles/master-data/master-data-page.css';
 </style>

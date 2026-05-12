@@ -1,7 +1,7 @@
-﻿<template>
+<template>
   <div class="gudang-semua-page" ref="pageEl" tabindex="-1">
 
-    <!-- ── PAGE HEADER ──────────────────────────────────── -->
+    <!-- -- PAGE HEADER ------------------------------------ -->
     <div class="g-header">
       <div class="g-header-left">
         <h1 class="g-title">Daftar Inventori Gudang</h1>
@@ -13,7 +13,7 @@
       </div>
     </div>
 
-    <!-- ── SEARCH BAR ───────────────────────────────────── -->
+    <!-- -- SEARCH BAR ------------------------------------- -->
     <div class="cs-search-wrap">
       <div class="cs-search-inner" :class="{ focused: searchFocused }">
         <i class="pi pi-search cs-search-icon"></i>
@@ -22,7 +22,7 @@
           v-model="searchQuery"
           type="text"
           class="cs-search-input"
-          placeholder="Ketik nama atau kode barang, Enter untuk navigasi…"
+          placeholder="Ketik nama atau kode barang, Enter untuk navigasi�"
           autocomplete="off"
           @focus="searchFocused = true"
           @blur="searchFocused = false"
@@ -39,27 +39,27 @@
       </div>
     </div>
 
-    <!-- ── LOADING ───────────────────────────────────────── -->
+    <!-- -- LOADING ----------------------------------------- -->
     <div v-if="loading" class="loading-state">
       <i class="pi pi-spin pi-spinner"></i>
       <span>Memuat data...</span>
     </div>
 
-    <!-- ── SEARCH HINT (table hidden until query typed) ─── -->
+    <!-- -- SEARCH HINT (table hidden until query typed) --- -->
     <div v-else-if="!hasActiveSearch" class="empty-state">
       <i class="pi pi-search"></i>
       <p>Ketik kata kunci di search bar untuk menampilkan data barang.</p>
       <p class="empty-sub"></p>
     </div>
 
-    <!-- ── EMPTY ─────────────────────────────────────────── -->
+    <!-- -- EMPTY ------------------------------------------- -->
     <div v-else-if="filteredRows.length === 0" class="empty-state">
       <i class="pi pi-inbox"></i>
       <p v-if="searchQuery">Tidak ada barang yang cocok dengan "<b>{{ searchQuery }}</b>"</p>
       <p v-else>Belum ada barang di gudang</p>
     </div>
 
-    <!-- ── TABLE ─────────────────────────────────────────── -->
+    <!-- -- TABLE ------------------------------------------- -->
     <template v-else>
 
       <!-- Meta bar -->
@@ -67,10 +67,10 @@
         <span class="result-count">
           <b>{{ totalRows }}</b> barang
           <span v-if="searchQuery" class="meta-filter">
-            · "<b>{{ searchQuery }}</b>"
+            � "<b>{{ searchQuery }}</b>"
           </span>
           <span v-if="selectedRowIndex >= 0" class="meta-selected">
-            · baris <b>{{ selectedRowIndex + 1 }}</b>
+            � baris <b>{{ selectedRowIndex + 1 }}</b>
           </span>
         </span>
       </div>
@@ -135,7 +135,7 @@
                 <td class="col-supplier" style="text-align: center;">
                   <span class="supplier-chip">
                     {{ price.supplier_nama }}
-                    <template v-if="price.stok != null"> · {{ Number(price.stok || 0) }} {{ row.satuan }}</template>
+                    <template v-if="price.stok != null"> � {{ Number(price.stok || 0) }} {{ row.satuan }}</template>
                   </span>
                 </td>
                 <td class="col-harga" style="text-align: center;">
@@ -163,7 +163,7 @@
                 </td>
               </tr>
 
-              <!-- ── Inline Photo Row (shows for selected product) ── -->
+              <!-- -- Inline Photo Row (shows for selected product) -- -->
               <tr
                 v-if="selectedRowIndex === i"
                 :key="`photo-${row.product_id}`"
@@ -178,7 +178,7 @@
                           :key="url"
                           class="photo-thumb"
                           @click="viewDetail(row)"
-                          :title="`${row.nama} — foto ${idx + 1} · klik untuk detail`"
+                          :title="`${row.nama} � foto ${idx + 1} � klik untuk detail`"
                         >
                           <img :src="url" :alt="`${row.nama} foto ${idx + 1}`" loading="lazy" />
                           <div class="photo-thumb-overlay"><i class="pi pi-search-plus"></i></div>
@@ -202,7 +202,7 @@
 
   </div>
 
-  <!-- ── MODAL: KONFIRMASI ARCHIVE ───────────────────── -->
+  <!-- -- MODAL: KONFIRMASI ARCHIVE --------------------- -->
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="archiveModal.show" class="modal-overlay" @click.self="archiveModal.show = false">
@@ -267,15 +267,15 @@ const archiveModal = reactive({ show: false, row: null, saving: false })
 const FETCH_BATCH_SIZE = 1000
 const GUDANG_CEK_SEMUA_STATE_KEY = 'gudang-cek-semua-state-v1'
 
-// ── Reset selection when user types ─────────────────────────
+// -- Reset selection when user types -------------------------
 watch(searchQuery, () => {
   selectedRowIndex.value = -1
   hoveredRowIndex.value = -1
 })
 
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 // COMPUTED
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 const filteredRows = computed(() => {
   const q = normalizeSearch(searchQuery.value)
   if (!q) return []
@@ -328,9 +328,9 @@ const hasActiveSearch = computed(() => normalizeSearch(searchQuery.value).length
 
 const totalRows  = computed(() => filteredRows.value.length)
 
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 // LOAD DATA
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 async function loadAllProducts() {
   loading.value = true
   try {
@@ -400,7 +400,7 @@ async function loadAllProducts() {
               id:            pp.id,
               stok:          pp.stok,
               harga_beli:    pp.harga_beli,
-              supplier_nama: pp.supplier?.nama || '—',
+              supplier_nama: pp.supplier?.nama || '�',
               is_placeholder: false,
             }))
           : [fallbackPrice]
@@ -419,9 +419,9 @@ function setRowRef(el, index) {
   else rowRefs.delete(index)
 }
 
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 // ROW SELECTION & NAVIGATION
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 function selectRow(i) {
   selectedRowIndex.value = i
 }
@@ -448,8 +448,8 @@ function moveRow(delta) {
   })
 }
 
-// ───────────────────────────────────────────────────────────// ARCHIVE
-// ───────────────────────────────────────────────────────────────
+// -----------------------------------------------------------// ARCHIVE
+// ---------------------------------------------------------------
 function openArchive(row) {
   if (!row) return
   archiveModal.row = row
@@ -477,16 +477,16 @@ async function doArchive() {
   }
 }
 
-// ───────────────────────────────────────────────────────────────// DETAIL
-// ───────────────────────────────────────────────────────────
+// ---------------------------------------------------------------// DETAIL
+// -----------------------------------------------------------
 function viewDetail(row) {
   if (!row) return
   router.push({ path: '/gudang/detail', query: { product_id: row.product_id } })
 }
 
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 // SEARCH HANDLERS
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 function onSearchInput() {
   // selectedRowIndex resets via watch on searchQuery
 }
@@ -513,9 +513,9 @@ function handleSearchEsc() {
   }
 }
 
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 // GLOBAL KEYBOARD
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 function onGlobalKey(e) {
   // Archive modal guard
   if (archiveModal.show) {
@@ -570,9 +570,9 @@ function onGlobalKey(e) {
   }
 }
 
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 // UTILITIES
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 function formatRp(val) {
   if (val == null) return 'Rp 0'
   return 'Rp ' + Number(val).toLocaleString('id-ID')
@@ -616,9 +616,9 @@ function restoreSelectedRowByProductId(productId) {
   nextTick(() => rowRefs.get(idx)?.scrollIntoView({ block: 'nearest' }))
 }
 
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 // LIFECYCLE
-// ───────────────────────────────────────────────────────────
+// -----------------------------------------------------------
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKey)
   await loadAllProducts()
@@ -647,5 +647,5 @@ watch([searchQuery, selectedRowIndex], () => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/gudang/gudang-cek-semua-page.css';
+@import '@/assets/Styles/gudang/gudang-cek-semua-page.css';
 </style>

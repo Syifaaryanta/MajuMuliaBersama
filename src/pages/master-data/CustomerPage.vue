@@ -749,9 +749,9 @@ function formatRp(val) {
 
 <style scoped>
 @import '@/assets/styles.css';
-@import '@/assets/pages/gudang/gudang-page.css';
+@import '@/assets/Styles/gudang/gudang-page.css';
 @import '@/assets/components/table.css';
 @import '@/assets/components/form.css';
 @import '@/assets/components/modal.css';
-@import '@/assets/pages/master-data/customer-page.css';
+@import '@/assets/Styles/master-data/customer-page.css';
 </style>

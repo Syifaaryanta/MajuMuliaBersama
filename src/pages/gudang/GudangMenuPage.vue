@@ -240,5 +240,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/gudang/gudang-menu-page.css';
+@import '@/assets/Styles/gudang/gudang-menu-page.css';
 </style>

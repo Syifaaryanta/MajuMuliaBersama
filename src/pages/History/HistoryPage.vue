@@ -1528,5 +1528,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/History/history-page.css';
+@import '@/assets/Styles/History/history-page.css';
 </style>

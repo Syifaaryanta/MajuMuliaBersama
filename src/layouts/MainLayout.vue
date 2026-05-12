@@ -153,8 +153,18 @@ function onResize() {
 
 // Keyboard navigation for sidebar
 function handleGlobalKeydown(e) {
+  if (e.defaultPrevented) return
   // Only handle arrow keys when not in an input/textarea
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+
+  if (e.key === 'Escape') {
+    if (window.innerWidth <= MOBILE_BP) {
+      isMobileDrawerOpen.value = true
+    } else {
+      isSidebarCollapsed.value = false
+    }
+    return
+  }
 
   if (e.ctrlKey && e.shiftKey && String(e.key).toLowerCase() === 'p') {
     e.preventDefault()
@@ -178,6 +188,11 @@ function handleGlobalKeydown(e) {
     selectedNavIndex.value = (selectedNavIndex.value - 1 + items.length) % items.length
   } else if (e.key === 'Enter' && isOnDashboard && items[selectedNavIndex.value]) {
     e.preventDefault()
+    if (window.innerWidth <= MOBILE_BP) {
+      isMobileDrawerOpen.value = false
+    } else {
+      isSidebarCollapsed.value = true
+    }
     router.push(items[selectedNavIndex.value].to)
   }
 }
@@ -196,6 +211,8 @@ onUnmounted(() => {
 function handleNavClick() {
   if (window.innerWidth <= MOBILE_BP) {
     isMobileDrawerOpen.value = false
+  } else {
+    isSidebarCollapsed.value = true
   }
 }
 

@@ -1,13 +1,13 @@
-﻿<template>
+<template>
   <div class="gudang-detail-page" ref="pageEl" tabindex="-1">
 
-    <!-- ── LOADING ─────────────────────────────────────── -->
+    <!-- -- LOADING --------------------------------------- -->
     <div v-if="loading" class="detail-loading">
       <i class="pi pi-spin pi-spinner"></i>
       <span>Memuat data...</span>
     </div>
 
-    <!-- ── NOT FOUND ────────────────────────────────────── -->
+    <!-- -- NOT FOUND -------------------------------------- -->
     <div v-else-if="!product" class="detail-not-found">
       <i class="pi pi-exclamation-circle"></i>
       <h2>Produk tidak ditemukan</h2>
@@ -17,7 +17,7 @@
       </button>
     </div>
 
-    <!-- ── CONTENT ──────────────────────────────────────── -->
+    <!-- -- CONTENT ---------------------------------------- -->
     <template v-else>
 
       <!-- Back nav + action bar -->
@@ -26,10 +26,10 @@
           <i class="pi pi-arrow-left"></i>
           <span class="btn-label">Kembali</span>
         </button>
-        <span class="topbar-hint"><kbd>Esc</kbd> kembali &nbsp;·&nbsp; <kbd>F1</kbd> foto fullscreen</span>
+        <span class="topbar-hint"><kbd>Esc</kbd> kembali &nbsp;�&nbsp; <kbd>F1</kbd> foto fullscreen</span>
       </div>
 
-      <!-- ── HERO ──────────────────────────────────────── -->
+      <!-- -- HERO ---------------------------------------- -->
       <div class="detail-hero">
         <!-- Left: info -->
         <div class="detail-hero-info">
@@ -83,7 +83,7 @@
         </div>
       </div>
 
-      <!-- ── BODY GRID ─────────────────────────────────── -->
+      <!-- -- BODY GRID ----------------------------------- -->
       <div class="detail-body">
 
         <!-- Gallery (if >1 foto) -->
@@ -174,7 +174,7 @@
       </div>
     </template>
 
-    <!-- ── LIGHTBOX ──────────────────────────────────────── -->
+    <!-- -- LIGHTBOX ---------------------------------------- -->
     <Teleport to="body">
       <Transition name="modal-fade">
         <div v-if="lightbox.show" class="lightbox-overlay" @click="closeLightbox">
@@ -216,7 +216,7 @@ const loading = ref(true)
 const product = ref(null)
 const lightbox = reactive({ show: false, currentIndex: 0 })
 
-// ── Computed ───────────────────────────────────────────────
+// -- Computed -----------------------------------------------
 const totalStok = computed(() =>
   product.value?.prices?.reduce((s, p) => s + (p.stok ?? 0), 0) ?? 0
 )
@@ -225,7 +225,7 @@ const lowestPrice = computed(() => {
   return prices.length ? Math.min(...prices) : null
 })
 
-// ── Data ───────────────────────────────────────────────────
+// -- Data ---------------------------------------------------
 async function loadProduct(productId) {
   loading.value = true
   try {
@@ -257,7 +257,7 @@ async function loadProduct(productId) {
         stok: pp.stok ?? 0,
         harga_beli: pp.harga_beli ?? 0,
         supplier_id: pp.suppliers?.id,
-        supplier_nama: pp.suppliers?.nama ?? '—',
+        supplier_nama: pp.suppliers?.nama ?? '�',
       })),
     }
   } catch (err) {
@@ -268,7 +268,7 @@ async function loadProduct(productId) {
   }
 }
 
-// ── Navigation ─────────────────────────────────────────────
+// -- Navigation ---------------------------------------------
 function goBack() {
   if (window.history.state?.back) {
     router.back()
@@ -277,19 +277,19 @@ function goBack() {
   }
 }
 
-// ── Lightbox ───────────────────────────────────────────────
+// -- Lightbox -----------------------------------------------
 function openLightbox(index) { lightbox.currentIndex = index; lightbox.show = true }
 function closeLightbox()     { lightbox.show = false }
 function prevPhoto()         { if (lightbox.currentIndex > 0) lightbox.currentIndex-- }
 function nextPhoto()         { const max = (product.value?.foto_urls?.length ?? 1) - 1; if (lightbox.currentIndex < max) lightbox.currentIndex++ }
 
-// ── Utilities ──────────────────────────────────────────────
+// -- Utilities ----------------------------------------------
 function formatRp(val) {
-  if (!val && val !== 0) return '—'
+  if (!val && val !== 0) return '�'
   return 'Rp ' + Number(val).toLocaleString('id-ID')
 }
 
-// ── Keyboard ───────────────────────────────────────────────
+// -- Keyboard -----------------------------------------------
 function onGlobalKey(e) {
   if (lightbox.show) {
     if (e.key === 'Escape')          { e.preventDefault(); closeLightbox() }
@@ -301,7 +301,7 @@ function onGlobalKey(e) {
   if (e.key === 'F1' && product.value?.foto_urls?.length) { e.preventDefault(); openLightbox(0) }
 }
 
-// ── Lifecycle ──────────────────────────────────────────────
+// -- Lifecycle ----------------------------------------------
 onMounted(() => {
   pageEl.value?.focus()
   window.addEventListener('keydown', onGlobalKey)
@@ -319,5 +319,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/gudang/gudang-detail-page.css';
+@import '@/assets/Styles/gudang/gudang-detail-page.css';
 </style>

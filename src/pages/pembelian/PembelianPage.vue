@@ -239,5 +239,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/pembelian/pembelian-menu-page.css';
+@import '@/assets/Styles/pembelian/pembelian-menu-page.css';
 </style>

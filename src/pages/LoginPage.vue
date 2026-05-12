@@ -171,5 +171,5 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-@import '@/assets/pages/login/login-page.css';
+@import '@/assets/Styles/login/login-page.css';
 </style>1

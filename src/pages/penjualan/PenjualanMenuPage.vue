@@ -283,5 +283,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/penjualan/penjualan-menu-page.css';
+@import '@/assets/Styles/penjualan/penjualan-menu-page.css';
 </style>

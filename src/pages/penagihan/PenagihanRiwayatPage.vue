@@ -435,7 +435,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/assets/pages/penagihan/penagihan-riwayat-page.css';
+@import '@/assets/Styles/penagihan/penagihan-riwayat-page.css';
 
 .toolbar-actions--riwayat {
   align-items: center;
