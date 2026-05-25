@@ -1,5 +1,5 @@
 <template>
-  <div class="penjualan-edit-page" :class="{ 'penjualan-edit-page--search-only': formVisible }" ref="pageEl" tabindex="-1">
+  <div class="penjualan-edit-page" :class="{ 'penjualan-edit-page--search-only': formVisible, 'order-info-hidden': orderInfoHidden }" ref="pageEl" tabindex="-1">
 
     <Teleport to="body">
       <Transition name="modal">
@@ -116,6 +116,7 @@
         <div class="shortcuts-bar">
           <kbd>F1 Lain-Lain</kbd>
           <kbd>F2 Barang</kbd>
+          <kbd>F3 Info</kbd>
           <kbd>F10 Keterangan</kbd>
           <kbd>F4 Info</kbd>
         </div>
@@ -249,6 +250,7 @@
                         class="item-input"
                         :class="{ 'item-input--search-mode': productSearchArmed }"
                         :placeholder="productInputPlaceholder"
+                        @focus="scrollNewItemRowIntoView"
                         @keydown.enter.prevent="onNewItemSearchEnter"
                         @keydown.tab.prevent="onNewItemSearchTab"
                         @keydown="handleNewItemKeydown($event, 'product')"
@@ -271,6 +273,7 @@
                       placeholder="0"
                       min="0.01"
                       step="any"
+                      @focus="scrollNewItemRowIntoView"
                       @keydown.enter="focusPrice"
                       @keydown="handleNewItemKeydown($event, 'qty')"
                       :disabled="!newItem.product_id"
@@ -289,6 +292,7 @@
                         spellcheck="false"
                         :placeholder="isInlineAdjustmentDraft ? 'Nominal +/- (contoh: -70.000)' : 'Harga satuan barang'"
                         @input="formatNewItemPrice"
+                        @focus="scrollNewItemRowIntoView"
                         @keydown.enter="onNewRowPriceEnter"
                         :disabled="!canInputPrice"
                       />
@@ -632,6 +636,7 @@ const productModalInput = ref(null)
 const productModalResultsEl = ref(null)
 const supplierModalResultsEl = ref(null)
 const supplierModalBox = ref(null)
+const newItemRow = ref(null)
 const senderInlineInput = ref(null)
 const priceInfoReturnFocusEl = ref(null)
 const printConfirmModalBox = ref(null)
@@ -647,6 +652,7 @@ const loading = ref(false)
 const notFound = ref(false)
 const saving = ref(false)
 const formVisible = ref(true)
+const orderInfoHidden = ref(false)
 
 const order = ref(null)
 const items = ref([])
@@ -1050,6 +1056,7 @@ function onGlobalKey(e) {
   const isActionShortcut =
     e.key === 'F1' ||
     e.key === 'F2' ||
+    e.key === 'F3' ||
     e.key === 'F10' ||
     e.key === 'Escape' ||
     (e.ctrlKey && e.key.toLowerCase() === 's')
@@ -1099,6 +1106,12 @@ function onGlobalKey(e) {
   if (e.key === 'F2') {
     e.preventDefault()
     activateProductSearchMode()
+    return
+  }
+
+  if (e.key === 'F3') {
+    e.preventDefault()
+    orderInfoHidden.value = !orderInfoHidden.value
     return
   }
 
@@ -1280,7 +1293,16 @@ function handleSearchEsc(e) {
 }
 
 function focusProductInput() {
-  nextTick(() => inputProduct.value?.focus())
+  nextTick(() => {
+    inputProduct.value?.focus()
+    scrollNewItemRowIntoView()
+  })
+}
+
+function scrollNewItemRowIntoView() {
+  nextTick(() => {
+    newItemRow.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
 }
 
 function focusInlineNoteInput() {
@@ -1722,6 +1744,7 @@ function focusPrice() {
   if (canInputPrice.value) {
     nextTick(() => {
       inputPrice.value?.focus()
+      scrollNewItemRowIntoView()
     })
   }
 }

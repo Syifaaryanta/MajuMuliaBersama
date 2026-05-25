@@ -3,8 +3,6 @@ import { supabase } from '@/lib/supabase'
 export const paymentMethodOptions = [
   { value: 'cash', label: 'Tunai' },
   { value: 'transfer', label: 'Transfer' },
-  { value: 'giro', label: 'Giro' },
-  { value: 'lainnya', label: 'Lainnya' },
 ]
 
 export function formatRp(value) {

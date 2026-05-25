@@ -7,7 +7,7 @@
 }
 
 .penagihan-piutang-page .g-table {
-  min-width: 1180px;
+  min-width: 980px;
 }
 
 .penagihan-piutang-page .shortcut-strip {
@@ -94,6 +94,107 @@
 .penagihan-piutang-page .col-aksi {
   width: 100px;
   text-align: center;
+}
+
+.penagihan-piutang-page .col-count {
+  width: 90px;
+  text-align: center;
+}
+
+.penagihan-piutang-page .count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: #e0ecff;
+  color: #1d4ed8;
+  border: 1px solid #c7d7ff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.penagihan-piutang-page .detail-table-card {
+  background: #ffffff;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+  overflow: hidden;
+}
+
+.penagihan-piutang-page .detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fbff;
+}
+
+.penagihan-piutang-page .detail-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.penagihan-piutang-page .detail-header p {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.penagihan-piutang-page .detail-header-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #e0ecff;
+  color: #1d4ed8;
+  border: 1px solid #c7d7ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.penagihan-piutang-page .detail-table {
+  min-width: 1100px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  table-layout: fixed;
+}
+
+.penagihan-piutang-page .detail-table th,
+.penagihan-piutang-page .detail-table td {
+  width: 120px;
+}
+
+.penagihan-piutang-page .g-table tbody tr:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.penagihan-piutang-page .detail-table .col-no {
+  width: 56px;
+}
+
+.penagihan-piutang-page .detail-table .col-order {
+  width: 140px;
+}
+
+.penagihan-piutang-page .detail-table .col-date {
+  width: 110px;
+}
+
+.penagihan-piutang-page .detail-table thead {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.penagihan-piutang-page .detail-row--active {
+  background: #eef4ff;
 }
 
 .penagihan-piutang-page .aksi-view {
@@ -200,6 +301,125 @@
   font-size: 0.72rem;
   color: #64748b;
   font-weight: 500;
+}
+
+.penagihan-piutang-page .payment-method-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.penagihan-piutang-page .payment-method-card {
+  position: relative;
+  border: 1px solid #c6d4ef;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f9fbff 0%, #eef4ff 100%);
+  color: #1e3a8a;
+  padding: 0.5rem 0.75rem;
+  font-weight: 800;
+  font-size: 0.88rem;
+  min-height: 40px;
+  text-align: left;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 14px rgba(30, 64, 175, 0.08);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.penagihan-piutang-page .payment-method-card:hover {
+  border-color: #7aa5ff;
+  background: linear-gradient(180deg, #f2f7ff 0%, #e6efff 100%);
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.16);
+  transform: translateY(-1px);
+}
+
+.penagihan-piutang-page .payment-method-card.is-active {
+  border-color: #1d4ed8;
+  background: linear-gradient(180deg, #dbe8ff 0%, #c7dbff 100%);
+  color: #1d4ed8;
+  box-shadow: 0 12px 22px rgba(29, 78, 216, 0.22);
+}
+
+.penagihan-piutang-page .payment-method-card:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.penagihan-piutang-page .payment-method-card.is-active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+  transform: translateY(-50%);
+}
+
+/* Teleport-safe selectors for payment modal */
+.modal-box--payment .payment-method-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.modal-box--payment .payment-method-card {
+  position: relative;
+  border: 1px solid #c6d4ef;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f9fbff 0%, #eef4ff 100%);
+  color: #1e3a8a;
+  padding: 0.5rem 0.75rem;
+  font-weight: 800;
+  font-size: 0.88rem;
+  min-height: 40px;
+  text-align: left;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 14px rgba(30, 64, 175, 0.08);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.modal-box--payment .payment-method-card:hover {
+  border-color: #7aa5ff;
+  background: linear-gradient(180deg, #f2f7ff 0%, #e6efff 100%);
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.16);
+  transform: translateY(-1px);
+}
+
+.modal-box--payment .payment-method-card.is-active {
+  border-color: #1d4ed8;
+  background: linear-gradient(180deg, #dbe8ff 0%, #c7dbff 100%);
+  color: #1d4ed8;
+  box-shadow: 0 12px 22px rgba(29, 78, 216, 0.22);
+}
+
+.modal-box--payment .payment-method-card:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.modal-box--payment .payment-method-card.is-active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+  transform: translateY(-50%);
 }
 
 .penagihan-piutang-page .allocation-preview {
@@ -311,13 +531,64 @@
 
 .penagihan-piutang-page .detail-items-wrap,
 .penagihan-piutang-page .detail-table-wrap {
-  max-height: 260px;
+  max-height: 440px;
   overflow: auto;
+}
+
+.penagihan-piutang-page .detail-table-wrap:not(.detail-items-wrap) {
+  max-height: none;
+  overflow: visible;
+}
+
+.penagihan-piutang-page .detail-items-wrap:focus,
+.penagihan-piutang-page .detail-table-wrap:focus {
+  outline: none;
+}
+
+.penagihan-piutang-page .detail-card--status .status-pill {
+  width: fit-content;
+  align-self: flex-start;
+}
+
+.penagihan-piutang-page .detail-items-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Teleport-safe selectors for detail modal */
+.modal-box--detail .detail-items-wrap {
+  max-height: 440px;
+  overflow: auto;
+}
+
+.modal-box--detail .detail-table-wrap:not(.detail-items-wrap) {
+  max-height: none;
+  overflow: visible;
+}
+
+.modal-box--detail .detail-items-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.modal-box--detail .detail-card--status .status-pill {
+  width: fit-content;
+  align-self: flex-start;
 }
 
 .penagihan-piutang-page .detail-items-table,
 .penagihan-piutang-page .detail-table-wrap .g-table {
   min-width: 900px;
+}
+
+.modal-box--detail .detail-items-table tbody tr:focus {
+  outline: none;
+}
+
+.modal-box--detail .detail-item-row--active {
+  background: #eef6ff;
 }
 
 @media (max-width: 980px) {
@@ -335,6 +606,12 @@
   }
 
   .penagihan-piutang-page .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .penagihan-piutang-page .payment-method-grid {
     grid-template-columns: 1fr;
   }
 }

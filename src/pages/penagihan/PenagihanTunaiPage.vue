@@ -90,17 +90,16 @@
                 <th class="col-nota">Merah</th>
                 <th class="col-nota">Putih</th>
                 <th class="col-nota">Kuning</th>
-                <th class="col-aksi">Aksi</th>
               </tr>
             </thead>
             <tbody v-if="loading">
               <tr v-for="n in 6" :key="`loading-${n}`">
-                <td colspan="10"><div class="skeleton"></div></td>
+                <td colspan="9"><div class="skeleton"></div></td>
               </tr>
             </tbody>
             <tbody v-else-if="rows.length === 0">
               <tr>
-                <td colspan="10" class="empty-cell">
+                <td colspan="9" class="empty-cell">
                   <i class="pi pi-inbox"></i>
                   Tidak ada data pembayaran selesai sesuai filter.
                 </td>
@@ -147,29 +146,6 @@
                   <span class="note-state" :class="{ 'note-state--on': row.nota_kuning }">
                     {{ row.nota_kuning ? 'Ya' : 'Tidak' }}
                   </span>
-                </td>
-                <td class="col-aksi">
-                  <div class="aksi-wrap">
-                    <button class="aksi-btn aksi-view" @click.stop="openDetailModal(row)">
-                      <i class="pi pi-eye"></i>
-                    </button>
-                    <button
-                      class="aksi-btn aksi-delete"
-                      :disabled="isReadOnly || !canRollbackPayment(row) || isRowDeleting(row)"
-                      :title="isReadOnly ? 'Mode read only' : 'Batalkan pelunasan (kembali ke piutang aktif)'"
-                      @click.stop="rollbackPayment(row)"
-                    >
-                      <i :class="isRowDeleting(row) ? 'pi pi-spin pi-spinner' : 'pi pi-trash'"></i>
-                    </button>
-                    <button
-                      class="aksi-btn aksi-edit"
-                      :disabled="isReadOnly || isRowNormalizing(row) || !isCashNotesMismatch(row)"
-                      :title="isReadOnly ? 'Mode read only' : 'Normalisasi nota transaksi tunai'"
-                      @click.stop="normalizeCashNotes(row)"
-                    >
-                      <i :class="isRowNormalizing(row) ? 'pi pi-spin pi-spinner' : 'pi pi-check-square'"></i>
-                    </button>
-                  </div>
                 </td>
               </tr>
             </tbody>
@@ -229,7 +205,7 @@
               <button
                 class="btn-danger"
                 :disabled="isReadOnly || !detailModal.sale || !canRollbackPayment(detailModal.sale) || isRowDeleting(detailModal.sale)"
-                @click="rollbackFromDetail"
+                @click="requestRollback(detailModal.sale)"
               >
                 Batalkan Pelunasan
               </button>
@@ -239,6 +215,40 @@
                 @click="normalizeFromDetail"
               >
                 Normalisasi Nota
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="rollbackConfirm.show" class="modal-overlay" @click.self="cancelRollbackConfirm">
+          <div class="modal-box modal-box--confirm" role="dialog" aria-label="Konfirmasi batalkan pelunasan">
+            <div class="modal-header modal-header--center">
+              <h3 class="modal-title">Konfirmasi Batalkan Pelunasan</h3>
+              <button class="modal-close" @click="cancelRollbackConfirm" tabindex="-1">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+            <div class="modal-body modal-body--confirm">
+              <p class="confirm-message">Batalkan pelunasan transaksi ini?</p>
+              <p class="row-sub">
+                Semua pembayaran transaksi akan dihapus, data kembali ke Piutang Aktif, dan nota akan disinkronkan kembali.
+              </p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-secondary" @click="cancelRollbackConfirm">Batal <kbd>Esc</kbd></button>
+              <button
+                ref="rollbackConfirmButton"
+                type="button"
+                class="btn-danger"
+                :disabled="isReadOnly || !rollbackConfirm.row || !canRollbackPayment(rollbackConfirm.row) || isRowDeleting(rollbackConfirm.row)"
+                @click="confirmRollback"
+              >
+                Ya, Batalkan
+                <kbd>Enter</kbd>
               </button>
             </div>
           </div>
@@ -283,6 +293,7 @@ const selectedRowIndex = ref(0)
 const rowRefs = ref({})
 const normalizingSaleId = ref('')
 const deletingSaleId = ref('')
+const rollbackConfirmButton = ref(null)
 let stopAutoSync = () => {}
 
 const salesRows = ref([])
@@ -291,6 +302,12 @@ const paymentRows = ref([])
 const detailModal = reactive({
   show: false,
   sale: null,
+})
+
+const rollbackConfirm = reactive({
+  show: false,
+  row: null,
+  openedAt: 0,
 })
 
 const isReadOnly = computed(() => Boolean(route.meta.readOnly))
@@ -371,6 +388,11 @@ watch(rows, (data) => {
 
 watch(selectedRowIndex, () => {
   nextTick(() => ensureSelectedRowVisible())
+})
+
+watch(() => rollbackConfirm.show, (show) => {
+  if (!show) return
+  nextTick(() => rollbackConfirmButton.value?.focus?.())
 })
 
 async function loadData() {
@@ -485,7 +507,7 @@ async function normalizeCashNotes(row) {
   }
 }
 
-async function rollbackPayment(row) {
+function requestRollback(row) {
   if (!row || isRowDeleting(row)) return
 
   if (isReadOnly.value) {
@@ -508,10 +530,22 @@ async function rollbackPayment(row) {
     return
   }
 
-  const confirmed = window.confirm(
-    `Batalkan pelunasan transaksi ${row.no_order}?\nSemua pembayaran transaksi ini akan dihapus, data kembali ke Piutang Aktif, dan nota akan disinkronkan kembali.`
-  )
-  if (!confirmed) return
+  rollbackConfirm.row = row
+  rollbackConfirm.show = true
+  rollbackConfirm.openedAt = Date.now()
+}
+
+function cancelRollbackConfirm() {
+  rollbackConfirm.show = false
+  rollbackConfirm.row = null
+  rollbackConfirm.openedAt = 0
+}
+
+async function confirmRollback() {
+  const row = rollbackConfirm.row
+  if (!row || isRowDeleting(row)) return
+
+  if (Date.now() - (rollbackConfirm.openedAt || 0) < 250) return
 
   deletingSaleId.value = row.sale_id
 
@@ -523,6 +557,7 @@ async function rollbackPayment(row) {
       closeDetailModal()
     }
 
+    cancelRollbackConfirm()
     await loadData()
 
     toast.add({
@@ -563,10 +598,23 @@ async function normalizeFromDetail() {
 async function rollbackFromDetail() {
   const row = detailModal.sale
   if (!row) return
-  await rollbackPayment(row)
+  requestRollback(row)
 }
 
 function onGlobalKey(e) {
+  if (rollbackConfirm.show) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelRollbackConfirm()
+      return
+    }
+    if (e.key === 'Enter' || e.key === 'NumpadEnter') {
+      e.preventDefault()
+      confirmRollback()
+    }
+    return
+  }
+
   if (detailModal.show) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -600,7 +648,7 @@ function onGlobalKey(e) {
     moveSelection(-1)
   } else if (e.key === 'Delete') {
     e.preventDefault()
-    if (selectedRow.value) rollbackPayment(selectedRow.value)
+    if (selectedRow.value) requestRollback(selectedRow.value)
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (selectedRow.value) openDetailModal(selectedRow.value)

@@ -1,5 +1,5 @@
 <template>
-  <div class="pembelian-input-page" ref="pageEl" tabindex="-1">
+  <div class="pembelian-input-page" :class="{ 'order-info-hidden': orderInfoHidden }" ref="pageEl" tabindex="-1">
     <div class="form-card">
       <div class="form-header">
         <h1 class="form-header-title">Input Item Pembelian</h1>
@@ -37,6 +37,7 @@
 
     <div class="shortcuts-bar">
       <kbd>F2 Input Item</kbd>
+      <kbd>F3 Info</kbd>
       <kbd>F4 Info Harga</kbd>
       <kbd>F10 Simpan</kbd>
     </div>
@@ -103,7 +104,7 @@
                 </td>
               </tr>
 
-              <tr class="item-row item-row--new">
+              <tr class="item-row item-row--new" ref="newItemRow">
                 <td>{{ items.length + 1 }}</td>
                 <td colspan="2">
                   <div class="search-input-wrap">
@@ -113,6 +114,7 @@
                       type="text"
                       class="item-input"
                       placeholder="Cari nama barang atau kode lalu Enter"
+                      @focus="scrollNewItemRowIntoView"
                       @keydown.enter.prevent="onProductEnter"
                       @keydown="handleNewItemKeydown($event, 'product')"
                     />
@@ -127,6 +129,7 @@
                     type="number"
                     min="0.01"
                     step="any"
+                    @focus="scrollNewItemRowIntoView"
                     @keydown.enter.prevent="focusPrice"
                     @keydown="handleNewItemKeydown($event, 'qty')"
                     disabled
@@ -138,6 +141,7 @@
                     :value="newItem.unit_cost ? formatNumber(newItem.unit_cost) : ''"
                     class="price-input"
                     type="text"
+                    @focus="scrollNewItemRowIntoView"
                     @input="formatNewItemPrice"
                     @keydown.enter.prevent="addItem"
                     @keydown="handleNewItemKeydown($event, 'price')"
@@ -359,6 +363,7 @@ const inputProduct = ref(null)
 const inputQty = ref(null)
 const inputPrice = ref(null)
 const productModalInput = ref(null)
+const newItemRow = ref(null)
 const qtyRefs = ref({})
 const priceRefs = ref({})
 const priceHistoryReturnFocusEl = ref(null)
@@ -368,6 +373,7 @@ const PEMBELIAN_INPUT_WORKING_KEY = 'pembelian_input_working_state'
 
 const orderData = ref({})
 const items = ref([])
+const orderInfoHidden = ref(false)
 
 const newItem = reactive({
   search: '',
@@ -467,6 +473,12 @@ function onGlobalKey(e) {
     return
   }
 
+  if (e.key === 'F3') {
+    e.preventDefault()
+    orderInfoHidden.value = !orderInfoHidden.value
+    return
+  }
+
   if (e.key === 'F2') {
     e.preventDefault()
     focusProductInput()
@@ -477,6 +489,13 @@ function focusProductInput() {
   nextTick(() => {
     inputProduct.value?.focus()
     inputProduct.value?.select?.()
+    scrollNewItemRowIntoView()
+  })
+}
+
+function scrollNewItemRowIntoView() {
+  nextTick(() => {
+    newItemRow.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   })
 }
 
@@ -864,6 +883,7 @@ function closePriceHistoryModal() {
 
 function focusPrice() {
   inputPrice.value?.focus()
+  scrollNewItemRowIntoView()
 }
 
 function formatNewItemPrice(e) {

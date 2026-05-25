@@ -1,5 +1,5 @@
 <template>
-  <div class="penjualan-input-page" ref="pageEl" tabindex="-1">
+  <div class="penjualan-input-page" :class="{ 'order-info-hidden': orderInfoHidden }" ref="pageEl" tabindex="-1">
 
     <!-- ── FORM CARD WITH HEADER ─────────────────────────────────────── -->
     <div class="form-card">
@@ -61,6 +61,7 @@
       <div class="shortcuts-bar">
         <kbd>F1 Lain-Lain</kbd>
         <kbd>F2 Barang</kbd>
+        <kbd>F3 Info</kbd>
         <kbd>F10 Keterangan</kbd>
         <kbd>F4 Info</kbd>
       </div>
@@ -208,6 +209,7 @@
                       class="item-input"
                       :class="{ 'item-input--search-mode': productSearchArmed }"
                       :placeholder="productInputPlaceholder"
+                      @focus="scrollNewItemRowIntoView"
                       @keydown.enter.prevent="onNewItemSearchEnter"
                       @keydown.tab.prevent="onNewItemSearchTab"
                       @keydown="handleNewItemKeydown($event, 'product')"
@@ -230,6 +232,7 @@
                     placeholder="0"
                     min="0.01"
                     step="any"
+                      @focus="scrollNewItemRowIntoView"
                     @keydown.enter="focusPrice"
                     @keydown="handleNewItemKeydown($event, 'qty')"
                     :disabled="!newItem.product_id"
@@ -245,6 +248,7 @@
                       class="price-input"
                       :placeholder="isInlineAdjustmentDraft ? 'Nominal +/- (contoh: -70.000)' : 'Harga satuan barang'"
                       @input="formatNewItemPrice"
+                      @focus="scrollNewItemRowIntoView"
                       @keydown.enter="onNewRowPriceEnter"
                       :disabled="!canInputPrice"
                     />
@@ -661,6 +665,7 @@ const escPressCount = ref(0)
 const escTimer = ref(null)
 const qtyRefs = ref({})
 const priceRefs = ref({})
+const orderInfoHidden = ref(false)
 
 const newItem = reactive({
   search: '',
@@ -969,6 +974,13 @@ function onGlobalKey(e) {
     return
   }
 
+  // F3: toggle order info section
+  if (e.key === 'F3') {
+    e.preventDefault()
+    orderInfoHidden.value = !orderInfoHidden.value
+    return
+  }
+
   // Ctrl+S: Save
   if (e.ctrlKey && e.key === 's') {
     e.preventDefault()
@@ -991,7 +1003,16 @@ function onStockEmptyCaptureKey(e) {
 }
 
 function focusProductInput() {
-  nextTick(() => inputProduct.value?.focus())
+  nextTick(() => {
+    inputProduct.value?.focus()
+    scrollNewItemRowIntoView()
+  })
+}
+
+function scrollNewItemRowIntoView() {
+  nextTick(() => {
+    newItemRow.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
 }
 
 function focusInlineNoteInput() {
@@ -2136,6 +2157,7 @@ function closePriceInfoModal() {
 function focusQty() {
   if (newItem.product_id) {
     inputQty.value?.focus()
+    scrollNewItemRowIntoView()
     return
   }
 
@@ -2147,6 +2169,7 @@ function focusQty() {
 function focusPrice() {
   if (canInputPrice.value) {
     inputPrice.value?.focus()
+    scrollNewItemRowIntoView()
   }
 }
 

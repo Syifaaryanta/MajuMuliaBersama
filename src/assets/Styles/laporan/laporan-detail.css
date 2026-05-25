@@ -3,6 +3,11 @@
   flex-direction: column;
   gap: 16px;
   padding: 16px 16px 32px;
+  outline: none;
+}
+
+.laporan-detail:focus {
+  outline: none;
 }
 
 .laporan-detail-header {

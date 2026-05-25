@@ -213,6 +213,11 @@
   transition: background-color 0.16s ease;
 }
 
+.history-table--master th,
+.history-table--master td {
+  text-align: center;
+}
+
 .history-table--master tbody tr:hover {
   background: #f8fbff;
 }

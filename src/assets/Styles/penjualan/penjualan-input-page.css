@@ -42,6 +42,20 @@
 /* ── ORDER INFO SECTION ──────────────────────────────────── */
 .order-info-section {
   padding: 2rem;
+  max-height: 600px;
+  transition: max-height 0.28s ease, opacity 0.28s ease, transform 0.28s ease, padding 0.28s ease, margin 0.28s ease;
+}
+
+.penjualan-input-page.order-info-hidden .order-info-section,
+.pembelian-input-page.order-info-hidden .order-info-section {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-12px);
+  padding-top: 0;
+  padding-bottom: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 /* ── ORDER INFO CARD ─────────────────────────────────────── */

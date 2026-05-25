@@ -18,7 +18,8 @@
       <kbd>F2 Tanggal</kbd>
       <kbd>F3 Filter Status</kbd>
       <kbd>Arrow Pilih Baris</kbd>
-      <kbd>Enter Bayar</kbd>
+      <kbd>Enter Detail</kbd>
+      <kbd>F10 Bayar</kbd>
       <kbd>F4 Detail</kbd>
       <kbd>Esc Kembali</kbd>
     </div>
@@ -76,6 +77,7 @@
                 v-model="dateFilter.end"
                 type="date"
                 class="mfield-input date-filter-input"
+                @keydown.enter.prevent="focusTableFirstRow"
               />
             </div>
           </div>
@@ -94,37 +96,31 @@
 
       <div class="table-section">
         <div class="result-meta">
-          <span class="result-count"><b>{{ rows.length }}</b> transaksi piutang</span>
+          <span class="result-count"><b>{{ groupRows.length }}</b> customer · {{ rows.length }} order</span>
           <span class="page-info">Total sisa: <b>{{ formatRp(totalOutstanding) }}</b></span>
           <span class="page-info">Status: <b>{{ activeFilterLabel }}</b></span>
         </div>
 
-        <div class="table-wrap">
+        <div v-if="!isDetailMode" class="table-wrap">
           <table class="g-table">
             <thead>
               <tr>
-                <th class="col-no">#</th>
-                <th class="col-order">No. Order</th>
+                <th class="col-count">Jumlah</th>
                 <th class="col-customer">Customer</th>
-                <th class="col-date">Tanggal</th>
-                <th class="col-date">Jatuh Tempo</th>
                 <th class="col-term">Term</th>
-                <th class="col-money">Total</th>
+                <th class="col-money">Subtotal</th>
                 <th class="col-money">Terbayar</th>
                 <th class="col-money">Sisa</th>
-                <th class="col-status">Status</th>
-                <th class="col-overdue">Overdue</th>
-                <th class="col-aksi">Aksi</th>
               </tr>
             </thead>
             <tbody v-if="loading">
               <tr v-for="n in 6" :key="`loading-${n}`">
-                <td colspan="12"><div class="skeleton"></div></td>
+                <td colspan="6"><div class="skeleton"></div></td>
               </tr>
             </tbody>
             <tbody v-else-if="rows.length === 0">
               <tr>
-                <td colspan="12" class="empty-cell">
+                <td colspan="6" class="empty-cell">
                   <i class="pi pi-inbox"></i>
                   Tidak ada transaksi piutang sesuai filter.
                 </td>
@@ -132,57 +128,89 @@
             </tbody>
             <tbody v-else>
               <tr
-                v-for="(row, idx) in rows"
-                :key="row.sale_id"
+                v-for="(group, idx) in groupRows"
+                :key="group.customer_key"
                 :ref="el => setRowRef(el, idx)"
+                tabindex="0"
                 :class="{ 'g-row--active': selectedRowIndex === idx }"
-                @click="selectedRowIndex = idx"
-                @dblclick="openPaymentModal(row)"
+                @click="onGroupRowClick(group, idx)"
+                @dblclick="toggleCustomerExpand(group)"
               >
-                <td class="col-no">{{ idx + 1 }}</td>
-                <td class="col-order">
-                  <span class="kode-badge">{{ row.no_order }}</span>
-                  <div class="row-sub">Fraktur: {{ row.no_faktur || '-' }}</div>
+                <td class="col-count">
+                  <span class="count-badge">{{ group.order_count }}</span>
                 </td>
                 <td class="col-customer">
                   <div class="customer-cell">
-                    <span class="customer-name">{{ row.customer_nama }}</span>
-                    <span class="customer-addr">{{ row.customer_alamat || '-' }}</span>
+                    <span class="customer-name">{{ group.customer_nama }}</span>
+                    <span class="customer-addr">{{ group.customer_alamat || '-' }}</span>
                   </div>
                 </td>
-                <td class="col-date">{{ formatDate(row.order_date) }}</td>
-                <td class="col-date">{{ formatDate(row.due_date) }}</td>
-                <td class="col-term"><span class="term-badge">{{ row.payment_term_label }}</span></td>
-                <td class="col-money"><span class="harga-val">{{ formatRp(row.grand_total) }}</span></td>
-                <td class="col-money">{{ formatRp(row.total_paid) }}</td>
-                <td class="col-money"><strong class="outstanding-val">{{ formatRp(row.outstanding_amount) }}</strong></td>
-                <td class="col-status">
-                  <span class="status-pill" :class="statusClass(row.payment_status)">
-                    {{ paymentStatusLabel(row.payment_status) }}
-                  </span>
-                </td>
-                <td class="col-overdue">
-                  <span v-if="row.is_overdue" class="overdue-badge">{{ row.overdue_days }} hari</span>
-                  <span v-else class="dash">-</span>
-                </td>
-                <td class="col-aksi">
-                  <div class="aksi-wrap">
-                    <button
-                      class="aksi-btn aksi-edit"
-                      :disabled="isReadOnly"
-                      @click.stop="openPaymentModal(row)"
-                      :title="isReadOnly ? 'Mode read only' : 'Input pembayaran'"
-                    >
-                      <i class="pi pi-money-bill"></i>
-                    </button>
-                    <button class="aksi-btn aksi-view" @click.stop="openDetailModal(row)">
-                      <i class="pi pi-eye"></i>
-                    </button>
-                  </div>
-                </td>
+                <td class="col-term"><span class="term-badge">{{ group.term_label }}</span></td>
+                <td class="col-money"><span class="harga-val">{{ formatRp(group.subtotal) }}</span></td>
+                <td class="col-money">{{ formatRp(group.total_paid) }}</td>
+                <td class="col-money"><strong class="outstanding-val">{{ formatRp(group.total_outstanding) }}</strong></td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div v-else class="detail-table-card">
+          <div class="detail-header">
+            <div>
+              <h3>{{ selectedGroup?.customer_nama || '-' }}</h3>
+              <p>{{ selectedGroup?.customer_alamat || '-' }}</p>
+            </div>
+            <span class="detail-header-count">{{ selectedGroup?.order_count || 0 }} order</span>
+          </div>
+          <div class="table-wrap">
+            <table class="g-table detail-table">
+              <thead>
+                <tr>
+                  <th class="col-no">#</th>
+                  <th class="col-order">No. Order</th>
+                  <th class="col-date">Tanggal</th>
+                  <th class="col-date">Jatuh Tempo</th>
+                  <th class="col-term">Term</th>
+                  <th class="col-money">Total</th>
+                  <th class="col-money">Terbayar</th>
+                  <th class="col-money">Sisa</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-overdue">Overdue</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(row, rowIdx) in selectedGroup?.orders || []"
+                  :key="row.sale_id"
+                  :ref="el => setDetailRowRef(el, row.sale_id)"
+                  tabindex="0"
+                  :class="{ 'detail-row--active': selectedDetailSaleId === row.sale_id }"
+                  @click.stop="selectDetailRow(selectedGroup, row)"
+                >
+                  <td class="col-no">{{ rowIdx + 1 }}</td>
+                  <td class="col-order">
+                    <span class="kode-badge">{{ row.no_order }}</span>
+                    <div class="row-sub">Fraktur: {{ row.no_faktur || '-' }}</div>
+                  </td>
+                  <td class="col-date">{{ formatDate(row.order_date) }}</td>
+                  <td class="col-date">{{ formatDate(row.due_date) }}</td>
+                  <td class="col-term"><span class="term-badge">{{ row.payment_term_label }}</span></td>
+                  <td class="col-money"><span class="harga-val">{{ formatRp(row.grand_total) }}</span></td>
+                  <td class="col-money">{{ formatRp(row.total_paid) }}</td>
+                  <td class="col-money"><strong class="outstanding-val">{{ formatRp(row.outstanding_amount) }}</strong></td>
+                  <td class="col-status">
+                    <span class="status-pill" :class="statusClass(row.payment_status)">
+                      {{ paymentStatusLabel(row.payment_status) }}
+                    </span>
+                  </td>
+                  <td class="col-overdue">
+                    <span v-if="row.is_overdue" class="overdue-badge">{{ row.overdue_days }} hari</span>
+                    <span v-else class="dash">-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </template>
@@ -239,17 +267,24 @@
                 </div>
                 <div class="mfield">
                   <label class="mfield-label">Metode Bayar</label>
-                  <select
-                    ref="paymentMethodInput"
-                    v-model="paymentModal.method"
-                    class="mfield-input"
-                    @keydown="onPaymentFieldArrow"
-                    @keydown.enter.prevent="focusPaymentNote"
-                  >
-                    <option v-for="opt in paymentMethodOptions" :key="opt.value" :value="opt.value">
-                      {{ opt.label }}
-                    </option>
-                  </select>
+                  <div class="payment-method-grid" role="radiogroup" aria-label="Metode Bayar">
+                    <button
+                      v-for="(opt, idx) in paymentMethodOptions"
+                      :key="opt.value"
+                      :ref="el => setPaymentMethodCardRef(el, idx)"
+                      type="button"
+                      class="payment-method-card"
+                      role="radio"
+                      :aria-checked="paymentModal.method === opt.value"
+                      :class="{ 'is-active': paymentModal.method === opt.value }"
+                      @click="selectPaymentMethod(opt.value)"
+                      @focus="paymentMethodFocusIndex = idx"
+                      @keydown="onPaymentFieldArrow"
+                      @keydown.enter.prevent="confirmPaymentMethodFromCard(idx)"
+                    >
+                      <span class="payment-method-title">{{ opt.label }}</span>
+                    </button>
+                  </div>
                 </div>
                 <div class="mfield mfield--full">
                   <label class="mfield-label">Catatan <span class="mfield-optional">(Opsional)</span></label>
@@ -361,7 +396,7 @@
             </div>
             <div class="modal-footer">
               <button type="button" class="btn-secondary" @click="cancelPaymentConfirm">Batal <kbd>Esc</kbd></button>
-              <button type="button" class="btn-primary" @click="confirmPayment" :disabled="paymentModal.saving">
+              <button ref="paymentConfirmButton" type="button" class="btn-primary" @click="confirmPayment" :disabled="paymentModal.saving">
                 <i class="pi pi-check"></i>
                 <span>Ya, Simpan</span>
                 <kbd>Enter</kbd>
@@ -448,7 +483,15 @@
                     </tr>
                   </tbody>
                   <tbody v-else>
-                    <tr v-for="(item, idx) in detailItems" :key="item.id || idx">
+                    <tr
+                      v-for="(item, idx) in detailItems"
+                      :key="item.id || idx"
+                      :ref="el => setDetailItemRowRef(el, idx)"
+                      tabindex="0"
+                      :class="{ 'detail-item-row--active': detailItemFocusIndex === idx }"
+                      @keydown.down.prevent="moveDetailItemSelection(1)"
+                      @keydown.up.prevent="moveDetailItemSelection(-1)"
+                    >
                       <td class="col-no">{{ idx + 1 }}</td>
                       <td class="col-item">{{ item.product_kode || '-' }}</td>
                       <td class="col-item-name">{{ item.product_nama || '-' }}</td>
@@ -460,34 +503,6 @@
                 </table>
               </div>
 
-              <h4 class="detail-section-title">Riwayat Pembayaran</h4>
-              <div class="table-wrap detail-table-wrap">
-                <table class="g-table">
-                  <thead>
-                    <tr>
-                      <th class="col-no">#</th>
-                      <th class="col-date">Tanggal</th>
-                      <th class="col-method">Metode</th>
-                      <th class="col-money">Nominal</th>
-                      <th class="col-note">Catatan</th>
-                    </tr>
-                  </thead>
-                  <tbody v-if="detailPayments.length === 0">
-                    <tr>
-                      <td colspan="5" class="empty-cell">Belum ada pembayaran pada transaksi ini.</td>
-                    </tr>
-                  </tbody>
-                  <tbody v-else>
-                    <tr v-for="(pay, idx) in detailPayments" :key="pay.id">
-                      <td class="col-no">{{ idx + 1 }}</td>
-                      <td class="col-date">{{ formatDate(pay.payment_date) }}</td>
-                      <td class="col-method">{{ paymentMethodLabel(pay.payment_method) }}</td>
-                      <td class="col-money"><span class="harga-val">{{ formatRp(pay.amount) }}</span></td>
-                      <td class="col-note">{{ pay.note || '-' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
             </div>
 
             <div class="modal-footer">
@@ -581,9 +596,14 @@ const dateStartInput = ref(null)
 const dateEndInput = ref(null)
 const paymentDateInput = ref(null)
 const paymentAmountInput = ref(null)
-const paymentMethodInput = ref(null)
+const paymentMethodCardRefs = ref([])
+const paymentMethodFocusIndex = ref(0)
 const paymentNoteInput = ref(null)
 const paymentSaveButton = ref(null)
+const paymentConfirmButton = ref(null)
+const detailItemsWrap = ref(null)
+const detailItemRowRefs = ref([])
+const detailItemFocusIndex = ref(0)
 const focusKey = ref('')
 const loading = ref(false)
 const schemaError = ref('')
@@ -595,6 +615,10 @@ const dateFilter = reactive({
 })
 const selectedRowIndex = ref(0)
 const rowRefs = ref({})
+const detailRowRefs = ref({})
+const expandedCustomerKeys = ref(new Set())
+const selectedDetailSaleId = ref('')
+const selectedDetailCustomerKey = ref('')
 let stopAutoSync = () => {}
 
 const billingRows = ref([])
@@ -702,11 +726,58 @@ const rows = computed(() => {
   })
 })
 
+const groupRows = computed(() => {
+  const groups = []
+  const map = new Map()
+
+  rows.value.forEach((row) => {
+    const key = String(row.customer_id || row.customer_nama || '').trim()
+    if (!key) return
+
+    let group = map.get(key)
+    if (!group) {
+      group = {
+        customer_key: key,
+        customer_id: row.customer_id,
+        customer_nama: row.customer_nama,
+        customer_alamat: row.customer_alamat,
+        orders: [],
+        order_count: 0,
+        subtotal: 0,
+        total_paid: 0,
+        total_outstanding: 0,
+        term_label: '-',
+      }
+      map.set(key, group)
+      groups.push(group)
+    }
+
+    group.orders.push(row)
+  })
+
+  groups.forEach((group) => {
+    const termSet = new Set(
+      group.orders
+        .map(row => String(row.payment_term_label || '').trim())
+        .filter(Boolean)
+    )
+
+    group.order_count = group.orders.length
+    group.subtotal = group.orders.reduce((sum, row) => sum + Number(row.grand_total || 0), 0)
+    group.total_paid = group.orders.reduce((sum, row) => sum + Number(row.total_paid || 0), 0)
+    group.total_outstanding = group.orders.reduce((sum, row) => sum + Number(row.outstanding_amount || 0), 0)
+    group.term_label = termSet.size === 1 ? Array.from(termSet)[0] : 'Campuran'
+  })
+
+  return groups
+})
+
 const totalOutstanding = computed(() => {
   return rows.value.reduce((sum, row) => sum + Number(row.outstanding_amount || 0), 0)
 })
 
-const selectedRow = computed(() => rows.value[selectedRowIndex.value] || null)
+const selectedGroup = computed(() => groupRows.value[selectedRowIndex.value] || null)
+const isDetailMode = computed(() => expandedCustomerKeys.value.size > 0)
 
 const detailPayments = computed(() => {
   const saleId = detailModal.sale?.sale_id
@@ -721,12 +792,18 @@ const detailPayments = computed(() => {
     })
 })
 
-watch(rows, (data) => {
+watch(groupRows, (data) => {
   rowRefs.value = {}
   if (!data.length) {
     selectedRowIndex.value = 0
     return
   }
+
+  const validKeys = new Set(data.map(group => group.customer_key))
+  const nextExpanded = new Set(
+    Array.from(expandedCustomerKeys.value).filter(key => validKeys.has(key))
+  )
+  expandedCustomerKeys.value = nextExpanded
 
   if (selectedRowIndex.value >= data.length) {
     selectedRowIndex.value = data.length - 1
@@ -737,6 +814,11 @@ watch(rows, (data) => {
 
 watch(selectedRowIndex, () => {
   nextTick(() => ensureSelectedRowVisible())
+})
+
+watch(() => paymentConfirm.show, (show) => {
+  if (!show) return
+  nextTick(() => paymentConfirmButton.value?.focus?.())
 })
 
 async function loadData() {
@@ -771,16 +853,108 @@ function setRowRef(el, idx) {
   rowRefs.value[idx] = el
 }
 
+function setDetailRowRef(el, saleId) {
+  if (!el || !saleId) return
+  detailRowRefs.value[saleId] = el
+}
+
 function ensureSelectedRowVisible() {
   const rowEl = rowRefs.value[selectedRowIndex.value]
   if (!rowEl || typeof rowEl.scrollIntoView !== 'function') return
   rowEl.scrollIntoView({ block: 'nearest' })
 }
 
+function focusDetailRow(saleId) {
+  if (!saleId) return
+  nextTick(() => {
+    detailRowRefs.value[saleId]?.focus?.()
+  })
+}
+
 function moveSelection(delta) {
-  if (!rows.value.length) return
-  const max = rows.value.length - 1
+  if (!groupRows.value.length) return
+  const max = groupRows.value.length - 1
   selectedRowIndex.value = Math.min(max, Math.max(0, selectedRowIndex.value + delta))
+}
+
+function onGroupRowClick(group, idx) {
+  selectedRowIndex.value = idx
+  selectedDetailSaleId.value = ''
+  selectedDetailCustomerKey.value = ''
+}
+
+function isCustomerExpanded(customerKey) {
+  return expandedCustomerKeys.value.has(customerKey)
+}
+
+function toggleCustomerExpand(group) {
+  if (!group) return
+  const key = group.customer_key
+  const next = new Set(expandedCustomerKeys.value)
+  if (next.has(key)) {
+    next.delete(key)
+  } else {
+    next.clear()
+    next.add(key)
+  }
+  expandedCustomerKeys.value = next
+
+  if (!next.has(key)) {
+    selectedDetailSaleId.value = ''
+    selectedDetailCustomerKey.value = ''
+    return
+  }
+
+  selectedDetailCustomerKey.value = key
+  selectedDetailSaleId.value = group.orders?.[0]?.sale_id || ''
+  if (!selectedDetailSaleId.value) {
+    selectedDetailCustomerKey.value = ''
+    return
+  }
+  focusDetailRow(selectedDetailSaleId.value)
+}
+
+function clearDetailMode() {
+  expandedCustomerKeys.value = new Set()
+  selectedDetailSaleId.value = ''
+  selectedDetailCustomerKey.value = ''
+  detailRowRefs.value = {}
+}
+
+function selectDetailRow(group, row) {
+  if (!group || !row) return
+  selectedDetailSaleId.value = row.sale_id
+  selectedDetailCustomerKey.value = group.customer_key
+  focusDetailRow(row.sale_id)
+}
+
+function moveDetailSelection(delta) {
+  const group = selectedGroup.value
+  if (!group?.orders?.length) return
+  const currentIndex = Math.max(0, group.orders.findIndex(row => row.sale_id === selectedDetailSaleId.value))
+  const nextIndex = Math.min(group.orders.length - 1, Math.max(0, currentIndex + delta))
+  const nextRow = group.orders[nextIndex]
+  if (!nextRow) return
+  selectedDetailSaleId.value = nextRow.sale_id
+  selectedDetailCustomerKey.value = group.customer_key
+  focusDetailRow(nextRow.sale_id)
+}
+
+function resolveSelectedDetailRow() {
+  const group = selectedGroup.value
+  if (!group || !group.orders.length) return null
+  if (selectedDetailSaleId.value && selectedDetailCustomerKey.value === group.customer_key) {
+    return group.orders.find(row => row.sale_id === selectedDetailSaleId.value) || group.orders[0]
+  }
+  return group.orders[0]
+}
+
+function resolvePaymentRowFromGroup(group) {
+  if (!group || !group.orders.length) return null
+  if (selectedDetailSaleId.value && selectedDetailCustomerKey.value === group.customer_key) {
+    return group.orders.find(row => row.sale_id === selectedDetailSaleId.value) || group.orders[0]
+  }
+  return group.orders[0]
 }
 
 function onDateStartEnter() {
@@ -788,6 +962,15 @@ function onDateStartEnter() {
     dateFilter.end = toIsoDate(new Date())
   }
   nextTick(() => dateEndInput.value?.focus())
+}
+
+function focusTableFirstRow() {
+  if (!groupRows.value.length) return
+  selectedRowIndex.value = 0
+  nextTick(() => {
+    ensureSelectedRowVisible()
+    rowRefs.value[0]?.focus?.()
+  })
 }
 
 function openStatusFilterModal() {
@@ -917,11 +1100,48 @@ function onPaymentAmountInput(e) {
 }
 
 function focusPaymentMethod() {
-  nextTick(() => paymentMethodInput.value?.focus())
+  const nextIndex = getPaymentMethodIndex(paymentModal.method)
+  paymentMethodFocusIndex.value = nextIndex
+  nextTick(() => paymentMethodCardRefs.value[nextIndex]?.focus?.())
 }
 
 function focusPaymentNote() {
   nextTick(() => paymentNoteInput.value?.focus())
+}
+
+function setPaymentMethodCardRef(el, idx) {
+  if (!el) return
+  paymentMethodCardRefs.value[idx] = el
+}
+
+function getPaymentMethodIndex(value) {
+  const idx = paymentMethodOptions.findIndex(opt => opt.value === value)
+  return idx >= 0 ? idx : 0
+}
+
+function selectPaymentMethod(value) {
+  paymentModal.method = value
+  paymentMethodFocusIndex.value = getPaymentMethodIndex(value)
+}
+
+function movePaymentMethod(delta) {
+  const max = paymentMethodOptions.length - 1
+  if (max < 0) return
+  const nextIndex = Math.min(max, Math.max(0, paymentMethodFocusIndex.value + delta))
+  const nextOpt = paymentMethodOptions[nextIndex]
+  if (!nextOpt) return
+  paymentMethodFocusIndex.value = nextIndex
+  paymentModal.method = nextOpt.value
+  nextTick(() => paymentMethodCardRefs.value[nextIndex]?.focus?.())
+}
+
+function confirmPaymentMethodFromCard(index) {
+  const opt = paymentMethodOptions[index]
+  if (opt) {
+    paymentModal.method = opt.value
+    paymentMethodFocusIndex.value = index
+  }
+  focusPaymentNote()
 }
 
 function onPaymentFieldArrow(e) {
@@ -929,14 +1149,19 @@ function onPaymentFieldArrow(e) {
   if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) return
   e.preventDefault()
 
+  const current = e.target
+  const isMethodCard = paymentMethodCardRefs.value.includes(current)
+  if (isMethodCard && (key === 'ArrowLeft' || key === 'ArrowRight')) {
+    movePaymentMethod(key === 'ArrowRight' ? 1 : -1)
+    return
+  }
+
   const order = [
     paymentDateInput.value,
     paymentAmountInput.value,
-    paymentMethodInput.value,
+    paymentMethodCardRefs.value[paymentMethodFocusIndex.value] || paymentMethodCardRefs.value[0],
     paymentNoteInput.value,
   ]
-
-  const current = e.target
   const currentIndex = order.findIndex(el => el === current)
   if (currentIndex === -1) return
 
@@ -964,6 +1189,9 @@ async function loadSaleItemsForDetail(saleId) {
 
     if (error) throw error
     detailModal.items = data || []
+    detailItemRowRefs.value = []
+    detailItemFocusIndex.value = 0
+    nextTick(() => focusDetailItemRow(0))
   } catch (err) {
     detailModal.items = []
     detailModal.itemsError = String(err?.message || err || 'Gagal memuat item transaksi.')
@@ -1101,7 +1329,52 @@ function closeDetailModal() {
   detailModal.items = []
   detailModal.itemsError = ''
   detailModal.itemsLoading = false
+  detailItemRowRefs.value = []
+  detailItemFocusIndex.value = 0
   nextTick(() => pageEl.value?.focus())
+}
+
+function scrollDetailWrap(el, direction) {
+  if (!el) return
+  const step = direction === 'down' ? 48 : -48
+  el.scrollBy({ top: step, behavior: 'smooth' })
+}
+
+function setDetailItemRowRef(el, index) {
+  if (!el) return
+  detailItemRowRefs.value[index] = el
+}
+
+function focusDetailItemRow(index) {
+  const row = detailItemRowRefs.value[index]
+  if (!row) return
+  row.focus?.()
+  row.scrollIntoView?.({ block: 'nearest' })
+}
+
+function moveDetailItemSelection(delta) {
+  const max = detailItems.value.length - 1
+  if (max < 0) return
+  const next = Math.min(max, Math.max(0, detailItemFocusIndex.value + delta))
+  detailItemFocusIndex.value = next
+  focusDetailItemRow(next)
+}
+
+function handleDetailArrow(e) {
+  const active = document.activeElement
+  const isItems = detailItemRowRefs.value.includes(active)
+  if (!isItems) return
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    moveDetailItemSelection(1)
+    return
+  }
+
+  if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    moveDetailItemSelection(-1)
+  }
 }
 
 function openPaymentFromDetail() {
@@ -1150,7 +1423,7 @@ function onGlobalKey(e) {
       cancelPaymentConfirm()
       return
     }
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' || e.key === 'NumpadEnter') {
       e.preventDefault()
       if (Date.now() - (paymentConfirm.openedAt || 0) < 250) return
       confirmPayment()
@@ -1176,11 +1449,19 @@ function onGlobalKey(e) {
       e.preventDefault()
       closeDetailModal()
     }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      moveDetailItemSelection(e.key === 'ArrowDown' ? 1 : -1)
+    }
     return
   }
 
   if (e.key === 'Escape') {
     e.preventDefault()
+    if (isDetailMode.value) {
+      clearDetailMode()
+      return
+    }
     router.push('/penagihan')
     return
   }
@@ -1205,9 +1486,36 @@ function onGlobalKey(e) {
     return
   }
 
+  if (e.key === 'F10') {
+    e.preventDefault()
+    const row = resolvePaymentRowFromGroup(selectedGroup.value)
+    if (row) openPaymentModal(row)
+    return
+  }
+
+  if (isDetailMode.value) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      moveDetailSelection(1)
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      moveDetailSelection(-1)
+      return
+    }
+  }
+
   const targetTag = e.target?.tagName
   const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(targetTag)
-  if (isTyping) return
+  if (isTyping) {
+    const isDateInput = e.target === dateStartInput.value || e.target === dateEndInput.value
+    if (isDateInput && e.key === 'Enter') {
+      e.preventDefault()
+      focusTableFirstRow()
+    }
+    return
+  }
 
   if (e.key === 'ArrowDown') {
     e.preventDefault()
@@ -1217,10 +1525,11 @@ function onGlobalKey(e) {
     moveSelection(-1)
   } else if (e.key === 'Enter') {
     e.preventDefault()
-    if (selectedRow.value) openPaymentModal(selectedRow.value)
+    if (selectedGroup.value) toggleCustomerExpand(selectedGroup.value)
   } else if (e.key === 'F4') {
     e.preventDefault()
-    if (selectedRow.value) openDetailModal(selectedRow.value)
+    const row = resolveSelectedDetailRow()
+    if (row) openDetailModal(row)
   }
 }
 

@@ -279,7 +279,8 @@
 }
 
 .col-items-nama {
-  min-width: 250px;
+  min-width: 320px;
+  text-align: left;
 }
 
 .col-items-qty {
@@ -334,7 +335,8 @@
 .items-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.3rem;
+  align-items: flex-start;
 }
 
 .item-row-nama {
@@ -343,21 +345,32 @@
   gap: 0.4rem;
   font-size: 0.76rem;
   color: #334155;
-  line-height: 1.3;
-  padding: 0.15rem 0;
+  line-height: 1.4;
+  padding: 0.18rem 0.35rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
 }
 
 .item-row-no {
-  min-width: 1.1rem;
-  font-size: inherit;
-  color: #64748b;
-  font-weight: 600;
-  line-height: inherit;
+  min-width: 1.2rem;
+  font-size: 0.7rem;
+  color: #1d4ed8;
+  font-weight: 700;
+  line-height: 1.2;
+  background: #e0ecff;
+  border: 1px solid #c7d7ff;
+  border-radius: 999px;
+  padding: 0.08rem 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .item-row-text {
   font-size: inherit;
   line-height: inherit;
+  font-weight: 600;
 }
 
 .item-more {
@@ -440,7 +453,6 @@
 .g-table--riwayat th.col-date,
 .g-table--riwayat td.col-date,
 .g-table--riwayat th.col-items-nama,
-.g-table--riwayat td.col-items-nama,
 .g-table--riwayat th.col-items-qty,
 .g-table--riwayat td.col-items-qty,
 .g-table--riwayat th.col-total,
@@ -450,13 +462,8 @@
   text-align: center;
 }
 
-.g-table--riwayat td.col-items-nama .items-list {
-  align-items: center;
-}
-
-.g-table--riwayat td.col-items-nama .item-row-nama {
-  justify-content: center;
-  text-align: center;
+.g-table--riwayat td.col-items-nama {
+  text-align: left;
 }
 
 /* ── STATUS BADGE ────────────────────────────────────────── */

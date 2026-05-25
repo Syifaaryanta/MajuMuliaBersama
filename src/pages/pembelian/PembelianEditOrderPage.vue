@@ -1,5 +1,5 @@
 <template>
-  <div class="penjualan-edit-page" :class="{ 'penjualan-edit-page--search-only': formVisible }" ref="pageEl" tabindex="-1">
+  <div class="penjualan-edit-page" :class="{ 'penjualan-edit-page--search-only': formVisible, 'order-info-hidden': orderInfoHidden }" ref="pageEl" tabindex="-1">
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="formVisible" class="modal-overlay modal-overlay--transparent" @click.self="clearSearch">
@@ -108,6 +108,7 @@
 
         <div class="shortcuts-bar">
           <kbd>F2 Barang</kbd>
+          <kbd>F3 Info</kbd>
           <kbd>F4 Info</kbd>
           <kbd>F10 Simpan</kbd>
           <kbd>Del Hapus</kbd>
@@ -189,7 +190,7 @@
                   </td>
                 </tr>
 
-                <tr class="item-row item-row--new">
+                <tr class="item-row item-row--new" ref="newItemRow">
                   <td class="col-no">{{ items.length + 1 }}</td>
                   <td class="col-kode" colspan="2">
                     <div class="search-input-wrap">
@@ -199,6 +200,7 @@
                         type="text"
                         class="item-input"
                         placeholder="Ketik nama barang lalu Enter"
+                        @focus="scrollNewItemRowIntoView"
                         @keydown.enter.prevent="onProductEnter"
                         @keydown="handleNewItemKeydown($event, 'product')"
                       />
@@ -214,6 +216,7 @@
                       min="0.01"
                       step="any"
                       placeholder="0"
+                      @focus="scrollNewItemRowIntoView"
                       @keydown.enter.prevent="focusPrice"
                       @keydown="handleNewItemKeydown($event, 'qty')"
                       :disabled="!newItem.product_id"
@@ -226,6 +229,7 @@
                       type="text"
                       class="price-input"
                       placeholder="Harga satuan"
+                      @focus="scrollNewItemRowIntoView"
                       @input="formatNewItemPrice"
                       @keydown.enter.prevent="addItem"
                       @keydown="handleNewItemKeydown($event, 'price')"
@@ -429,6 +433,7 @@ const inputProduct = ref(null)
 const inputQty = ref(null)
 const inputPrice = ref(null)
 const productModalInput = ref(null)
+const newItemRow = ref(null)
 const nameRefs = ref({})
 const qtyRefs = ref({})
 const priceRefs = ref({})
@@ -441,6 +446,7 @@ const loading = ref(false)
 const notFound = ref(false)
 const saving = ref(false)
 const formVisible = ref(true)
+const orderInfoHidden = ref(false)
 
 const order = ref(null)
 const items = ref([])
@@ -526,6 +532,13 @@ function focusProductInput() {
   nextTick(() => {
     inputProduct.value?.focus()
     inputProduct.value?.select?.()
+    scrollNewItemRowIntoView()
+  })
+}
+
+function scrollNewItemRowIntoView() {
+  nextTick(() => {
+    newItemRow.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   })
 }
 
@@ -552,6 +565,7 @@ function focusNameInputByActiveRow() {
 
 function focusPrice() {
   inputPrice.value?.focus()
+  scrollNewItemRowIntoView()
 }
 
 function handleTableKeydown(e, idx, field) {
@@ -762,6 +776,7 @@ function onGlobalKey(e) {
 
   const isActionShortcut =
     e.key === 'F2' ||
+    e.key === 'F3' ||
     e.key === 'F10' ||
     e.key === 'Escape' ||
     (e.ctrlKey && e.key.toLowerCase() === 's')
@@ -781,6 +796,12 @@ function onGlobalKey(e) {
     if (!focusNameInputByActiveRow()) {
       focusProductInput()
     }
+    return
+  }
+
+  if (e.key === 'F3') {
+    e.preventDefault()
+    orderInfoHidden.value = !orderInfoHidden.value
     return
   }
 
