@@ -1,0 +1,414 @@
+/* ============================================================
+   GUDANG-PAGE.CSS — Styles spesifik untuk halaman Gudang
+   ============================================================ */
+
+/* ── PAGE CONTAINER ─────────────────────────────────────── */
+.gudang-page {
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 2rem;
+}
+
+
+
+/* ── INFO CARDS ─────────────────────────────────────────── */
+.info-cards {
+  display: grid;
+  grid-template-columns: repeat(5,1fr);
+  gap: .7rem;
+}
+
+.info-card {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: .7rem .9rem;
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.info-card--filled {
+  border-color: #bfdbfe;
+  box-shadow: 0 2px 14px rgba(59,130,246,.1);
+}
+
+.info-card--accent.info-card--filled {
+  border-color: #a7f3d0;
+  box-shadow: 0 2px 14px rgba(16,185,129,.12);
+}
+
+.info-card--accent .ic-icon { 
+  background: #ecfdf5; 
+  color: #059669; 
+}
+
+.info-card--accent.info-card--filled .ic-icon { 
+  background: #059669; 
+  color: #fff; 
+}
+
+.ic-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
+  font-size: .9rem;
+  flex-shrink: 0;
+}
+
+.info-card--filled .ic-icon { 
+  background: #3b82f6; 
+  color: #fff; 
+}
+
+.ic-body { 
+  display: flex; 
+  flex-direction: column; 
+  gap: .18rem; 
+  min-width: 0; 
+}
+
+.ic-label {
+  font-size: .68rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  white-space: nowrap;
+}
+
+.ic-value {
+  font-size: .9rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── PRODUCT PHOTOS ─────────────────────────────────────── */
+.product-photos {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  outline: none;
+}
+
+.product-photos:focus-within {
+  border-color: #bfdbfe;
+}
+
+.photos-header {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .7rem 1.2rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-bottom: 1.5px solid #bfdbfe;
+}
+
+.photos-title {
+  font-size: .82rem;
+  font-weight: 700;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.photos-title .pi {
+  color: #3b82f6;
+}
+
+.photos-count {
+  margin-left: auto;
+  font-size: .73rem;
+  color: #64748b;
+  background: #fff;
+  padding: .2rem .65rem;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.photos-count kbd {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: .68rem;
+  font-family: 'Courier New', monospace;
+  color: #475569;
+  margin-left: 2px;
+}
+
+/* Centered flex grid — items size by count */
+.photos-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+}
+
+/* 1 photo: single item centered, larger */
+.photos-grid--1 .photo-item {
+  width: 220px;
+  height: 220px;
+}
+
+/* 2 photos: two items side by side, centered */
+.photos-grid--2 .photo-item {
+  width: 200px;
+  height: 200px;
+}
+
+/* 3 photos: three items side by side */
+.photos-grid--3 .photo-item {
+  width: 180px;
+  height: 180px;
+}
+
+.photo-item {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+  border: 2px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.photo-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,.15);
+  border-color: #3b82f6;
+}
+
+.photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .2s;
+}
+
+.photo-item:hover .photo-overlay {
+  opacity: 1;
+}
+
+.photo-overlay .pi {
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+/* ── EMPTY HINT ─────────────────────────────────────────── */
+.empty-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .65rem;
+  padding: 3.5rem 1rem;
+  color: #94a3b8;
+  font-size: .95rem;
+  text-align: center;
+}
+
+.empty-search-icon {
+  font-size: 2.5rem;
+  color: #cbd5e1;
+  margin-bottom: .25rem;
+}
+
+.empty-hint-sub {
+  font-size: .78rem;
+  color: #cbd5e1;
+}
+
+.empty-hint-sub kbd {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: .7rem;
+  font-family: 'Courier New', monospace;
+}
+
+/* ── RESPONSIVE ─────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .info-cards { 
+    grid-template-columns: repeat(3, 1fr); 
+  }
+}
+
+@media (max-width: 820px) {
+  .info-cards { 
+    grid-template-columns: repeat(2, 1fr); 
+  }
+  
+  .g-header .btn-primary { 
+    justify-content: center; 
+  }
+
+  .product-photos {
+    border-radius: 12px;
+  }
+
+  .photos-header {
+    padding: .65rem .85rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .gudang-page { 
+    gap: .85rem; 
+  }
+
+
+  
+  .info-cards { 
+    grid-template-columns: 1fr 1fr; 
+    gap: .55rem;
+  }
+
+  .info-card {
+    padding: .6rem .7rem;
+    gap: .55rem;
+  }
+
+  .ic-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    font-size: .8rem;
+  }
+
+  .ic-label {
+    font-size: .62rem;
+  }
+
+  .ic-value {
+    font-size: .8rem;
+  }
+
+  .photos-grid--1 .photo-item,
+  .photos-grid--2 .photo-item,
+  .photos-grid--3 .photo-item {
+    width: 140px;
+    height: 140px;
+  }
+}
+
+@media (max-width: 480px) {
+  .info-cards { 
+    grid-template-columns: 1fr;
+  }
+
+  .photos-grid {
+    gap: .7rem;
+    padding: .75rem;
+  }
+  
+  .ic-value { 
+    font-size: .88rem; 
+  }
+  
+  .photos-count {
+    font-size: .68rem;
+    padding: .15rem .5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Semua tombol aksi Gudang jadi icon-only di mobile. */
+  .btn-tambah-header,
+  .btn-to-detail,
+  .btn-archive-cs,
+  .btn-restore-cs,
+  .btn-back,
+  .btn-back-sm,
+  .btn-cancel,
+  .btn-save,
+  .btn-danger,
+  .btn-archive,
+  .btn-restore,
+  .arc-btn-cancel,
+  .arc-btn-confirm,
+  .btn-add-supplier {
+    width: 2.3rem;
+    min-width: 2.3rem;
+    height: 2.3rem;
+    padding: 0;
+    border-radius: 9px;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .btn-label,
+  .kbd-f2,
+  .kbd-cs,
+  .btn-cancel kbd,
+  .btn-save kbd,
+  .arc-btn-cancel kbd,
+  .arc-btn-confirm kbd {
+    display: none !important;
+  }
+
+  .btn-tambah-header i,
+  .btn-to-detail i,
+  .btn-archive-cs i,
+  .btn-restore-cs i,
+  .btn-back i,
+  .btn-back-sm i,
+  .btn-cancel i,
+  .btn-save i,
+  .btn-danger i,
+  .btn-archive i,
+  .btn-restore i,
+  .arc-btn-cancel i,
+  .arc-btn-confirm i,
+  .btn-add-supplier i {
+    margin: 0;
+  }
+
+  .result-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .45rem;
+  }
+
+  .result-meta-right,
+  .pagination-wrap,
+  .ktl-meta-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .topbar-hint,
+  .ktl-kbd-bar,
+  .arc-kbd-bar {
+    display: none;
+  }
+}

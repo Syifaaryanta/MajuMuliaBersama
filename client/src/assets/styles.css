@@ -1,0 +1,184 @@
+/* ============================================================
+   GLOBAL STYLES — MMB Inventory & POS
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  color: #1e293b;
+  background: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ============================================================
+   SHARED PLACEHOLDER PAGE STYLE
+   ============================================================ */
+.page-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 55vh;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.placeholder-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+}
+
+.placeholder-icon .pi {
+  font-size: 1.75rem;
+  color: #ffffff;
+}
+
+.placeholder-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.placeholder-desc {
+  font-size: 0.88rem;
+  color: #64748b;
+  max-width: 380px;
+  line-height: 1.6;
+}
+
+.placeholder-badge {
+  display: inline-flex;
+  padding: 0.3rem 0.9rem;
+  background: #eff6ff;
+  color: #3b82f6;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  border: 1px solid #bfdbfe;
+  margin-top: 0.25rem;
+}
+
+/* ============================================================
+   RESPONSIVE PLACEHOLDER
+   ============================================================ */
+@media (max-width: 640px) {
+  .page-placeholder {
+    min-height: 40vh;
+    gap: 0.6rem;
+  }
+
+  .placeholder-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+
+  .placeholder-icon .pi {
+    font-size: 1.4rem;
+  }
+
+  .placeholder-title {
+    font-size: 1.2rem;
+  }
+
+  .placeholder-desc {
+    font-size: 0.82rem;
+  }
+}
+
+/* ============================================================
+   UNIFIED PREMIUM PAGE HEADER (Clean Center Underline Style)
+   ============================================================ */
+.g-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1rem;
+  background: transparent;
+  padding: 0.5rem 0 1.5rem 0;
+  border-bottom: 2px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 1.75rem;
+}
+
+.g-header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.g-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.g-title {
+  font-size: 2rem;
+  font-weight: 750;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.g-subtitle {
+  font-size: 0.92rem;
+  color: #64748b;
+  margin: 0.35rem 0 0 0;
+  line-height: 1.45;
+  max-width: 800px;
+}
+
+/* Responsive headers */
+@media (max-width: 768px) {
+  .g-header {
+    padding: 0.4rem 0 1rem 0;
+    gap: 0.85rem;
+  }
+  .g-title {
+    font-size: 1.5rem;
+  }
+  .g-subtitle {
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+  }
+}
+
